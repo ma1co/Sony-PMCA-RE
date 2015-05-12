@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% set title = 'Market - Device selection' %}
+{% block content %}
+ <h1>Device selection</h1>
+ {% if devices %}
+  <p>Here is the list of devices in your PMCA account. Select one to show compatible apps.</p>
+  <ul>
+   {% for device in devices %}
+    <li><a href="{{ uri_for('marketApps', portalid = portalid, deviceid = device.deviceid) }}">{{ device.name }} (Serial: {{ device.serial }})</a></li>
+   {% endfor %}
+  </ul>
+ {% else %}
+  <p>No devices could be found in your PMCA account. Please login to PMCA and download an app via USB to your camera first.</p>
+ {% endif %}
+{% endblock %}

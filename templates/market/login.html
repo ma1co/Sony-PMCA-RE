@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% set title = 'Market - Login' %}
+{% block content %}
+ <h1>Market login</h1>
+ <form method="POST">
+  <p>Access the Sony appstore and download camera apps to your computer</p>
+  <p>Please enter your Sony Entertainment Network credentials. We won't save them on our servers.</p>
+  <p><label for="email">Email:</label>
+  <input type="text" name="email" id="email"></p>
+  <p><label for="password">Password:</label>
+  <input type="password" name="password" id="password"></p>
+  <p><input type="submit" value="Login"></p>
+  <p>Not registred yet? <a href="{{ registerUrl }}">Create an account</a></p>
+ </form>
+{% endblock %}

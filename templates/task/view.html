@@ -1,0 +1,22 @@
+{% if completed %}
+ <h2>Device</h2>
+ <ul>
+  {% set device = response.deviceinfo %}
+  <li><b>Name:</b> {{ device.name }}</li>
+  <li><b>Product code:</b> {{ device.productcode }}</li>
+  <li><b>Serial number:</b> {{ device.deviceid }}</li>
+  <li><b>Firmware:</b> {{ device.fwversion }}</li>
+  <li><b>Battery:</b> {{ device.battery }} %</li>
+  <li><b>Total storage space:</b> {{ (device.storagetotalsize / 10 ** 6) | round(1) }} MB</li>
+  <li><b>Free storage space:</b> {{ (device.freespace / 10 ** 6) | round(1) }} MB</li>
+ </ul>
+
+ <h2>Installed apps</h2>
+ <ul>
+  {% for app in response.applications %}
+   <li>{{ app.name }} ({{ app.version }})</li>
+  {% endfor %}
+ </ul>
+{% else %}
+ (no response yet)
+{% endif %}

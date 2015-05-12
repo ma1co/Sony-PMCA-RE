@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% set title = 'Home' %}
+{% block content %}
+ <h1>Home</h1>
+ <p>The latest Sony cameras include an Android subsystem which allows to install apps from the propriatary Sony PlayMemories Camera appstore (PMCA). This application replicates the functionality of the Sony store and allows you to install custom Android apps on your camera.</p>
+ <ul>
+  <li><a href="{{ uri_for('apkUpload') }}">Install</a>: Install an app on your camera</li>
+  <li><a href="{{ uri_for('marketLogin') }}">Market</a>: Access your PMCA account to download Sony apps to your computer</li>
+ </ul>
+
+ <h1>Caution!</h1>
+ <p>This is an experiment in a very early stage. All information has been found through reverse engineering. It is likely to not work at all or even cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsability.</strong></p>
+
+ <h1>HowTo</h1>
+ <p>At this stage, it is most reasonable to experiment with modified apps from the Sony appstore:</p>
+ <ol>
+  <li>Download an app from the <a href="{{ uri_for('marketLogin') }}">market</a></li>
+  <li>Patch it (be creative)</li>
+  <li>Sign it</li>
+  <li><a href="{{ uri_for('apkUpload') }}">Install</a> it to your camera</li>
+ </ol>
+{% endblock %}

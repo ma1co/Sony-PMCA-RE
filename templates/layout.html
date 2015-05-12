@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" type="text/css" href="/static/style.css">
+  {% block additionalHead %}{% endblock %}
+ </head>
+ <body>
+  <div class="wrapper">
+   <div class="header">PMCA</div>
+   <div class="nav">
+    <a href="{{ uri_for('home') }}">Home</a>
+    <a href="{{ uri_for('apkUpload') }}">Install</a>
+    <a href="{{ uri_for('marketLogin') }}">Market</a>
+   </div>
+   {% block content %}{% endblock %}
+  </div>
+ </body>
+</html>

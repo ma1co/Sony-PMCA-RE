@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% set title = 'Market - Apps' %}
+{% block content %}
+ <h1>Download Apps</h1>
+ <p>Here is the list of apps compatible with your camera. Click on an app to download the apk file to your computer (this may take a moment).</p>
+ <ul class="apps">
+  {% for app in apps %}
+   {% set url = uri_for('marketDownload', portalid = portalid, deviceid = deviceid, appid = app.id) %}
+   <li><a href="{{ url }}"><img src="{{ app.img }}"></a> <a href="{{ url }}">{{ app.name }}</a></li>
+  {% endfor %}
+ </ul>
+{% endblock %}
