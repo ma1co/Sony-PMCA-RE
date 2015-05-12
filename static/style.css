@@ -51,6 +51,15 @@ label {
  margin: 0 10px;
 }
 
+.github {
+ position: absolute;
+ top: 0;
+ right: 0;
+ width: 149px;
+ height: 149px;
+ background: url(http://aral.github.io/fork-me-on-github-retina-ribbons/right-graphite.png);
+}
+
 .box {
  background: #eee;
  padding: 10px;
