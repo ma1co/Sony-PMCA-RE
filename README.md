@@ -26,7 +26,7 @@ This app is used to download apps directly on your camera via the built-in wifi.
 It is basicly a WebKit wrapper which allows you to access the Sony appstore with the special User-Agent header `Mozilla/5.0 (Build/sccamera)`. The requests are redirected to `wifi***.php`. As soon as you decide to download an app, an *xpd* file is loaded which contains the URL to an *spk* file. Using hard coded http authentication, the *spk* file is downloaded.
 
 ### ScalarAInstaller ###
-An *spk* file is a container for an AES encrypted *apk* file. A DES encrypted version of the key is contained, too. This app decrypts the *apk* data and hands it to the default android app installer.
+An *spk* file is a container for an AES encrypted *apk* file. An RSA encrypted version of the key is contained, too. This app decrypts the *apk* data and hands it to the default android app installer.
 
 ### ScalarAUsbDlApp ###
 This is the most interesting app, because it handles the communication when installing apps through your computer via USB. On the computer side, things are handled directly in your browser through the PMCA Downloader plugin.
