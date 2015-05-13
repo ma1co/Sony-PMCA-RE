@@ -1,3 +1,5 @@
+"""A Google appengine application which allows you to download apps from the PMCA store and to install custom apps on your camera"""
+
 import jinja2
 import json
 import re
@@ -14,6 +16,7 @@ from pmca import xpd
 
 
 class Task(ndb.Model):
+ """The Entity used to save task data in the datastore between requests"""
  blob = ndb.BlobKeyProperty()
  date = ndb.DateTimeProperty(auto_now_add = True)
  completed = ndb.BooleanProperty(default = False)
@@ -22,12 +25,15 @@ class Task(ndb.Model):
 
 class BaseHandler(webapp2.RequestHandler):
  def json(self, data):
+  """Outputs the given dict as JSON"""
   self.output('application/json', json.dumps(data))
 
  def template(self, name, data = {}):
+  """Renders a jinja2 template"""
   self.response.write(jinjaEnv.get_template(name).render(data))
 
  def output(self, mimeType, data, filename = None):
+  """Outputs a file with the given mimetype"""
   self.response.content_type = mimeType
   if filename:
    self.response.headers['Content-Disposition'] = 'attachment;filename="%s"' % filename
@@ -35,11 +41,13 @@ class BaseHandler(webapp2.RequestHandler):
 
 
 class HomeHandler(BaseHandler):
+ """Displays the home page"""
  def get(self):
   self.template('home.html')
 
 
 class ApkUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
+ """Handles the upload of apk files to Google appengine"""
  def get(self):
   self.template('apk/upload.html', {
    'uploadUrl': blobstore.create_upload_url(self.uri_for('apkUpload')),
@@ -53,6 +61,7 @@ class ApkUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
 
 
 class PluginHandler(BaseHandler):
+ """Displays the page to start a new USB task sequence"""
  def get(self, blobKey=None):
   blob = None
   if blobKey:
@@ -65,6 +74,7 @@ class PluginHandler(BaseHandler):
 
 
 class PluginInstallHandler(BaseHandler):
+ """Displays the help text to install the PMCA Downloader plugin"""
  def get(self):
   self.template('plugin/install.html', {
    'text': marketclient.getPluginInstallText(),
@@ -72,6 +82,7 @@ class PluginInstallHandler(BaseHandler):
 
 
 class TaskStartHandler(BaseHandler):
+ """Creates a new task sequence and returns its id"""
  def get(self, blobKey=None):
   if blobKey:
    blob = blobstore.get(blobKey)
@@ -83,6 +94,7 @@ class TaskStartHandler(BaseHandler):
 
 
 class TaskViewHandler(BaseHandler):
+ """Displays the result of the given task sequence (called over AJAX)"""
  def get(self, taskKey):
   task = ndb.Key(Task, int(taskKey)).get()
   if not task:
@@ -94,6 +106,7 @@ class TaskViewHandler(BaseHandler):
 
 
 class XpdHandler(BaseHandler):
+ """Returns the xpd file corresponding to the given task sequence (called by the plugin)"""
  def get(self, taskKey):
   task = ndb.Key(Task, int(taskKey)).get()
   if not task:
@@ -103,6 +116,7 @@ class XpdHandler(BaseHandler):
 
 
 class PortalHandler(BaseHandler):
+ """Saves the data sent by the camera to the datastore and returns the actions to be taken next (called by the camera)"""
  def post(self):
   data = self.request.body
   taskKey = int(marketserver.parsePostData(data)['session']['correlationid'])
@@ -120,6 +134,7 @@ class PortalHandler(BaseHandler):
 
 
 class SpkHandler(BaseHandler):
+ """Returns an spk file containing an apk file uploaded earlier"""
  def get(self, blobKey):
   blob = blobstore.get(blobKey)
   if not blob:
@@ -131,6 +146,7 @@ class SpkHandler(BaseHandler):
 
 
 class MarketLoginHandler(BaseHandler):
+ """Manages the login to the PMCA store"""
  def get(self):
   self.template('market/login.html', {
    'registerUrl': marketclient.constants.registerUrl,
@@ -147,6 +163,7 @@ class MarketLoginHandler(BaseHandler):
 
 
 class MarketDevicesHandler(BaseHandler):
+ """Manages the selection of a device from the PMCA account"""
  def get(self, portalid):
   self.template('market/devices.html', {
    'devices': marketclient.getDevices(portalid),
@@ -155,6 +172,7 @@ class MarketDevicesHandler(BaseHandler):
 
 
 class MarketAppsHandler(BaseHandler):
+ """Displays all apps from the PMCA store available for the given device"""
  def get(self, portalid, deviceid):
   self.template('market/apps.html', {
    'apps': [app for app in marketclient.getApps(deviceid) if not app['status'].startswith('$')],
@@ -164,6 +182,7 @@ class MarketAppsHandler(BaseHandler):
 
 
 class MarketDownloadHandler(BaseHandler):
+ """Downloads and decrypts an app from the PMCA store"""
  def get(self, portalid, deviceid, appid):
   spkName, spkData = marketclient.download(portalid, deviceid, appid)
   apkData = spk.parse(spkData)

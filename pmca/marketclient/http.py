@@ -1,3 +1,5 @@
+""" Some methods to make HTTP requests"""
+
 import urllib
 import urllib2
 from cookielib import CookieJar

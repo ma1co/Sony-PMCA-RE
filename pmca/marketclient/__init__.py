@@ -1,3 +1,5 @@
+"""Provides a client to download apps from the PMCA store"""
+
 import json
 import re
 
@@ -6,11 +8,21 @@ import http
 from .. import xpd
 
 def download(portalid, deviceid, appid):
+ """Downloads an app from the PMCA store
+
+ Returns:
+  The contents of the spk file
+ """
  xpdData = downloadXpd(portalid, deviceid, appid)
  name, url = parseXpd(xpdData)
  return name, downloadSpk(url)
 
 def login(email, password):
+ """Tries to authenticate the specified user
+
+ Returns:
+  The portalid string in case of success or None otherwise
+ """
  response, headers, cookies = http.post(constants.loginUrl, data = {
   'j_username': email,
   'j_password': password,
@@ -19,6 +31,15 @@ def login(email, password):
  return cookies['portalid'] if 'portalid' in cookies else None
 
 def getDevices(portalid):
+ """Fetches the list of devices for the current user
+
+ Returns:
+  [{
+   'deviceid': 'device id',
+   'name': 'camera name',
+   'serial': 'serial number',
+  }, ...]
+ """
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=mycamera', cookies = {
   'portalid': portalid,
  }))
@@ -27,6 +48,7 @@ def getDevices(portalid):
  return [m.groupdict() for m in r.finditer(contents)]
 
 def getPluginInstallText():
+ """Fetches the English help text for installing the PMCA Downloader plugin"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=installingPlugin', cookies = {
   'localeid': constants.localeUs,
  }))
@@ -35,6 +57,20 @@ def getPluginInstallText():
  return r.search(contents).group(1)
 
 def getApps(deviceid):
+ """Fetches the list of apps compatible with the given device
+
+ Note: The US locale is used.
+ This may return apps that aren't available in the region connected to your account.
+ We want to get Dollar prices however.
+
+ Returns:
+  [{
+   'id': 'app id',
+   'name': 'app name',
+   'img': 'image url',
+   'status': '$1.00 / Install / Installed',
+  }, ...]
+ """
  data = http.get(constants.baseUrl + '/wifiall.php', headers = {
   'User-Agent': constants.cameraUserAgent,
  }, cookies = {
@@ -48,6 +84,11 @@ def getApps(deviceid):
  return apps
 
 def downloadXpd(portalid, deviceid, appid):
+ """Fetches the xpd file for the given app
+
+ Returns:
+  The contents of the xpd file
+ """
  return http.get(constants.baseUrl + '/wifixpwd.php', data = {
   'EID': appid,
  }, headers = {
@@ -58,8 +99,18 @@ def downloadXpd(portalid, deviceid, appid):
  })
 
 def parseXpd(data):
+ """Parses an xpd file
+
+ Returns:
+  ('file name', 'spk url')
+ """
  config = xpd.parse(data)
  return config['FNAME'], config['OUS']
 
 def downloadSpk(url):
+ """Downloads an spk file
+
+ Returns:
+  The contents of the spk file
+ """
  return http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword))
