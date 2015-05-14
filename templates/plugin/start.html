@@ -15,7 +15,7 @@
 
  <button onclick="pmcaDownload();">Get camera info</button>
  {% if blob %}
-  <button onclick="pmcaDownload('{{ blob.key() }}');">Download {{ blob.filename }} to camera</button>
+  <button onclick="pmcaDownload('{{ blob.key() }}');">Install {{ blob.filename }}</button>
  {% endif %}
 
  <h1>Response</h1>

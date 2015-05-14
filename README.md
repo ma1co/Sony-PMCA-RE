@@ -9,7 +9,7 @@ This is an experiment in a very early stage. All information has been found thro
 However, this seems to be safer than tampering with your camera firmware directly.
 
 ## Ok ok, can I install Facebook on my camera? ##
-I don't know, I haven't tried. Probably not. The apps available in the Sony appstore seem to be specificly built for Sony cameras and contain a considerable amount of "framework" code. Normal Android apps are not very likely to work at all. At this stage, the most reasonable thing to do is to download an app from the Sony appstore, modify it, sign it and install it on your camera.  
+I don't know, I haven't tried. Probably not. The apps available in the Sony appstore seem to be specificly built for Sony cameras and contain a considerable amount of "framework" code. Normal Android apps are not very likely to work at all. At this stage, the most reasonable thing to do is to download an app from the Sony appstore, modify it and install it on your camera.  
 
 ## How it all works ##
 Anyway, here are the juicy technical details:
