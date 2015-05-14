@@ -1,5 +1,6 @@
 """A Google appengine application which allows you to download apps from the PMCA store and to install custom apps on your camera"""
 
+import datetime
 import jinja2
 import json
 import re
@@ -190,6 +191,16 @@ class MarketDownloadHandler(BaseHandler):
   self.output('application/vnd.android.package-archive', apkData, apkName)
 
 
+class CleanupHandler(BaseHandler):
+ """Deletes all data older than one hour"""
+ keepForMinutes = 60
+ def get(self):
+  deleteBeforeDate = datetime.datetime.now() - datetime.timedelta(minutes = self.keepForMinutes)
+  for blob in blobstore.BlobInfo.gql('WHERE creation < :1', deleteBeforeDate):
+   blob.delete()
+  ndb.delete_multi(Task.gql('WHERE date < :1', deleteBeforeDate).fetch(keys_only = True))
+
+
 app = webapp2.WSGIApplication([
  webapp2.Route('/', HomeHandler, 'home'),
  webapp2.Route('/upload', ApkUploadHandler, 'apkUpload'),
@@ -206,6 +217,7 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/market/<portalid>', MarketDevicesHandler, 'marketDevices'),
  webapp2.Route('/market/<portalid>/<deviceid>', MarketAppsHandler, 'marketApps'),
  webapp2.Route('/market/<portalid>/<deviceid>/<appid>', MarketDownloadHandler, 'marketDownload'),
+ webapp2.Route('/cleanup', CleanupHandler),
 ])
 
 jinjaEnv = jinja2.Environment(

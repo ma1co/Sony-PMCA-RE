@@ -1,0 +1,4 @@
+cron:
+- description: cleanup
+  url: /cleanup
+  schedule: every 60 mins
