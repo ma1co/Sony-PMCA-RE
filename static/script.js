@@ -4,7 +4,6 @@
   var url = location.protocol + '//' + location.hostname;
   if (location.port)
    url += ':' + location.port;
-  console.log(url);
   return url;
  }
 
@@ -52,9 +51,9 @@
  };
 
  function pluginMethod(method, data) {
-  log('Calling plugin (method = ' + method + ', data = ' + JSON.stringify(data) + ')');
-  var response = state.plugin.pmcadpMethod(method, data);
-  log('Plugin response: ' + JSON.stringify(response));
+  var result = state.plugin.pmcadpMethod(method, data)['pmcadl_result'];
+  if (result != 'success')
+   log('Plugin error: ' + result);
  }
 
  var errorCallbacks = [
@@ -70,14 +69,39 @@
   ['pmcadl_ev_failed_mode_switch', 'Mode switch'],
   ['pmcadl_ev_usb_connection_error', 'USB connection'],
   ['pmcadl_ev_network_connection_error', 'Network connection'],
-  ['pmcadl_ev_error_from_device', 'Device error'],
  ];
  for (var i=0; i<errorCallbacks.length; i++) {
   var err = errorCallbacks[i];
   window[err[0]] = function(arg) {
-   log('Error: ' + err[1] + ' (arg = ' + JSON.stringify(arg) + ')');
+   log('Error: ' + err[1]);
   };
  }
+
+ var deviceErrors = {
+  '0': 'Ok',
+  '10': 'App busy',
+  '100': 'General',
+  '200': 'USB',
+  '201': 'SSL',
+  '202': 'HTTP response',
+  '203': 'HTTP digest',
+  '204': 'HTTP redirect',
+  '300': 'Task start',
+  '400': 'Data actions',
+  '500': 'Set account info',
+  '501': 'Account info',
+  '502': 'Download',
+  '503': 'Install',
+  '504': 'Contents',
+  '505': 'Low battery',
+  '506': 'Battery too hot',
+  '800': 'Service from server',
+ };
+ window.pmcadl_ev_error_from_device = function(arg) {
+  var result = arg['device_result_code'];
+  var msg = deviceErrors[result];
+  log('Device error: ' + (msg ? msg : result));
+ };
 
  window.pmcaDownload = function(blobKey) {
   if (!state.plugin)
@@ -86,13 +110,13 @@
  }
  function startTask(blobKey) {
   result(state.noResultText);
-  log("Starting task (blobKey = " + blobKey + ")");
+  log("Starting task");
   var url = '/ajax/task/start';
   if (blobKey)
    url += '/' + blobKey
   ajax(url, function(data) {
    state.taskKey = JSON.parse(data).id;
-   log("Got task key (taskKey = " + state.taskKey + ")");
+   log("Got task key");
    pluginCancel();
   });
  }
@@ -109,7 +133,7 @@
   pluginMethod('pmcadl_request_sequence_start', {'trigger_url': getBaseUrl() + '/camera/xpd/' + taskKey});
  }
  window.pmcadl_ev_progress = function(arg) {
-  log('Download progress (' + JSON.stringify(arg) + ')');
+  log('Progress: ' + arg['pr_text'] + ' ' + arg['pr_percent'] + '%');
  };
  window.pmcadl_ev_complete_download = function() {
   log('Download completed');
