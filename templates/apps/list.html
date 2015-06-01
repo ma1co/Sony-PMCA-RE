@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% set title = 'Apps' %}
+{% block content %}
+ <h1>Apps</h1>
+ <p>Here is a list of open-source apps for your camera. Use them at your own risk!</p>
+ <ul class="apps">
+  {% for appId, app in apps.iteritems() %}
+   <li><a href="{{ uri_for('appPlugin', appId = appId) }}">{{ app.title }}</a>: {{ app.desc }} (<a href="https://github.com/{{ app.repo }}">Source</a>)</li>
+  {% endfor %}
+ </ul>
+{% endblock %}

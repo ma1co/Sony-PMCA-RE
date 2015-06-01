@@ -17,6 +17,9 @@
  {% if blob %}
   <button onclick="pmcaDownload('{{ uri_for('blobTaskStart', blobKey = blob.key()) }}');">Install {{ blob.filename }}</button>
  {% endif %}
+ {% if appId and app %}
+  <button onclick="pmcaDownload('{{ uri_for('appTaskStart', appId = appId) }}');">Install {{ app.title }}</button>
+ {% endif %}
 
  <h1>Response</h1>
  <div id="result">

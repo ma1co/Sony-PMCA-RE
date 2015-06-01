@@ -1,0 +1,8 @@
+github:
+  clientId:
+  clientSecret:
+apps:
+  PMCADemo:
+    title: PMCADemo
+    desc: A demo app
+    repo: ma1co/PMCADemo

@@ -6,16 +6,12 @@
  <ul>
   <li><a href="{{ uri_for('apkUpload') }}">Install</a>: Install an app on your camera</li>
   <li><a href="{{ uri_for('marketLogin') }}">Market</a>: Access your PMCA account to download Sony apps to your computer</li>
+  <li><a href="{{ uri_for('apps') }}">Apps</a>: Open-source apps you can try on your camera</li>
  </ul>
 
  <h1>Caution!</h1>
  <p>This is an experiment in a very early stage. All information has been found through reverse engineering. It is likely to not work at all or even cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsability.</strong></p>
 
  <h1>HowTo</h1>
- <p>At this stage, it is most reasonable to experiment with modified apps from the Sony appstore:</p>
- <ol>
-  <li>Download an app from the <a href="{{ uri_for('marketLogin') }}">market</a></li>
-  <li>Patch it (be creative)</li>
-  <li><a href="{{ uri_for('apkUpload') }}">Install</a> it to your camera</li>
- </ol>
+ <p>If you're feeling lucky, try the <a href="{{ uri_for('apps') }}">demo app</a>!</p>
 {% endblock %}

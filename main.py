@@ -5,7 +5,9 @@ import jinja2
 import json
 import re
 import webapp2
+import yaml
 
+from google.appengine.api import urlfetch
 from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
@@ -19,6 +21,7 @@ from pmca import xpd
 class Task(ndb.Model):
  """The Entity used to save task data in the datastore between requests"""
  blob = ndb.BlobKeyProperty()
+ app = ndb.StringProperty()
  date = ndb.DateTimeProperty(auto_now_add = True)
  completed = ndb.BooleanProperty(default = False)
  response = ndb.TextProperty()
@@ -39,6 +42,10 @@ class BaseHandler(webapp2.RequestHandler):
   if filename:
    self.response.headers['Content-Disposition'] = 'attachment;filename="%s"' % filename
   self.response.write(data)
+
+ def appConfig(self):
+  with open('config_apps.yaml', 'r') as f:
+   return yaml.load(f)
 
 
 class HomeHandler(BaseHandler):
@@ -72,6 +79,12 @@ class PluginHandler(BaseHandler):
    return self.error(404)
   self.get({'blob': blob})
 
+ def getApp(self, appId):
+  config = self.appConfig()
+  if not appId in config['apps']:
+   return self.error(404)
+  self.get({'appId': appId, 'app': config['apps'][appId]})
+
 
 class PluginInstallHandler(BaseHandler):
  """Displays the help text to install the PMCA Downloader plugin"""
@@ -92,6 +105,11 @@ class TaskStartHandler(BaseHandler):
   if not blob:
    return self.error(404)
   self.get(Task(blob = blob.key()))
+
+ def getApp(self, appId):
+  if not appId in self.appConfig()['apps']:
+   return self.error(404)
+  self.get(Task(app = appId))
 
 
 class TaskViewHandler(BaseHandler):
@@ -126,6 +144,8 @@ class PortalHandler(BaseHandler):
    return self.error(404)
   if not task.completed and task.blob:
    response = marketserver.getJsonInstallResponse('App', self.uri_for('blobSpk', blobKey = task.blob, _full = True))
+  elif not task.completed and task.app:
+   response = marketserver.getJsonInstallResponse('App', self.uri_for('appSpk', appId = task.app, _full = True))
   else:
    response = marketserver.getJsonResponse()
   task.completed = True
@@ -146,6 +166,15 @@ class SpkHandler(BaseHandler):
    return self.error(404)
   with blob.open() as f:
    apkData = f.read()
+  self.get(apkData)
+
+ def getApp(self, appId):
+  config = self.appConfig()
+  if not appId in config['apps']:
+   return self.error(404)
+  githubUrl = 'https://api.github.com/repos/%s/releases/latest?client_id=%s&client_secret=%s' % (config['apps'][appId]['repo'], config['github']['clientId'], config['github']['clientSecret'])
+  github = json.loads(urlfetch.fetch(githubUrl).content)
+  apkData = urlfetch.fetch(github['assets'][0]['browser_download_url']).content
   self.get(apkData)
 
 
@@ -194,6 +223,14 @@ class MarketDownloadHandler(BaseHandler):
   self.output('application/vnd.android.package-archive', apkData, apkName)
 
 
+class AppsHandler(BaseHandler):
+ """Displays apps available on github"""
+ def get(self):
+  self.template('apps/list.html', {
+   'apps': self.appConfig()['apps'],
+  })
+
+
 class CleanupHandler(BaseHandler):
  """Deletes all data older than one hour"""
  keepForMinutes = 60
@@ -209,17 +246,21 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/upload', ApkUploadHandler, 'apkUpload'),
  webapp2.Route('/plugin', PluginHandler, 'plugin'),
  webapp2.Route('/plugin/blob/<blobKey>', PluginHandler, 'blobPlugin', handler_method = 'getBlob'),
+ webapp2.Route('/plugin/app/<appId>', PluginHandler, 'appPlugin', handler_method = 'getApp'),
  webapp2.Route('/plugin/install', PluginInstallHandler, 'installPlugin'),
  webapp2.Route('/ajax/task/start', TaskStartHandler, 'taskStart'),
  webapp2.Route('/ajax/task/start/blob/<blobKey>', TaskStartHandler, 'blobTaskStart', handler_method = 'getBlob'),
+ webapp2.Route('/ajax/task/start/app/<appId>', TaskStartHandler, 'appTaskStart', handler_method = 'getApp'),
  webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView'),
  webapp2.Route('/camera/xpd/<taskKey>', XpdHandler, 'xpd'),
  webapp2.Route('/camera/portal', PortalHandler, 'portal'),
  webapp2.Route('/camera/spk/blob/<blobKey>', SpkHandler, 'blobSpk', handler_method = 'getBlob'),
+ webapp2.Route('/camera/spk/app/<appId>', SpkHandler, 'appSpk', handler_method = 'getApp'),
  webapp2.Route('/market', MarketLoginHandler, 'marketLogin'),
  webapp2.Route('/market/<portalid>', MarketDevicesHandler, 'marketDevices'),
  webapp2.Route('/market/<portalid>/<deviceid>', MarketAppsHandler, 'marketApps'),
  webapp2.Route('/market/<portalid>/<deviceid>/<appid>', MarketDownloadHandler, 'marketDownload'),
+ webapp2.Route('/apps', AppsHandler, 'apps'),
  webapp2.Route('/cleanup', CleanupHandler),
 ])
 
