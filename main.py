@@ -57,21 +57,20 @@ class ApkUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
  def post(self):
   uploads = self.get_uploads()
   if len(uploads) == 1:
-   return self.redirect_to('apkPlugin', blobKey = uploads[0].key())
+   return self.redirect_to('blobPlugin', blobKey = uploads[0].key())
   self.get()
 
 
 class PluginHandler(BaseHandler):
  """Displays the page to start a new USB task sequence"""
- def get(self, blobKey=None):
-  blob = None
-  if blobKey:
-   blob = blobstore.get(blobKey)
-   if not blob:
-    return self.error(404)
-  self.template('plugin/start.html', {
-   'blob': blob,
-  })
+ def get(self, args = {}):
+  self.template('plugin/start.html', args)
+
+ def getBlob(self, blobKey):
+  blob = blobstore.get(blobKey)
+  if not blob:
+   return self.error(404)
+  self.get({'blob': blob})
 
 
 class PluginInstallHandler(BaseHandler):
@@ -84,14 +83,15 @@ class PluginInstallHandler(BaseHandler):
 
 class TaskStartHandler(BaseHandler):
  """Creates a new task sequence and returns its id"""
- def get(self, blobKey=None):
-  if blobKey:
-   blob = blobstore.get(blobKey)
-   if not blob:
-    return self.error(404)
-   blobKey = blob.key()
-  taskId = Task(blob = blobKey).put().id()
+ def get(self, task = Task()):
+  taskId = task.put().id()
   self.json({'id': taskId})
+
+ def getBlob(self, blobKey):
+  blob = blobstore.get(blobKey)
+  if not blob:
+   return self.error(404)
+  self.get(Task(blob = blob.key()))
 
 
 class TaskViewHandler(BaseHandler):
@@ -125,7 +125,7 @@ class PortalHandler(BaseHandler):
   if not task:
    return self.error(404)
   if not task.completed and task.blob:
-   response = marketserver.getJsonInstallResponse('App', self.uri_for('spk', blobKey = task.blob, _full = True))
+   response = marketserver.getJsonInstallResponse('App', self.uri_for('blobSpk', blobKey = task.blob, _full = True))
   else:
    response = marketserver.getJsonResponse()
   task.completed = True
@@ -135,15 +135,18 @@ class PortalHandler(BaseHandler):
 
 
 class SpkHandler(BaseHandler):
- """Returns an spk file containing an apk file uploaded earlier"""
- def get(self, blobKey):
+ """Returns an spk file containing an apk file"""
+ def get(self, apkData):
+  spkData = spk.dump(apkData)
+  self.output(spk.constants.mimeType, spkData, "app%s" % spk.constants.extension)
+
+ def getBlob(self, blobKey):
   blob = blobstore.get(blobKey)
   if not blob:
    return self.error(404)
   with blob.open() as f:
    apkData = f.read()
-  spkData = spk.dump(apkData)
-  self.output(spk.constants.mimeType, spkData, "app%s" % spk.constants.extension)
+  self.get(apkData)
 
 
 class MarketLoginHandler(BaseHandler):
@@ -205,14 +208,14 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/', HomeHandler, 'home'),
  webapp2.Route('/upload', ApkUploadHandler, 'apkUpload'),
  webapp2.Route('/plugin', PluginHandler, 'plugin'),
- webapp2.Route('/plugin/blob/<blobKey>', PluginHandler, 'apkPlugin'),
+ webapp2.Route('/plugin/blob/<blobKey>', PluginHandler, 'blobPlugin', handler_method = 'getBlob'),
  webapp2.Route('/plugin/install', PluginInstallHandler, 'installPlugin'),
  webapp2.Route('/ajax/task/start', TaskStartHandler, 'taskStart'),
- webapp2.Route('/ajax/task/start/<blobKey>', TaskStartHandler, 'apkTaskStart'),
+ webapp2.Route('/ajax/task/start/blob/<blobKey>', TaskStartHandler, 'blobTaskStart', handler_method = 'getBlob'),
  webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView'),
  webapp2.Route('/camera/xpd/<taskKey>', XpdHandler, 'xpd'),
  webapp2.Route('/camera/portal', PortalHandler, 'portal'),
- webapp2.Route('/camera/spk/<blobKey>', SpkHandler, 'spk'),
+ webapp2.Route('/camera/spk/blob/<blobKey>', SpkHandler, 'blobSpk', handler_method = 'getBlob'),
  webapp2.Route('/market', MarketLoginHandler, 'marketLogin'),
  webapp2.Route('/market/<portalid>', MarketDevicesHandler, 'marketDevices'),
  webapp2.Route('/market/<portalid>/<deviceid>', MarketAppsHandler, 'marketApps'),

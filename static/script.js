@@ -103,17 +103,14 @@
   log('Device error: ' + (msg ? msg : result));
  };
 
- window.pmcaDownload = function(blobKey) {
+ window.pmcaDownload = function(startUrl) {
   if (!state.plugin)
    return log('Error: Plugin not loaded');
-  startTask(blobKey);
+  startTask(startUrl);
  }
- function startTask(blobKey) {
+ function startTask(url) {
   result(state.noResultText);
   log("Starting task");
-  var url = '/ajax/task/start';
-  if (blobKey)
-   url += '/' + blobKey
   ajax(url, function(data) {
    state.taskKey = JSON.parse(data).id;
    log("Got task key");
