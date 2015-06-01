@@ -9,7 +9,7 @@ This is an experiment in a very early stage. All information has been found thro
 However, this seems to be safer than tampering with your camera firmware directly.
 
 ## Ok ok, can I install Facebook on my camera? ##
-I don't know, I haven't tried. Probably not. The apps available in the Sony appstore seem to be specificly built for Sony cameras and contain a considerable amount of "framework" code. Normal Android apps are not very likely to work at all. At this stage, the most reasonable thing to do is to download an app from the Sony appstore, modify it and install it on your camera.  
+I don't know, I haven't tried. Probably not. The apps available in the Sony appstore seem to be specificly built for Sony cameras and contain a considerable amount of "framework" code. The [PMCADemo](https://github.com/ma1co/PMCADemo) project tries to make sense of the Sony APIs.
 
 ## How it all works ##
 Anyway, here are the juicy technical details:
@@ -18,7 +18,7 @@ Anyway, here are the juicy technical details:
 If you want to dig into the firmware yourself, here's what to do:
 
 1. Use [nex-hack's fwtool](http://www.nex-hack.info/wiki/development/fwtool) to unpack your favorite camera's firmware (this seems to only work for older firmware versions however)
-2. On Windows, use [Ext2Explore](http://sourceforge.net/projects/ext2read/) to unpack *android_ext2.fsimg* and *android_and_res_ext2.fsimg*
+2. On Windows, use [Explore2fs](http://www.chrysocome.net/explore2fs) to unpack *android_ext2.fsimg* and *android_and_res_ext2.fsimg*
 3. *android_ext2.fsimg* contains the interesting apps in the *app* directory
 
 ### ScalarAMarket ###
