@@ -96,7 +96,9 @@ class PluginInstallHandler(BaseHandler):
 
 class TaskStartHandler(BaseHandler):
  """Creates a new task sequence and returns its id"""
- def get(self, task = Task()):
+ def get(self, task = None):
+  if task is None:
+   task = Task()
   taskId = task.put().id()
   self.json({'id': taskId})
 
