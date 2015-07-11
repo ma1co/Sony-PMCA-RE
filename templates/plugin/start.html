@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set title = 'USB Communication' %}
 {% block additionalHead %}
- <script src="/static/script.js"></script>
+ <script src="/static/script.js?{{ versionHash }}"></script>
  <script>
   window.onload = function() {
    pmcaInit('log', 'result');

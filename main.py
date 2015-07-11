@@ -1,8 +1,10 @@
 """A Google appengine application which allows you to download apps from the PMCA store and to install custom apps on your camera"""
 
 import datetime
+import hashlib
 import jinja2
 import json
+import os
 import re
 import webapp2
 import yaml
@@ -271,3 +273,4 @@ jinjaEnv = jinja2.Environment(
  autoescape = True
 )
 jinjaEnv.globals['uri_for'] = webapp2.uri_for
+jinjaEnv.globals['versionHash'] = hashlib.sha1(os.environ['CURRENT_VERSION_ID']).hexdigest()[:8]
