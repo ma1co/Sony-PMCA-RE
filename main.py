@@ -134,7 +134,7 @@ class XpdHandler(BaseHandler):
   task = ndb.Key(Task, int(taskKey)).get()
   if not task:
    return self.error(404)
-  xpdData = marketserver.getXpdResponse(task.key.id(), self.uri_for('portal', _full = True))
+  xpdData = marketserver.getXpdResponse(task.key.id(), self.uri_for('portal', _scheme='https'))
   self.output(xpd.constants.mimeType, xpdData)
 
 

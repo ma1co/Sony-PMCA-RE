@@ -1,12 +1,5 @@
 (function() {
 
- function getBaseUrl() {
-  var url = location.protocol + '//' + location.hostname;
-  if (location.port)
-   url += ':' + location.port;
-  return url;
- }
-
  function ajax(url, callback) {
   var xhr = new XMLHttpRequest();
   xhr.open("get", url, true);
@@ -127,7 +120,8 @@
  };
  function startDownload(taskKey) {
   log('Starting download to camera');
-  pluginMethod('pmcadl_request_sequence_start', {'trigger_url': getBaseUrl() + '/camera/xpd/' + taskKey});
+  // We can't use https because Chrome doesn't like it...
+  pluginMethod('pmcadl_request_sequence_start', {'trigger_url': 'http://' + location.hostname + '/camera/xpd/' + taskKey});
  }
  window.pmcadl_ev_progress = function(arg) {
   log('Progress: ' + arg['pr_text'] + ' ' + arg['pr_percent'] + '%');
