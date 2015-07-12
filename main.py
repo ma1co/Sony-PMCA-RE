@@ -20,6 +20,13 @@ from pmca import spk
 from pmca import xpd
 
 
+def replaceSuffix(pattern, repl, string):
+ return re.sub('(%s)?$' % re.escape(pattern), repl, string, flags=re.IGNORECASE)
+
+apkMimeType = 'application/vnd.android.package-archive'
+apkExtension = '.apk'
+
+
 class Task(ndb.Model):
  """The Entity used to save task data in the datastore between requests"""
  blob = ndb.BlobKeyProperty()
@@ -158,28 +165,45 @@ class PortalHandler(BaseHandler):
   self.output(marketserver.constants.jsonMimeType, response)
 
 
-class SpkHandler(BaseHandler):
- """Returns an spk file containing an apk file"""
- def get(self, apkData):
-  spkData = spk.dump(apkData)
-  self.output(spk.constants.mimeType, spkData, "app%s" % spk.constants.extension)
+class DownloadHandler(BaseHandler):
+ """Returns an apk or spk file"""
+ def getApk(self, (name, apkData)):
+  if apkData is None:
+   return self.error(404)
+  self.output(apkMimeType, apkData, replaceSuffix(apkExtension, apkExtension, str(name)))
 
- def getBlob(self, blobKey):
+ def getSpk(self, (name, apkData)):
+  if apkData is None:
+   return self.error(404)
+  spkData = spk.dump(apkData)
+  self.output(spk.constants.mimeType, spkData, replaceSuffix(apkExtension, spk.constants.extension, str(name)))
+
+ def getBlobApk(self, blobKey):
+  self.getApk(self.readBlob(blobKey))
+
+ def getBlobSpk(self, blobKey):
+  self.getSpk(self.readBlob(blobKey))
+
+ def getAppApk(self, appId):
+  self.getApk(self.readApp(appId))
+
+ def getAppSpk(self, appId):
+  self.getSpk(self.readApp(appId))
+
+ def readBlob(self, blobKey):
   blob = blobstore.get(blobKey)
   if not blob:
-   return self.error(404)
+   return None, None
   with blob.open() as f:
-   apkData = f.read()
-  self.get(apkData)
+   return blob.filename, f.read()
 
- def getApp(self, appId):
+ def readApp(self, appId):
   config = self.appConfig()
   if not appId in config['apps']:
-   return self.error(404)
+   return None, None
   githubUrl = 'https://api.github.com/repos/%s/releases/latest?client_id=%s&client_secret=%s' % (config['apps'][appId]['repo'], config['github']['clientId'], config['github']['clientSecret'])
   github = json.loads(urlfetch.fetch(githubUrl).content)
-  apkData = urlfetch.fetch(github['assets'][0]['browser_download_url']).content
-  self.get(apkData)
+  return github['assets'][0]['name'], urlfetch.fetch(github['assets'][0]['browser_download_url']).content
 
 
 class MarketLoginHandler(BaseHandler):
@@ -223,8 +247,7 @@ class MarketDownloadHandler(BaseHandler):
  def get(self, portalid, deviceid, appid):
   spkName, spkData = marketclient.download(portalid, deviceid, appid)
   apkData = spk.parse(spkData)
-  apkName = re.sub('(%s)?$' % re.escape(spk.constants.extension), '.apk', spkName)
-  self.output('application/vnd.android.package-archive', apkData, apkName)
+  self.output(apkMimeType, apkData, replaceSuffix(spk.constants.extension, apkExtension, spkName))
 
 
 class AppsHandler(BaseHandler):
@@ -258,8 +281,10 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView'),
  webapp2.Route('/camera/xpd/<taskKey>', XpdHandler, 'xpd'),
  webapp2.Route('/camera/portal', PortalHandler, 'portal'),
- webapp2.Route('/camera/spk/blob/<blobKey>', SpkHandler, 'blobSpk', handler_method = 'getBlob'),
- webapp2.Route('/camera/spk/app/<appId>', SpkHandler, 'appSpk', handler_method = 'getApp'),
+ webapp2.Route('/download/apk/blob/<blobKey>', DownloadHandler, 'blobApk', handler_method = 'getBlobApk'),
+ webapp2.Route('/download/spk/blob/<blobKey>', DownloadHandler, 'blobSpk', handler_method = 'getBlobSpk'),
+ webapp2.Route('/download/apk/app/<appId>', DownloadHandler, 'appApk', handler_method = 'getAppApk'),
+ webapp2.Route('/download/spk/app/<appId>', DownloadHandler, 'appSpk', handler_method = 'getAppSpk'),
  webapp2.Route('/market', MarketLoginHandler, 'marketLogin'),
  webapp2.Route('/market/<portalid>', MarketDevicesHandler, 'marketDevices'),
  webapp2.Route('/market/<portalid>/<deviceid>', MarketAppsHandler, 'marketApps'),

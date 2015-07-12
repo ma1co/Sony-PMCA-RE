@@ -80,3 +80,8 @@ label {
  vertical-align: middle;
  margin-right: 5px;
 }
+
+.small, .small a {
+ font-size: .8em;
+ color: #aaa;
+}
