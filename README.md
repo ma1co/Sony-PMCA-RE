@@ -2,7 +2,10 @@
 The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). We reverse engineered the installation process. This allows you to install custom Android apps on your camera.
 
 ## How to use it? ###
-**Go to [sony-pmca.appspot.com](https://sony-pmca.appspot.com/) to try it out!** You can upload your own apps and install them to your camera using the official Sony browser plugin. Since other browser vendors are disabling NPAPI plugins, please try it using **Internet Explorer**.
+There are two ways to install apps on your camera:
+
+* Browser plugin: **Go to [sony-pmca.appspot.com](https://sony-pmca.appspot.com/) to try it out!** You can upload your own apps and install them to your camera using the official Sony browser plugin. Since other browser vendors are disabling NPAPI plugins, please try it using **Internet Explorer**.
+* Python script: This method is for experienced users: Download this repository and run `python pmca.py install -f yourAppPackage.apk`. This script emulates the browser plugin and manages all the USB communication with the camera. WPD or libusb are used as drivers. The driver defaults to WPD on Windows. If you want to use libusb on Windows, you'll have to install generic drivers for your camera using [Zadig](http://zadig.akeo.ie/).
 
 ## Is it safe? ##
 This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. **We won't take any responsibility.**
@@ -16,6 +19,8 @@ If you want to develop your custom app, feel free to do so. Debug and release ce
 
 ## What about this repository? ##
 We replicated the server side of the Sony app store and created a Google appengine [website](https://sony-pmca.appspot.com/) for you to use it. This repository contains the source code.
+
+There is also `pmca.py`, a python script to communicate with your camera without the browser plugin. Run `pmca.py install --help` for more information.
 
 ## How does it all work? ##
 Since you asked, here are the juicy technical details:
