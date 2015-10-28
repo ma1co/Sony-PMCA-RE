@@ -77,6 +77,18 @@ class ApkUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
   self.get()
 
 
+class AjaxUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
+ """An api to upload apk files"""
+ def get(self):
+  self.json({'url': blobstore.create_upload_url(self.uri_for('ajaxUpload'))})
+
+ def post(self):
+  uploads = self.get_uploads()
+  if len(uploads) != 1:
+   self.error(400)
+  return self.json({'key': str(uploads[0].key())})
+
+
 class PluginHandler(BaseHandler):
  """Displays the page to start a new USB task sequence"""
  def get(self, args = {}):
@@ -125,14 +137,20 @@ class TaskStartHandler(BaseHandler):
 
 class TaskViewHandler(BaseHandler):
  """Displays the result of the given task sequence (called over AJAX)"""
- def get(self, taskKey):
+ def queryTask(self, taskKey):
   task = ndb.Key(Task, int(taskKey)).get()
   if not task:
    return self.error(404)
-  self.template('task/view.html', {
+  return {
    'completed': task.completed,
    'response': marketserver.parsePostData(task.response) if task.completed else None,
-  })
+  }
+
+ def getTask(self, taskKey):
+  self.json(self.queryTask(taskKey))
+
+ def viewTask(self, taskKey):
+  self.template('task/view.html', self.queryTask(taskKey))
 
 
 class XpdHandler(BaseHandler):
@@ -275,10 +293,12 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/plugin/blob/<blobKey>', PluginHandler, 'blobPlugin', handler_method = 'getBlob'),
  webapp2.Route('/plugin/app/<appId>', PluginHandler, 'appPlugin', handler_method = 'getApp'),
  webapp2.Route('/plugin/install', PluginInstallHandler, 'installPlugin'),
+ webapp2.Route('/ajax/upload', AjaxUploadHandler, 'ajaxUpload'),
  webapp2.Route('/ajax/task/start', TaskStartHandler, 'taskStart'),
  webapp2.Route('/ajax/task/start/blob/<blobKey>', TaskStartHandler, 'blobTaskStart', handler_method = 'getBlob'),
  webapp2.Route('/ajax/task/start/app/<appId>', TaskStartHandler, 'appTaskStart', handler_method = 'getApp'),
- webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView'),
+ webapp2.Route('/ajax/task/get/<taskKey>', TaskViewHandler, 'taskGet', handler_method = 'getTask'),
+ webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView', handler_method = 'viewTask'),
  webapp2.Route('/camera/xpd/<taskKey>', XpdHandler, 'xpd'),
  webapp2.Route('/camera/portal', PortalHandler, 'portal'),
  webapp2.Route('/download/apk/blob/<blobKey>', DownloadHandler, 'blobApk', handler_method = 'getBlobApk'),
