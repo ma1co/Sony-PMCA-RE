@@ -2,16 +2,17 @@
 {% set title = 'Home' %}
 {% block content %}
  <h1>Home</h1>
- <p>The latest Sony cameras include an Android subsystem which allows to install apps from the propriatary Sony PlayMemories Camera appstore (PMCA). This application replicates the functionality of the Sony store and allows you to install custom Android apps on your camera.</p>
+ <p>The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). We reverse engineered the installation process. This allows you to install custom Android apps on your camera.</p>
  <ul>
   <li><a href="{{ uri_for('apkUpload') }}">Install</a>: Install an app on your camera</li>
   <li><a href="{{ uri_for('marketLogin') }}">Market</a>: Access your PMCA account to download Sony apps to your computer</li>
-  <li><a href="{{ uri_for('apps') }}">Apps</a>: Open-source apps you can try on your camera</li>
+  <li><a href="{{ uri_for('apps') }}">Apps</a>: Custom apps to try on your camera</li>
  </ul>
 
- <h1>Caution!</h1>
- <p>This is an experiment in a very early stage. All information has been found through reverse engineering. It is likely to not work at all or even cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsability.</strong></p>
+ <h1>How-to</h1>
+ <p><a href="{{ uri_for('apkUpload') }}">Upload</a> your own Android app to install it on your camera. Or try the <a href="{{ uri_for('apps') }}">demo app</a>!</p>
 
- <h1>HowTo</h1>
- <p>If you're feeling lucky, try the <a href="{{ uri_for('apps') }}">demo app</a>!</p>
+ <h1>Caution!</h1>
+ <p>This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsability.</strong></p>
+ <p>However, we're just interacting with the isolated Android subsystem. Apps you install this way can be uninstalled in the applications manager. In the worst case, a factory reset of the camera clears all data on the Android partitions.</p>
 {% endblock %}
