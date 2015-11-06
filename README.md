@@ -28,9 +28,9 @@ Since you asked, here are the juicy technical details:
 ### Where to begin... ###
 If you want to dig into the firmware yourself, here's what to do:
 
-1. Use [nex-hack's fwtool](http://www.personal-view.com/faqs/sony-hack/fwtool) to unpack your favorite camera's firmware (this seems to only work for older firmware versions however)
-2. On Windows, use [Explore2fs](http://www.chrysocome.net/explore2fs) to unpack *android_ext2.fsimg* and *android_and_res_ext2.fsimg*
-3. *android_ext2.fsimg* contains the interesting apps in the *app* directory
+1. Use [fwtool](https://github.com/ma1co/fwtool.py) to unpack your favorite camera's firmware
+2. On Windows, use [Explore2fs](http://www.chrysocome.net/explore2fs) to unpack the file system images found in the *0700\_part_image* directory
+3. One of the images contains the Android partition with the interesting apps in the *app* directory
 
 ### ScalarAMarket ###
 This app is used to download apps directly on your camera via the built-in wifi.
