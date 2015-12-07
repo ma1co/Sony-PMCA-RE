@@ -66,20 +66,10 @@ def listDevices():
  pdm.GetDevices(devices, pointer(length))
 
  for id in devices:
-  def getProperty(func):
-   length = c_ulong(0)
-   func(id, POINTER(c_ushort)(), pointer(length))
-   buffer = create_unicode_buffer(length.value)
-   func(id, cast(buffer, POINTER(c_ushort)), pointer(length))
-   return buffer.value
-  manufacturer = getProperty(pdm.GetDeviceManufacturer)
-  description = getProperty(pdm.GetDeviceDescription)
-
   match = re.search('#vid_([a-f0-9]{4})&pid_([a-f0-9]{4})(&|#)', id)
   idVendor = int(match.group(1), 16) if match else None
   idProduct = int(match.group(2), 16) if match else None
-
-  yield UsbDevice(id, idVendor, idProduct, USB_CLASS_PTP, manufacturer, description)
+  yield UsbDevice(id, idVendor, idProduct, USB_CLASS_PTP)
 
 class MtpDriver:
  """Send and receive MTP packages to a device."""

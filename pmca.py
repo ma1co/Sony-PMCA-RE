@@ -71,7 +71,7 @@ def installCommand(url, driverName=None, apkFile=None, outFile=None):
   print 'No MTP devices found. Ensure your camera is connected in MTP mode.'
 
  for device in devices:
-  print '\nQuerying %s' % device.product
+  print '\nQuerying device'
   # Get device info
   drv = driver.MtpDriver(device)
   info = MtpDevice(drv).getDeviceInfo()

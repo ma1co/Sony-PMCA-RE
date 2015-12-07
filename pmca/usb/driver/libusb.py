@@ -9,7 +9,7 @@ def listDevices():
  """Lists all detected USB devices"""
  for dev in usb.core.find(find_all=True):
   interface = dev.get_active_configuration().interfaces()[0]
-  yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass, dev.manufacturer, dev.product)
+  yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
 
 
 class UsbDriver:
