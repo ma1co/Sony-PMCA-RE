@@ -10,7 +10,7 @@ RequestMessage = namedtuple('RequestMessage', 'data')
 InitResponseMessage = namedtuple('InitResponseMessage', 'data')
 SslStartMessage = namedtuple('SslStartMessage', 'connectionId, host')
 SslSendDataMessage = namedtuple('SslSendDataMessage', 'connectionId, data')
-SslEndResponseMessage = namedtuple('SslEndResponseMessage', 'connectionId')
+SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
 
@@ -71,7 +71,7 @@ class SonyMtpAppInstaller(MtpDevice):
     elif type == '\x05\x01':
      return SslStartMessage(parse16be(data[20:22]), data[28:])
     elif type == '\x05\x02':
-     return SslEndResponseMessage(parse16be(data[20:22]))
+     return SslEndMessage(parse16be(data[20:22]))
     elif type == '\x05\x03':
      return SslSendDataMessage(parse16be(data[20:22]), data[26:])
     else:
@@ -114,7 +114,6 @@ class SonyMtpAppInstaller(MtpDevice):
  def sendSslEnd(self, req):
   """Lets the camera know that the SSL socket has been closed"""
   self._sendCommand('\x00\x01\x00\x01', '\x05\x04', dump16be(req) + '\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00')
-  self._receiveResponse(SslEndResponseMessage)
 
  def sendEnd(self):
   """Ends the communication with the camera"""

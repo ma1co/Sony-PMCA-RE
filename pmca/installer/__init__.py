@@ -69,8 +69,6 @@ def install(dev, xpdData, statusFunc = None):
      dev.sendSslData(connectionId, resp)
     else:
      dev.sendSslEnd(connectionId)
-     sock.close()
-     sock = None
 
   # Receive the next message from the camera
   message = dev.receive()
@@ -86,6 +84,10 @@ def install(dev, xpdData, statusFunc = None):
   elif isinstance(message, SslSendDataMessage) and sock and message.connectionId == connectionId:
    # The camera wants to send data over the socket
    sock.send(message.data)
+  elif isinstance(message, SslEndMessage) and sock and message.connectionId == connectionId:
+   # The camera wants to close the socket
+   sock.close()
+   sock = None
   elif isinstance(message, RequestMessage):
    # The camera sends a REST message
    request = _parseRequest(message.data)
