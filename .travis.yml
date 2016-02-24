@@ -1,0 +1,31 @@
+# Run os x builds on travis-ci.org
+
+language: objective-c
+
+install:
+ # Install python
+ - brew install --framework python
+ - brew link --overwrite python
+
+ # Install dependencies
+ - pip install -r requirements.txt
+
+ # Log versions
+ - python --version
+ - pip list
+
+ # Install libusb
+ - brew install libusb
+
+script:
+ # Run pyinstaller
+ - pyinstaller pmca.spec
+
+deploy:
+ # Deploy tagged releases
+ provider: releases
+ api_key: {secure: PWMg2dhPJgK4mww9yJcz3myo6oZwSMZU+2MvwDnvMvdZTaUPexHeiszX7RwBpzLNgPB+uJ7dgnjYJLm+LhgVgmeOhioIw9GDzVaC0rwfVVp94Q1tTHoXNlaDAfXQobY5p5avdjA2lSpvTuMDeiuAz2synsU5xmEcVbnhMtoMi8bsm4Nly63519yNkjyaYQU6BKR1lpHy9fh952YFcL2f4vRMYeq2aB3YLBCP1n9AkuocNEXoP+U03Ol+NpMWYcwBJGDunDo7dXkXSlBN5H4Re8JhAcKxfbuvnlkgb+bm+0OyOl0ePHPLOvShxeQlnI6A8NdmBBHLPBE2IIJw4pkhiU5wXvt70/teJLzww/90jNUNw+O7Z4e+HdBCLGENv4c9TnDnqU1RJKmcnWxWIbUNuCAzIsT5NGY7/lrOvlNJTVJ8O/dfmE/mRcGTJsXZyGEviysiLax56mRK4K07l0d5g6giPk0DadIBkANoBKzp4NDeB1E8VC7p0tAJZ1MaYHK8qEGelgtEFxnQm3NVnMv8tLZZEKLPCwgTJZTnyX+oJ/UxfHqO23hw+ntpRL9+dlLQouKnck+FEmGwYUUmIRfzGA21jpBprahEXENtn0efSd0fbYG0PvkrQRA/C4QuLOTkYgWJHWO+9dOww21rJ7YY4sp5yRMeXaBYj1zglUxyecY=}
+ file_glob: true
+ file: dist/*
+ skip_cleanup: true
+ on: {tags: true}

@@ -1,0 +1,38 @@
+# Run windows builds on appveyor.com
+
+version: "Build #{build}"
+
+environment:
+ PYTHON: C:\Python27
+
+install:
+ # Path setup
+ - set PATH=%PYTHON%;%PYTHON%\Scripts;%APPVEYOR_BUILD_FOLDER%;%PATH%
+
+ # Install dependencies
+ - pip install -r requirements.txt
+
+ # Log versions
+ - python --version
+ - pip list
+
+ # Download libusb
+ - appveyor DownloadFile http://jaist.dl.sourceforge.net/project/libusb-win32/libusb-win32-releases/1.2.6.0/libusb-win32-bin-1.2.6.0.zip
+ - 7z x libusb-win32-bin-1.2.6.0.zip
+ - move libusb-win32-bin-1.2.6.0\bin\x86\libusb0_x86.dll libusb0.dll
+
+build: off
+
+after_test:
+ # Run pyinstaller
+ - pyinstaller pmca.spec
+
+artifacts:
+ - path: dist\*
+
+deploy:
+ # Deploy tagged releases
+ - provider: GitHub
+   auth_token: {secure: fKuIKISPj15kzBq1zlLtAyscXK43FG6oQQPMw8k8rsbVXRYZfCYtK3XSn6AQDlip}
+   artifact: /.*/
+   on: {appveyor_repo_tag: true}
