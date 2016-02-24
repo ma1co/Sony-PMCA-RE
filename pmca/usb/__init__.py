@@ -15,6 +15,7 @@ class MtpDevice:
 
  def __init__(self, driver):
   self.driver = driver
+  self.driver.reset()
   self.openSession()
 
  def _checkResponse(self, code, acceptedCodes=[]):

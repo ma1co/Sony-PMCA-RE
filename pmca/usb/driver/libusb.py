@@ -31,6 +31,10 @@ class UsbDriver:
     return ep.bEndpointAddress
   raise Exception('No endpoint found')
 
+ def reset(self):
+  if self.dev.backend.__module__ == 'usb.backend.libusb1':
+   self.dev.reset()
+
  def read(self, length):
   return self.dev.read(self.epIn, length).tostring()
 

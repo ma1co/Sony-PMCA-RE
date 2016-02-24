@@ -124,6 +124,9 @@ class MtpDriver:
  def _getResponse(self, result):
   return result.GetUnsignedIntegerValue(WPD_PROPERTY_MTP_EXT_RESPONSE_CODE)
 
+ def reset(self):
+  pass
+
  def sendCommand(self, code, args):
   """Send a PTP/MTP command without data phase"""
   params = self._initInitialCommand(WPD_COMMAND_MTP_EXT_EXECUTE_COMMAND_WITHOUT_DATA_PHASE, code, args)
