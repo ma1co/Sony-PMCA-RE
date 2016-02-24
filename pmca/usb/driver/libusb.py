@@ -8,7 +8,7 @@ from ...util import *
 def listDevices():
  """Lists all detected USB devices"""
  for dev in usb.core.find(find_all=True):
-  interface = dev.get_active_configuration().interfaces()[0]
+  interface = dev.get_active_configuration()[(0, 0)]
   yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
 
 
@@ -25,7 +25,7 @@ class UsbDriver:
   self.epOut = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT)
 
  def _findEndpoint(self, type, direction):
-  interface = self.dev.get_active_configuration().interfaces()[0]
+  interface = self.dev.get_active_configuration()[(0, 0)]
   for ep in interface:
    if ep.bmAttributes == type and ep.bEndpointAddress & self.USB_ENDPOINT_MASK == direction:
     return ep.bEndpointAddress
