@@ -4,9 +4,9 @@ from comtypes import GUID
 from comtypes.automation import *
 from comtypes.client import *
 from ctypes import *
-import re
 
 from . import *
+from .. import *
 
 # Create and import the python comtypes wrapper for the needed DLLs
 GetModule('PortableDeviceApi.dll')
@@ -66,9 +66,7 @@ def listDevices():
  pdm.GetDevices(devices, pointer(length))
 
  for id in devices:
-  match = re.search('#vid_([a-f0-9]{4})&pid_([a-f0-9]{4})(&|#)', id)
-  idVendor = int(match.group(1), 16) if match else None
-  idProduct = int(match.group(2), 16) if match else None
+  idVendor, idProduct = parseDeviceId(id)
   yield UsbDevice(id, idVendor, idProduct, USB_CLASS_PTP)
 
 class MtpDriver:

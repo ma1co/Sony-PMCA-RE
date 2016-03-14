@@ -50,16 +50,15 @@ def installApp(dev, api, apkFile=None, outFile=None):
 def installCommand(url, driverName=None, apkFile=None, outFile=None):
  """Install command main"""
  if not driverName:
-  # On Windows, we default to wpd, user libusb for other systems
-  driverName = 'wpd' if os.name == 'nt' else 'libusb'
+  driverName = 'windows' if os.name == 'nt' else 'libusb'
 
  # Import the specified driver
  if driverName == 'libusb':
   print 'Using libusb'
   import pmca.usb.driver.libusb as driver
- elif driverName == 'wpd':
-  print 'Using Windows Portable Device Api (WPD)'
-  import pmca.usb.driver.wpd as driver
+ elif driverName == 'windows':
+  print 'Using Windows drivers'
+  import pmca.usb.driver.windows as driver
  else:
   raise Exception('Unknown driver')
 
@@ -90,7 +89,7 @@ def main():
  subparsers = parser.add_subparsers(dest='command', title='commands')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
  install.add_argument('-u', dest='url', help='specify the web api base url', default='https://sony-pmca.appspot.com')
- install.add_argument('-d', dest='driver', choices=['libusb', 'wpd'], help='specify the driver')
+ install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')
 
