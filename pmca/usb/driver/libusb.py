@@ -56,7 +56,12 @@ class UsbDriver:
   raise Exception('No endpoint found')
 
  def reset(self):
-  if self.dev.backend.__module__ == 'usb.backend.libusb1':
+  try:
+   if self.dev.is_kernel_driver_active(0):
+    self.dev.detach_kernel_driver(0)
+  except NotImplementedError:
+   pass
+  if self.dev._ctx.backend.__module__ == 'usb.backend.libusb1':
    self.dev.reset()
 
  def read(self, length):
