@@ -1,9 +1,13 @@
 """Methods to communicate with Sony MTP devices"""
 
+import binascii
 from collections import namedtuple
+from io import BytesIO
 
 from . import *
 from ..util import *
+
+CameraInfo = namedtuple('CameraInfo', 'plist, modelName, modelCode, serial')
 
 ResponseMessage = namedtuple('ResponseMessage', 'data')
 RequestMessage = namedtuple('RequestMessage', 'data')
@@ -109,7 +113,7 @@ class SonyExtCmdCamera:
  SONY_CMD_LensCommunicator_GetSupportedCommandIds = (6, 1)
  SONY_CMD_LensCommunicator_GetMountedLensInfo = (6, 2)
 
- BUFFER_SIZE = 4096
+ BUFFER_SIZE = 8192
 
  def __init__(self, dev):
   self.dev = dev
@@ -119,9 +123,38 @@ class SonyExtCmdCamera:
   size = parse32le(data[:4])
   return data[16:16+size]
 
+ def getCameraInfo(self):
+  """Gets information about the camera"""
+  data = BytesIO(self._sendCommand(self.SONY_CMD_DevInfoSender_GetModelInfo))
+  plistSize = parse32le(data.read(4))
+  plistData = data.read(plistSize)
+  data.read(4)
+  modelSize = parse8(data.read(1))
+  modelName = data.read(modelSize)
+  modelCode = binascii.hexlify(data.read(5))
+  serial = binascii.hexlify(data.read(4))
+  return CameraInfo(plistData, modelName, modelCode, serial)
+
+ def getKikiLog(self):
+  """Reads the first part of /tmp/kikilog.dat"""
+  self._sendCommand(self.SONY_CMD_KikiLogSender_InitKikiLog)
+  kikilog = ''
+  remaining = 1
+  while remaining:
+   data = BytesIO(self._sendCommand(self.SONY_CMD_KikiLogSender_ReadKikiLog))
+   data.read(4)
+   remaining = parse32le(data.read(4))
+   size = parse32le(data.read(4))
+   kikilog += data.read(size)
+  return kikilog[24:]
+
  def switchToAppInstaller(self):
   """Tells the camera to switch to app installation mode"""
   self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode)
+
+ def powerOff(self):
+  """Forces the camera to turn off"""
+  self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff)
 
 
 class SonyUpdaterCamera:
@@ -152,9 +185,7 @@ class SonyUpdaterCamera:
  def getFirmwareVersion(self):
   """Returns the camera's firmware version"""
   data = self._sendCommand(self.SONY_CMD_Updater_query_version, self.DIRECTION_IN)
-  minorVersion = parse16le(data[32:34])
-  majorVersion = parse16le(data[34:36])
-  return majorVersion, minorVersion
+  return '%x.%02x' % (parse8(data[34]), parse8(data[32]))
 
 
 class SonyMtpAppInstaller(MtpDevice):
