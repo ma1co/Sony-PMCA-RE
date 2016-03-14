@@ -5,6 +5,13 @@ import usb.core
 from . import *
 from ...util import *
 
+PtpHeader = Struct('PtpHeader', [
+ ('size', Struct.INT32),
+ ('type', Struct.INT16),
+ ('code', Struct.INT16),
+ ('transaction', Struct.INT32),
+])
+
 def listDevices():
  """Lists all detected USB devices"""
  for dev in usb.core.find(find_all=True):
@@ -44,26 +51,25 @@ class UsbDriver:
 
 class MtpDriver(UsbDriver):
  """Send and receive PTP/MTP packages to a device. Inspired by libptp2"""
- HEADER_LEN = 12
  MAX_PKG_LEN = 512
  TYPE_COMMAND = 1
  TYPE_DATA = 2
  TYPE_RESPONSE = 3
 
  def _writePtp(self, type, code, transaction, data=''):
-  self.write(dump32le(self.HEADER_LEN + len(data)) + dump16le(type) + dump16le(code) + dump32le(transaction) + data[:self.MAX_PKG_LEN-self.HEADER_LEN])
-  if len(data) > self.MAX_PKG_LEN-self.HEADER_LEN:
-   self.write(data[self.MAX_PKG_LEN-self.HEADER_LEN:])
+  self.write(PtpHeader.pack(
+   size = PtpHeader.size + len(data),
+   type = type,
+   code = code,
+   transaction = transaction,
+  ) + data)
 
  def _readPtp(self):
   data = self.read(self.MAX_PKG_LEN)
-  length = parse32le(data[:4])
-  type = parse16le(data[4:6])
-  code = parse16le(data[6:8])
-  transaction = parse32le(data[8:12])
-  if length > self.MAX_PKG_LEN:
-   data += self.read(length - self.MAX_PKG_LEN)
-  return type, code, transaction, data[self.HEADER_LEN:]
+  header = PtpHeader.unpack(data)
+  if header.size > self.MAX_PKG_LEN:
+   data += self.read(header.size - self.MAX_PKG_LEN)
+  return header.type, header.code, header.transaction, data[PtpHeader.size:PtpHeader.size+header.size]
 
  def _readData(self):
   type, code, transaction, data = self._readPtp()

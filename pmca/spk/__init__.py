@@ -5,6 +5,14 @@ from Crypto.PublicKey import RSA
 
 import constants
 import util
+from ..util import *
+
+SpkHeader = Struct('SpkHeader', [
+ ('magic', Struct.STR % 4),
+ ('keyOffset', Struct.INT32),
+ ('keySize', Struct.INT32),
+])
+spkHeaderMagic = '1spk'
 
 def parse(data):
  """Parses an spk file
@@ -23,21 +31,25 @@ def dump(data):
  encryptedData = encryptData(key, data)
  return dumpContainer(encryptedKey, encryptedData)
 
+def isSpk(data):
+ return len(data) >= SpkHeader.size and SpkHeader.unpack(data).magic == spkHeaderMagic
+
 def parseContainer(data):
  """Parses an spk file
 
  Returns:
   ('encrypted key', 'encrypted apk data')
  """
- if data[:4] != constants.header:
-  raise
- offset = util.parseInt(data[4:8])
- keyLen = util.parseInt(data[offset+8:offset+12])
- return data[offset+12:offset+12+keyLen], data[offset+12+keyLen:]
+ header = SpkHeader.unpack(data)
+ if header.magic != spkHeaderMagic:
+  raise Exception('Wrong magic')
+ keyOffset = SpkHeader.size + header.keyOffset
+ dataOffset = keyOffset + header.keySize
+ return data[keyOffset:dataOffset], data[dataOffset:]
 
 def dumpContainer(encryptedKey, encryptedData):
  """Builds an spk file from the encrypted key and data specified"""
- return constants.header + util.dumpInt(0) + util.dumpInt(len(encryptedKey)) + encryptedKey + encryptedData
+ return SpkHeader.pack(magic=spkHeaderMagic, keyOffset=0, keySize=len(encryptedKey)) + encryptedKey + encryptedData
 
 def decryptKey(encryptedKey):
  """Decrypts an RSA-encrypted key"""

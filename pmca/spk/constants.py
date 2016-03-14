@@ -1,6 +1,5 @@
 mimeType = 'application/vnd.sony.spk.package-archive'
 extension = '.1.spk'
-header = "1spk"
 blockSize = 0x100000
 paddingSize = 16
 
