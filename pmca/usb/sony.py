@@ -13,7 +13,14 @@ SslSendDataMessage = namedtuple('SslSendDataMessage', 'connectionId, data')
 SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
+SONY_MANUFACTURER = 'Sony Corporation'
+SONY_MANUFACTURER_SHORT = 'Sony'
+SONY_MSC_MODEL = 'DSC'
 
+
+def isSonyMscCamera(info):
+ """Pass a mass storage device info tuple. Guesses if the device is a camera in mass storage mode."""
+ return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model == SONY_MSC_MODEL
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
@@ -22,7 +29,7 @@ def isSonyMtpCamera(info):
   SonyMtpCamera.PTP_OC_SonyDiExtCmd_read,
   SonyMtpCamera.PTP_OC_SonyReqReconnect,
  ])
- return info.vendorExtension == '' and operations <= info.operationsSupported
+ return info.manufacturer == SONY_MANUFACTURER and info.vendorExtension == '' and operations <= info.operationsSupported
 
 def isSonyMtpAppInstaller(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in app installation mode."""
@@ -32,7 +39,20 @@ def isSonyMtpAppInstaller(info):
   SonyMtpAppInstaller.PTP_OC_SendProxyMessageInfo,
   SonyMtpAppInstaller.PTP_OC_SendProxyMessage,
  ])
- return 'sony.net/SEN_PRXY_MSG:' in info.vendorExtension and operations <= info.operationsSupported
+ return info.manufacturer == SONY_MANUFACTURER and 'sony.net/SEN_PRXY_MSG:' in info.vendorExtension and operations <= info.operationsSupported
+
+
+class SonyMscCamera(MscDevice):
+ """Methods to communicate a camera in mass storage mode"""
+ MSC_OC_ExtCmd = 0x7a
+
+ def sendSonyExtCommand(self, cmd, data, bufferSize):
+  command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*'\x00'
+  response = self.driver.sendWriteCommand(command, data)
+  self._checkResponse(response)
+  response, data = self.driver.sendReadCommand(command, bufferSize)
+  self._checkResponse(response)
+  return data
 
 
 class SonyMtpCamera(MtpDevice):
@@ -46,7 +66,7 @@ class SonyMtpCamera(MtpDevice):
  PTP_OC_SonyGetBurstshotObjectHandles = 0x9284
  PTP_OC_SonyGetAVIndexID = 0x9285
 
- def sendSonyExtCommand(self, cmd, data):
+ def sendSonyExtCommand(self, cmd, data, bufferSize):
   response = self.driver.sendWriteCommand(self.PTP_OC_SonyDiExtCmd_write, [cmd], data)
   self._checkResponse(response)
   response, data = self.driver.sendReadCommand(self.PTP_OC_SonyDiExtCmd_read, [cmd])
@@ -89,11 +109,13 @@ class SonyExtCmdCamera:
  SONY_CMD_LensCommunicator_GetSupportedCommandIds = (6, 1)
  SONY_CMD_LensCommunicator_GetMountedLensInfo = (6, 2)
 
+ BUFFER_SIZE = 4096
+
  def __init__(self, dev):
   self.dev = dev
 
  def _sendCommand(self, cmd):
-  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00')
+  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00', self.BUFFER_SIZE)
   size = parse32le(data[:4])
   return data[16:16+size]
 
@@ -118,12 +140,14 @@ class SonyUpdaterCamera:
  DIRECTION_OUT = 0
  DIRECTION_IN = 1
 
+ BUFFER_SIZE = 512
+
  def __init__(self, dev):
   self.dev = dev
 
  def _sendCommand(self, command, direction, data='', sequence=0):
   header = dump32le(len(data)) + '\x00\x01' + dump16le(command) + dump8(direction) + '\x00' + dump16le(sequence) + 20*'\x00'
-  return self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, header + data)
+  return self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, header + data, self.BUFFER_SIZE)
 
  def getFirmwareVersion(self):
   """Returns the camera's firmware version"""

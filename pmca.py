@@ -62,25 +62,36 @@ def installCommand(url, driverName=None, apkFile=None, outFile=None):
  else:
   raise Exception('Unknown driver')
 
- print 'Looking for Sony MTP devices'
- # Scan for MTP devices
- devices = [dev for dev in driver.listDevices() if dev.type == USB_CLASS_PTP and dev.idVendor == SONY_ID_VENDOR]
+ print 'Looking for Sony devices'
+ # Scan for devices
+ devices = [dev for dev in driver.listDevices() if dev.idVendor == SONY_ID_VENDOR]
 
  if not devices:
-  print 'No MTP devices found. Ensure your camera is connected in MTP mode.'
+  print 'No devices found. Ensure your camera is connected.'
 
  for device in devices:
-  print '\nQuerying device'
-  # Get device info
-  drv = driver.MtpDriver(device)
-  info = MtpDevice(drv).getDeviceInfo()
+  if device.type == USB_CLASS_MSC:
+   print '\nQuerying mass storage device'
+   # Get device info
+   drv = driver.MscDriver(device)
+   info = MscDevice(drv).getDeviceInfo()
 
-  if isSonyMtpCamera(info):
-   print '%s is a camera in MTP mode' % info.model
-   switchToAppInstaller(SonyMtpCamera(drv))
-  elif isSonyMtpAppInstaller(info):
-   print '%s is a camera in app install mode' % info.model
-   installApp(SonyMtpAppInstaller(drv), WebApi(url), apkFile, outFile)
+   if isSonyMscCamera(info):
+    print '%s %s is a camera in mass storage mode' % (info.manufacturer, info.model)
+    switchToAppInstaller(SonyMscCamera(drv))
+
+  elif device.type == USB_CLASS_PTP:
+   print '\nQuerying MTP device'
+   # Get device info
+   drv = driver.MtpDriver(device)
+   info = MtpDevice(drv).getDeviceInfo()
+
+   if isSonyMtpCamera(info):
+    print '%s %s is a camera in MTP mode' % (info.manufacturer, info.model)
+    switchToAppInstaller(SonyMtpCamera(drv))
+   elif isSonyMtpAppInstaller(info):
+    print '%s %s is a camera in app install mode' % (info.manufacturer, info.model)
+    installApp(SonyMtpAppInstaller(drv), WebApi(url), apkFile, outFile)
 
 
 def main():

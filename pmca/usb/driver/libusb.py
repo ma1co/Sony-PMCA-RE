@@ -12,6 +12,23 @@ PtpHeader = Struct('PtpHeader', [
  ('transaction', Struct.INT32),
 ])
 
+MscCommandBlockWrapper = Struct('MscCommandBlockWrapper', [
+ ('signature', Struct.STR % 4),
+ ('tag', Struct.INT32),
+ ('dataTransferLength', Struct.INT32),
+ ('flags', Struct.INT8),
+ ('lun', Struct.INT8),
+ ('commandLength', Struct.INT8),
+ ('command', Struct.STR % 16),
+])
+
+MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
+ ('signature', Struct.STR % 4),
+ ('tag', Struct.INT32),
+ ('dataResidue', Struct.INT32),
+ ('status', Struct.INT8),
+])
+
 def listDevices():
  """Lists all detected USB devices"""
  for dev in usb.core.find(find_all=True):
@@ -47,6 +64,43 @@ class UsbDriver:
 
  def write(self, data):
   return self.dev.write(self.epOut, data)
+
+
+class MscDriver(UsbDriver):
+ """Communicate with a USB mass storage device"""
+ DIRECTION_WRITE = 0
+ DIRECTION_READ = 0x80
+
+ def _writeCommand(self, direction, command, dataSize, tag=0, lun=0):
+  self.write(MscCommandBlockWrapper.pack(
+   signature = 'USBC',
+   tag = tag,
+   dataTransferLength = dataSize,
+   flags = direction,
+   lun = lun,
+   commandLength = len(command),
+   command = command.ljust(16, '\x00'),
+  ))
+
+ def _readResponse(self):
+  response = MscCommandStatusWrapper.unpack(self.read(MscCommandStatusWrapper.size))
+  if response.signature != 'USBS':
+   raise Exception('Wrong status signature')
+  return response.status
+
+ def sendCommand(self, command):
+  self._writeCommand(self.DIRECTION_WRITE, command, 0)
+  return self._readResponse()
+
+ def sendWriteCommand(self, command, data):
+  self._writeCommand(self.DIRECTION_WRITE, command, len(data))
+  self.write(data)
+  return self._readResponse()
+
+ def sendReadCommand(self, command, size):
+  self._writeCommand(self.DIRECTION_READ, command, size)
+  data = self.read(size)
+  return self._readResponse(), data
 
 
 class MtpDriver(UsbDriver):

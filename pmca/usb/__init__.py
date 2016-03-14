@@ -2,7 +2,42 @@ from collections import namedtuple
 
 from ..util import *
 
-DeviceInfo = namedtuple('DeviceInfo', 'manufacturer, model, serialNumber, operationsSupported, vendorExtension')
+MscDeviceInfo = namedtuple('MscDeviceInfo', 'manufacturer, model')
+MtpDeviceInfo = namedtuple('MtpDeviceInfo', 'manufacturer, model, serialNumber, operationsSupported, vendorExtension')
+
+
+class MscDevice:
+ """Manages communication with a USB mass storage device"""
+ MSC_OC_INQUIRY = 0x12
+
+ MSC_RESPONSE_OK = 0
+
+ def __init__(self, driver):
+  self.driver = driver
+  self.reset()
+
+ def _checkResponse(self, status):
+  if status != self.MSC_RESPONSE_OK:
+   raise Exception('Response status not OK: 0x%x' % status)
+
+ def reset(self):
+  self.driver.reset()
+  self.driver.sendCommand(6 * '\x00')
+
+ def _sendInquiryCommand(self, size):
+  response, data = self.driver.sendReadCommand(dump8(self.MSC_OC_INQUIRY) + 3*'\x00' + dump8(size) + '\x00', size)
+  self._checkResponse(response)
+  return data
+
+ def getDeviceInfo(self):
+  """SCSI Inquiry command"""
+  l = 5 + parse8(self._sendInquiryCommand(5)[4:5])
+  data = self._sendInquiryCommand(l)
+
+  vendor = data[8:16].rstrip()
+  product = data[16:32].rstrip()
+  return MscDeviceInfo(vendor, product)
+
 
 class MtpDevice:
  """Manages communication with a PTP/MTP device. Inspired by libptp2"""
@@ -15,7 +50,7 @@ class MtpDevice:
 
  def __init__(self, driver):
   self.driver = driver
-  self.driver.reset()
+  self.reset()
   self.openSession()
 
  def _checkResponse(self, code, acceptedCodes=[]):
@@ -50,7 +85,10 @@ class MtpDevice:
   offset, version = self._parseString(data, offset)
   offset, serial = self._parseString(data, offset)
 
-  return DeviceInfo(manufacturer, model, serial, set(operationsSupported), vendorExtension)
+  return MtpDeviceInfo(manufacturer, model, serial, set(operationsSupported), vendorExtension)
+
+ def reset(self):
+  self.driver.reset()
 
  def openSession(self, id=1):
   """Opens a new MTP session"""
