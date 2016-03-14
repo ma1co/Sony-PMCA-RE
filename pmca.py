@@ -18,7 +18,7 @@ def printStatus(status):
 def switchToAppInstaller(dev):
  """Switches a camera in MTP mode to app installation mode"""
  print 'Switching to app install mode. Please run this command again when the camera has switched modes.'
- dev.switchToAppInstaller()
+ SonyExtCmdCamera(dev).switchToAppInstaller()
 
 def installApp(dev, api, apkFile=None, outFile=None):
  """Installs an app on the specified device. The apk is uploaded to the specified WebApi."""

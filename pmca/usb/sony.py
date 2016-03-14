@@ -14,42 +14,146 @@ SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
 
-CMD_ID_SWITCH = 0x9280
-CMD_ID_WRITE1 = 0x948c
-CMD_ID_WRITE2 = 0x948d
-CMD_ID_READ1 = 0x9488
-CMD_ID_READ2 = 0x9489
-
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
- return info.vendorExtension == '' and set([CMD_ID_SWITCH]) <= info.operationsSupported
+ operations = frozenset([
+  SonyMtpCamera.PTP_OC_SonyDiExtCmd_write,
+  SonyMtpCamera.PTP_OC_SonyDiExtCmd_read,
+  SonyMtpCamera.PTP_OC_SonyReqReconnect,
+ ])
+ return info.vendorExtension == '' and operations <= info.operationsSupported
 
 def isSonyMtpAppInstaller(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in app installation mode."""
- return 'sony.net/SEN_PRXY_MSG:' in info.vendorExtension and set([CMD_ID_WRITE1, CMD_ID_WRITE2, CMD_ID_READ1, CMD_ID_READ2]) <= info.operationsSupported
+ operations = frozenset([
+  SonyMtpAppInstaller.PTP_OC_GetProxyMessageInfo,
+  SonyMtpAppInstaller.PTP_OC_GetProxyMessage,
+  SonyMtpAppInstaller.PTP_OC_SendProxyMessageInfo,
+  SonyMtpAppInstaller.PTP_OC_SendProxyMessage,
+ ])
+ return 'sony.net/SEN_PRXY_MSG:' in info.vendorExtension and operations <= info.operationsSupported
 
 
 class SonyMtpCamera(MtpDevice):
  """Methods to communicate a camera in MTP mode"""
+
+ # Operation codes (defined in libInfraMtpServer.so)
+ PTP_OC_SonyDiExtCmd_write = 0x9280
+ PTP_OC_SonyDiExtCmd_read = 0x9281
+ PTP_OC_SonyReqReconnect = 0x9282
+ PTP_OC_SonyGetBurstshotGroupNum = 0x9283
+ PTP_OC_SonyGetBurstshotObjectHandles = 0x9284
+ PTP_OC_SonyGetAVIndexID = 0x9285
+
+ def sendSonyExtCommand(self, cmd, data):
+  response = self.driver.sendWriteCommand(self.PTP_OC_SonyDiExtCmd_write, [cmd], data)
+  self._checkResponse(response)
+  response, data = self.driver.sendReadCommand(self.PTP_OC_SonyDiExtCmd_read, [cmd])
+  self._checkResponse(response)
+  return data
+
+ def switchToMsc(self):
+  """Tells the camera to switch to mass storage mode"""
+  response = self.driver.sendCommand(self.PTP_OC_SonyReqReconnect, [0])
+  self._checkResponse(response)
+
+
+class SonyExtCmdCamera:
+ """Methods to send Sony external commands to a camera"""
+
+ # DevInfoSender (libInfraDevInfoSender.so)
+ SONY_CMD_DevInfoSender_GetModelInfo = (1, 1)
+ SONY_CMD_DevInfoSender_GetSupportedCommandIds = (1, 2)
+
+ # KikiLogSender (libInfraKikiLogSender.so)
+ SONY_CMD_KikiLogSender_InitKikiLog = (2, 1)
+ SONY_CMD_KikiLogSender_ReadKikiLog = (2, 2)
+
+ # ExtBackupCommunicator (libInfraExtBackupCommunicator.so)
+ SONY_CMD_ExtBackupCommunicator_GetSupportedCommandIds = (4, 1)
+ SONY_CMD_ExtBackupCommunicator_NotifyBackupType = (4, 2)
+ SONY_CMD_ExtBackupCommunicator_NotifyBackupStart = (4, 3)
+ SONY_CMD_ExtBackupCommunicator_NotifyBackupFinish = (4, 4)
+ SONY_CMD_ExtBackupCommunicator_ForcePowerOff = (4, 5)
+ SONY_CMD_ExtBackupCommunicator_GetRegisterableHostNum = (4, 6)
+ SONY_CMD_ExtBackupCommunicator_GetRegisteredHostNetInfo = (4, 7)
+ SONY_CMD_ExtBackupCommunicator_ForceRegistHostNetInfo = (4, 8)
+ SONY_CMD_ExtBackupCommunicator_GetDeviceNetInfo = (4, 9)
+
+ # ScalarExtCmdPlugIn (libInfraScalarExtCmdPlugIn.so)
+ SONY_CMD_ScalarExtCmdPlugIn_GetSupportedCommandIds = (5, 1)
+ SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode = (5, 2)
+
+ # LensCommunicator (libInfraLensCommunicator.so)
+ SONY_CMD_LensCommunicator_GetSupportedCommandIds = (6, 1)
+ SONY_CMD_LensCommunicator_GetMountedLensInfo = (6, 2)
+
+ def __init__(self, dev):
+  self.dev = dev
+
+ def _sendCommand(self, cmd):
+  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00')
+  size = parse32le(data[:4])
+  return data[16:16+size]
+
  def switchToAppInstaller(self):
   """Tells the camera to switch to app installation mode"""
-  response = self.driver.sendWriteCommand(CMD_ID_SWITCH, [5], 4*'\x00' + '\x02\x00\x00\x00' + 8*'\x00')
-  self._checkResponse(response)
+  self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode)
+
+
+class SonyUpdaterCamera:
+ """Methods to send updater commands to a camera"""
+
+ # from libupdaterufp.so
+ SONY_CMD_Updater = 0
+ SONY_CMD_Updater_init = 0x1
+ SONY_CMD_Updater_chk_guard = 0x10
+ SONY_CMD_Updater_query_version = 0x20
+ SONY_CMD_Updater_switch_mode = 0x30
+ SONY_CMD_Updater_write_firm = 0x40
+ SONY_CMD_Updater_complete = 0x100
+ SONY_CMD_Updater_get_state = 0x200
+
+ DIRECTION_OUT = 0
+ DIRECTION_IN = 1
+
+ def __init__(self, dev):
+  self.dev = dev
+
+ def _sendCommand(self, command, direction, data='', sequence=0):
+  header = dump32le(len(data)) + '\x00\x01' + dump16le(command) + dump8(direction) + '\x00' + dump16le(sequence) + 20*'\x00'
+  return self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, header + data)
+
+ def getFirmwareVersion(self):
+  """Returns the camera's firmware version"""
+  data = self._sendCommand(self.SONY_CMD_Updater_query_version, self.DIRECTION_IN)
+  minorVersion = parse16le(data[32:34])
+  majorVersion = parse16le(data[34:36])
+  return majorVersion, minorVersion
 
 
 class SonyMtpAppInstaller(MtpDevice):
  """Methods to communicate a camera in app installation mode"""
+
+ # Operation codes (defined in libUsbAppDlSvr.so)
+ PTP_OC_GetProxyMessageInfo = 0x9488
+ PTP_OC_GetProxyMessage = 0x9489
+ PTP_OC_SendProxyMessageInfo = 0x948c
+ PTP_OC_SendProxyMessage = 0x948d
+ PTP_OC_GetDeviceCapability = 0x940a
+
  def _write(self, data):
-  response = self.driver.sendWriteCommand(CMD_ID_WRITE1, [], 4*'\x00' + '\x81\xb4\x00\x00' + dump32le(len(data)) + 40*'\x00' + '\x02\x41\x00\x00' + 4*'\x00')
+  info = 4*'\x00' + '\x81\xb4\x00\x00' + dump32le(len(data)) + 40*'\x00' + '\x02\x41\x00\x00' + 4*'\x00'
+  response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessageInfo, [], info)
   self._checkResponse(response)
-  response = self.driver.sendWriteCommand(CMD_ID_WRITE2, [], data)
+  response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessage, [], data)
   self._checkResponse(response)
 
  def _read(self):
-  response, data = self.driver.sendReadCommand(CMD_ID_READ1, [0])
+  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
   self._checkResponse(response)
-  response, data = self.driver.sendReadCommand(CMD_ID_READ2, [0])
+  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
   self._checkResponse(response, [0xa488])
   return data
 
