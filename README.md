@@ -48,7 +48,7 @@ The typical app install process happens as follows:
 2. A new task sequence is generated, with a unique identifier, the *correlation id*
 3. The plugin downloads an *xpd* file which contains the *portal url* and the 
 *correlation id*. The file is sent to the camera. (An *xpd* file is an *ini* file which contains some data and an hmac sha256 checksum.)
-4. The camera sends a camera status JSON object (containing serial number, battery level, installed apps, *correlation id*, etc.) to the *portal url* using hard coded authentication. The network data is transmitted via USB. However, everything is SSL encrypted directly in camera. Only https connections with a known root CA are allowed.
+4. The camera sends a camera status JSON object (containing serial number, battery level, installed apps, *correlation id*, etc.) to the *portal url* using hard coded authentication. The network data is transmitted via USB. However, everything is SSL encrypted directly in camera. Only https connections signed by a known root CA are allowed. However, the certificate is still accepted if it is expired, revoked and for a different host.
 5. The server replies with a JSON object containing the next actions to take. This includes the URL of the *spk* package to install, which is again downloaded over https.
 
 ### Summary ###

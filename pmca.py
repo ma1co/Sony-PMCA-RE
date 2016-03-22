@@ -4,9 +4,10 @@
 import argparse
 import json
 import os
+import sys
 
 from pmca import installer
-from pmca.api import *
+from pmca.marketserver.server import *
 from pmca.usb import *
 from pmca.usb.driver import *
 from pmca.usb.sony import *
@@ -20,12 +21,19 @@ def switchToAppInstaller(dev):
  print 'Switching to app install mode. Please run this command again when the camera has switched modes.'
  SonyExtCmdCamera(dev).switchToAppInstaller()
 
-def installApp(dev, api, apkFile=None, outFile=None):
- """Installs an app on the specified device. The apk is uploaded to the specified WebApi."""
- print 'Creating task'
- # Upload apk (if any), start task
- task = api.startBlobTask(api.uploadBlob(apkFile.read())) if apkFile else api.startTask()
- xpdData = api.getXpd(task)
+defaultCertFile = getattr(sys, '_MEIPASS', 'certs') + '/localtest.me.pem'
+def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertFile):
+ """Installs an app on the specified device."""
+ apkData = apkFile.read() if apkFile else None
+
+ if host:
+  server = RemoteMarketServer(host, apkData)
+ else:
+  server = LocalMarketServer(certFile, apkData)
+
+ print ('Uploading apk' if apkData else 'Starting task') if host else 'Starting server'
+ server.run()
+ xpdData = server.getXpd()
 
  print 'Starting communication'
  # Point the camera to the web api
@@ -33,12 +41,9 @@ def installApp(dev, api, apkFile=None, outFile=None):
  if result.code != 0:
   raise Exception('Communication error %d: %s' % (result.code, result.message))
 
- print 'Downloading task'
- # Get the result from the website
- result = api.getTask(task)
- if not result['completed']:
-  raise Exception('Task was not completed')
- result = result['response']
+ print 'Downloading result' if host else 'Stopping server'
+ result = server.getResult()
+ server.shutdown()
 
  print 'Task completed successfully'
 
@@ -47,7 +52,7 @@ def installApp(dev, api, apkFile=None, outFile=None):
   json.dump(result, outFile, indent=2)
 
 
-def installCommand(url, driverName=None, apkFile=None, outFile=None):
+def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
  """Install command main"""
  if not driverName:
   driverName = 'windows' if os.name == 'nt' else 'libusb'
@@ -91,7 +96,7 @@ def installCommand(url, driverName=None, apkFile=None, outFile=None):
     switchToAppInstaller(SonyMtpCamera(drv))
    elif isSonyMtpAppInstaller(info):
     print '%s %s is a camera in app install mode' % (info.manufacturer, info.model)
-    installApp(SonyMtpAppInstaller(drv), WebApi(url), apkFile, outFile)
+    installApp(SonyMtpAppInstaller(drv), host, apkFile, outFile)
 
 
 def main():
@@ -99,14 +104,14 @@ def main():
  parser = argparse.ArgumentParser()
  subparsers = parser.add_subparsers(dest='command', title='commands')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
- install.add_argument('-u', dest='url', help='specify the web api base url', default='https://sony-pmca.appspot.com')
+ install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default='sony-pmca.appspot.com')
  install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')
 
  args = parser.parse_args()
  if args.command == 'install':
-  installCommand(args.url, args.driver, args.apkFile, args.outFile)
+  installCommand(args.server, args.driver, args.apkFile, args.outFile)
 
 
 if __name__ == '__main__':

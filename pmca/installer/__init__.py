@@ -64,7 +64,7 @@ def install(dev, xpdData, statusFunc = None):
    ready = select.select([sock], [], [], 0)
    if ready[0]:
     # There is data waiting on the socket, let's send it to the camera
-    resp = sock.recv(4096)
+    resp = sock.recv(2 ** 14)
     if resp != '':
      dev.sendSslData(connectionId, resp)
     else:
