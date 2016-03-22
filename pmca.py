@@ -2,12 +2,16 @@
 """A command line application to install apps on Android-enabled Sony cameras"""
 
 import argparse
+from getpass import getpass
 import json
-import os
+import os, os.path
+import re
 import sys
 
 from pmca import installer
+from pmca import marketclient
 from pmca.marketserver.server import *
+from pmca import spk
 from pmca.usb import *
 from pmca.usb.driver import *
 from pmca.usb.sony import *
@@ -99,6 +103,50 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
     installApp(SonyMtpAppInstaller(drv), host, apkFile, outFile)
 
 
+def marketCommand(token=None):
+ if not token:
+  print 'Please enter your Sony Entertainment Network credentials\n'
+  email = raw_input('Email: ')
+  password = getpass('Password: ')
+  token = marketclient.login(email, password)
+  if token:
+   print 'Login successful. Your auth token (use with the -t option):\n%s\n' % token
+  else:
+   print 'Login failed'
+   return
+
+ devices = marketclient.getDevices(token)
+ print '%d devices found\n' % len(devices)
+
+ apps = []
+ for device in devices:
+  print '%s (%s)' % (device.name, device.serial)
+  for app in marketclient.getApps(device.deviceid):
+   if not app.price:
+    apps.append((device.deviceid, app.id))
+    print ' [%2d] %s' % (len(apps), app.name)
+  print ''
+
+ if apps:
+  while True:
+   i = int(raw_input('Enter number of app to download (0 to exit): '))
+   if i == 0:
+    break
+   app = apps[i - 1]
+   print 'Downloading app %s' % app[1]
+   spkName, spkData = marketclient.download(token, app[0], app[1])
+   fn = re.sub('(%s)?$' % re.escape(spk.constants.extension), '.apk', spkName)
+   data = spk.parse(spkData)
+
+   if os.path.exists(fn):
+    print 'File %s exists already' % fn
+   else:
+    with open(fn, 'wb') as f:
+     f.write(data)
+    print 'App written to %s' % fn
+   print ''
+
+
 def main():
  """Command line main"""
  parser = argparse.ArgumentParser()
@@ -108,10 +156,14 @@ def main():
  install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')
+ market = subparsers.add_parser('market', description='Download apps from the official Sony app store')
+ market.add_argument('-t', dest='token', help='Specify an auth token')
 
  args = parser.parse_args()
  if args.command == 'install':
   installCommand(args.server, args.driver, args.apkFile, args.outFile)
+ elif args.command == 'market':
+  marketCommand(args.token)
 
 
 if __name__ == '__main__':

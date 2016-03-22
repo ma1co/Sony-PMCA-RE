@@ -254,7 +254,7 @@ class MarketAppsHandler(BaseHandler):
  """Displays all apps from the PMCA store available for the given device"""
  def get(self, portalid, deviceid):
   self.template('market/apps.html', {
-   'apps': [app for app in marketclient.getApps(deviceid) if not app['status'].startswith('$')],
+   'apps': [app for app in marketclient.getApps(deviceid) if not app.price],
    'portalid': portalid,
    'deviceid': deviceid,
   })

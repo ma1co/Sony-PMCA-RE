@@ -1,5 +1,6 @@
 """Provides a client to download apps from the PMCA store"""
 
+from collections import namedtuple
 import json
 import re
 
@@ -7,11 +8,14 @@ import constants
 import http
 from .. import xpd
 
+MarketDevice = namedtuple('MarketDevice', 'deviceid, name, serial')
+MarketApp = namedtuple('MarketApp', 'id, name, img, status, price')
+
 def download(portalid, deviceid, appid):
  """Downloads an app from the PMCA store
 
  Returns:
-  The contents of the spk file
+  ('file name', 'spk data')
  """
  xpdData = downloadXpd(portalid, deviceid, appid)
  name, url = parseXpd(xpdData)
@@ -31,21 +35,13 @@ def login(email, password):
  return cookies['portalid'] if 'portalid' in cookies else None
 
 def getDevices(portalid):
- """Fetches the list of devices for the current user
-
- Returns:
-  [{
-   'deviceid': 'device id',
-   'name': 'camera name',
-   'serial': 'serial number',
-  }, ...]
- """
+ """Fetches the list of devices for the current user"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=mycamera', cookies = {
   'portalid': portalid,
  }))
  contents = data['mycamera']['contents']
  r = re.compile('<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
- return [m.groupdict() for m in r.finditer(contents)]
+ return [MarketDevice(**m.groupdict()) for m in r.finditer(contents)]
 
 def getPluginInstallText():
  """Fetches the English help text for installing the PMCA Downloader plugin"""
@@ -62,14 +58,6 @@ def getApps(deviceid):
  Note: The US locale is used.
  This may return apps that aren't available in the region connected to your account.
  We want to get Dollar prices however.
-
- Returns:
-  [{
-   'id': 'app id',
-   'name': 'app name',
-   'img': 'image url',
-   'status': '$1.00 / Install / Installed',
-  }, ...]
  """
  data = http.get(constants.baseUrl + '/wifiall.php', headers = {
   'User-Agent': constants.cameraUserAgent,
@@ -81,7 +69,8 @@ def getApps(deviceid):
  apps = [m.groupdict() for m in r.finditer(data)]
  for app in apps:
   app['name'] = app['name'].replace('<br />', ' ')
- return apps
+  app['price'] = app['status'] if app['status'].startswith('$') else None
+ return [MarketApp(**app) for app in apps]
 
 def downloadXpd(portalid, deviceid, appid):
  """Fetches the xpd file for the given app
@@ -96,6 +85,7 @@ def downloadXpd(portalid, deviceid, appid):
  }, cookies = {
   'portalid': portalid,
   'deviceid': deviceid,
+  'localeid': constants.localeUs,
  })
 
 def parseXpd(data):
