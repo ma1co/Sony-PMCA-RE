@@ -75,7 +75,7 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
 
  print 'Looking for Sony devices'
  # Scan for devices
- devices = [dev for dev in driver.listDevices() if dev.idVendor == SONY_ID_VENDOR]
+ devices = list(driver.listDevices(SONY_ID_VENDOR))
 
  if not devices:
   print 'No devices found. Ensure your camera is connected.'

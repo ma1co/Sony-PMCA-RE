@@ -29,11 +29,12 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
  ('status', Struct.INT8),
 ])
 
-def listDevices():
+def listDevices(vendor):
  """Lists all detected USB devices"""
- for dev in usb.core.find(find_all=True):
-  interface = dev.get_active_configuration()[(0, 0)]
-  yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
+ for dev in usb.core.find(find_all=True, idVendor=vendor):
+  interface = next((interface for config in dev for interface in config), None)
+  if interface:
+   yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
 
 
 class UsbDriver:

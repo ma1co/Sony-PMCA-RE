@@ -10,6 +10,6 @@ from msc import MscDriver
 import wpd
 from wpd import MtpDriver
 
-def listDevices():
+def listDevices(vendor=None):
  """Lists all mass storage and MTP devices"""
- return itertools.chain(msc.listDevices(), wpd.listDevices())
+ return (dev for dev in itertools.chain(msc.listDevices(), wpd.listDevices()) if dev.idVendor == vendor)
