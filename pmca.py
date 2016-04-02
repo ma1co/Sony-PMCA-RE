@@ -16,6 +16,8 @@ from pmca.usb import *
 from pmca.usb.driver import *
 from pmca.usb.sony import *
 
+scriptRoot = getattr(sys, '_MEIPASS', os.path.dirname(__file__))
+
 def printStatus(status):
  """Print progress"""
  print '%s %d%%' % (status.message, status.percent)
@@ -25,7 +27,7 @@ def switchToAppInstaller(dev):
  print 'Switching to app install mode. Please run this command again when the camera has switched modes.'
  SonyExtCmdCamera(dev).switchToAppInstaller()
 
-defaultCertFile = getattr(sys, '_MEIPASS', 'certs') + '/localtest.me.pem'
+defaultCertFile = scriptRoot + '/certs/localtest.me.pem'
 def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertFile):
  """Installs an app on the specified device."""
  apkData = apkFile.read() if apkFile else None

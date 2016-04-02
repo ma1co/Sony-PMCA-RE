@@ -7,8 +7,8 @@ suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx'}
 output = 'pmca-' + subprocess.check_output(['git', 'describe', '--always', '--tags']).strip() + suffix.get(sys.platform, '')
 
 # Analyze files
-a = Analysis(['pmca.py'], excludes=['numpy'], datas=[('certs/*.pem', '.')])# Don't let comtypes include numpy
-a.binaries = [(os.path.basename(name), path, type) for name, path, type in a.binaries]# libusb binaries are not found in subdirs
+a = Analysis(['pmca.py'], excludes=['numpy'], datas=[('certs/*', 'certs')])# Don't let comtypes include numpy
+a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, type) for name, path, type in a.binaries]# libusb binaries are not found in subdirs
 
 # Generate executable
 pyz = PYZ(a.pure, a.zipped_data)
