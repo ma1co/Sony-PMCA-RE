@@ -71,7 +71,7 @@ label {
 }
 
 .apps li {
- line-height: 50px;
+ margin-bottom: 1em;
 }
 
 .small, .small a {

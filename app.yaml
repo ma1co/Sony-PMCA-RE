@@ -19,6 +19,11 @@ handlers:
 - url: /camera/xpd/.+
   script: main.app
   secure: optional
+- url: /cleanup
+  login: admin
+  auth_fail_action: unauthorized
+  script: main.app
+  secure: always
 - url: /.*
   script: main.app
   secure: always

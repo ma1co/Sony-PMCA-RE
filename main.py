@@ -9,6 +9,7 @@ import re
 import webapp2
 import yaml
 
+from collections import OrderedDict
 from google.appengine.api import urlfetch
 from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
@@ -29,10 +30,10 @@ apkExtension = '.apk'
 
 class Task(ndb.Model):
  """The Entity used to save task data in the datastore between requests"""
- blob = ndb.BlobKeyProperty()
- app = ndb.StringProperty()
+ blob = ndb.BlobKeyProperty(indexed = False)
+ app = ndb.StringProperty(indexed = False)
  date = ndb.DateTimeProperty(auto_now_add = True)
- completed = ndb.BooleanProperty(default = False)
+ completed = ndb.BooleanProperty(default = False, indexed = False)
  response = ndb.TextProperty()
 
 
@@ -53,6 +54,7 @@ class BaseHandler(webapp2.RequestHandler):
   self.response.write(data)
 
  def appConfig(self):
+  yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, lambda l, n: OrderedDict(l.construct_pairs(n)))# Preserve dict order
   with open('config_apps.yaml', 'r') as f:
    return yaml.load(f)
 
