@@ -74,13 +74,6 @@ label {
  line-height: 50px;
 }
 
-.apps img {
- width: 32px;
- height: 32px;
- vertical-align: middle;
- margin-right: 5px;
-}
-
 .small, .small a {
  font-size: .8em;
  color: #aaa;

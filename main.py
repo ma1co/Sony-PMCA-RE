@@ -224,50 +224,6 @@ class DownloadHandler(BaseHandler):
   return github['assets'][0]['name'], urlfetch.fetch(github['assets'][0]['browser_download_url']).content
 
 
-class MarketLoginHandler(BaseHandler):
- """Manages the login to the PMCA store"""
- def get(self):
-  self.template('market/login.html', {
-   'registerUrl': marketclient.constants.registerUrl,
-  })
-
- def post(self):
-  email = self.request.get('email')
-  password = self.request.get('password')
-  if email and password:
-   portalid = marketclient.login(email, password)
-   if portalid:
-    return self.redirect_to('marketDevices', portalid = portalid)
-  self.get()
-
-
-class MarketDevicesHandler(BaseHandler):
- """Manages the selection of a device from the PMCA account"""
- def get(self, portalid):
-  self.template('market/devices.html', {
-   'devices': marketclient.getDevices(portalid),
-   'portalid': portalid,
-  })
-
-
-class MarketAppsHandler(BaseHandler):
- """Displays all apps from the PMCA store available for the given device"""
- def get(self, portalid, deviceid):
-  self.template('market/apps.html', {
-   'apps': [app for app in marketclient.getApps(deviceid) if not app.price],
-   'portalid': portalid,
-   'deviceid': deviceid,
-  })
-
-
-class MarketDownloadHandler(BaseHandler):
- """Downloads and decrypts an app from the PMCA store"""
- def get(self, portalid, deviceid, appid):
-  spkName, spkData = marketclient.download(portalid, deviceid, appid)
-  apkData = spk.parse(spkData)
-  self.output(apkMimeType, apkData, replaceSuffix(spk.constants.extension, apkExtension, spkName))
-
-
 class AppsHandler(BaseHandler):
  """Displays apps available on github"""
  def get(self):
@@ -305,10 +261,6 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/download/spk/blob/<blobKey>', DownloadHandler, 'blobSpk', handler_method = 'getBlobSpk'),
  webapp2.Route('/download/apk/app/<appId>', DownloadHandler, 'appApk', handler_method = 'getAppApk'),
  webapp2.Route('/download/spk/app/<appId>', DownloadHandler, 'appSpk', handler_method = 'getAppSpk'),
- webapp2.Route('/market', MarketLoginHandler, 'marketLogin'),
- webapp2.Route('/market/<portalid>', MarketDevicesHandler, 'marketDevices'),
- webapp2.Route('/market/<portalid>/<deviceid>', MarketAppsHandler, 'marketApps'),
- webapp2.Route('/market/<portalid>/<deviceid>/<appid>', MarketDownloadHandler, 'marketDownload'),
  webapp2.Route('/apps', AppsHandler, 'apps'),
  webapp2.Route('/cleanup', CleanupHandler),
 ])
