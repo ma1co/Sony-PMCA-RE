@@ -2,6 +2,10 @@ github:
   clientId:
   clientSecret:
 apps:
+  Tweak:
+    title: OpenMemories Tweak
+    desc: Unlock camera settings
+    repo: ma1co/OpenMemories-Tweak
   PMCADemo:
     title: PMCADemo
     desc: A demo app
