@@ -13,6 +13,10 @@ libraries:
   version: latest
 
 handlers:
+- url: /(robots\.txt)
+  static_files: \1
+  upload: robots\.txt
+  secure: always
 - url: /static
   static_dir: static
   secure: always

@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /ajax/
+Disallow: /camera/
+Disallow: /download/
+Disallow: /plugin/
