@@ -5,7 +5,7 @@
  <p>To try the USB connection, click <a href="{{ uri_for('plugin') }}">here</a>.</p>
  <form action="{{ uploadUrl }}" method="POST" enctype="multipart/form-data">
   <p>Please select the apk file you'd like to install on your camera.</p>
-  <p><input type="file" name="file"></p>
+  <p><input type="file" name="file" accept=".apk,application/vnd.android.package-archive"></p>
   <p><input type="submit" value="Continue"></p>
  </form>
 {% endblock %}
