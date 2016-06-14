@@ -5,7 +5,7 @@ import json
 import re
 
 import constants
-import http
+from ..util import http
 from .. import xpd
 
 MarketDevice = namedtuple('MarketDevice', 'deviceid, name, serial')
@@ -27,18 +27,18 @@ def login(email, password):
  Returns:
   The portalid string in case of success or None otherwise
  """
- response, headers, cookies = http.post(constants.loginUrl, data = {
+ response = http.postForm(constants.loginUrl, data = {
   'j_username': email,
   'j_password': password,
   'returnURL': constants.baseUrl + '/forward.php',
- }, returnHeaders = True)
- return cookies['portalid'] if 'portalid' in cookies else None
+ })
+ return response.cookies['portalid'] if 'portalid' in response.cookies else None
 
 def getDevices(portalid):
  """Fetches the list of devices for the current user"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=mycamera', cookies = {
   'portalid': portalid,
- }))
+ }).data)
  contents = data['mycamera']['contents']
  r = re.compile('<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
  return [MarketDevice(**m.groupdict()) for m in r.finditer(contents)]
@@ -47,7 +47,7 @@ def getPluginInstallText():
  """Fetches the English help text for installing the PMCA Downloader plugin"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=installingPlugin', cookies = {
   'localeid': constants.localeUs,
- }))
+ }).data)
  contents = data['installingPlugin']['contents']
  r = re.compile('<div id="notinstallpopup".*?>(.*?)</div>', re.DOTALL)
  return r.search(contents).group(1)
@@ -64,7 +64,7 @@ def getApps(deviceid):
  }, cookies = {
   'deviceid': deviceid,
   'localeid': constants.localeUs,
- })
+ }).data
  r = re.compile('<td class="app-name">(?P<name>.*?)</td>.*?<a href="\./wifidetail\.php\?EID=(?P<id>.*?)&.*?<img src="(?P<img>.*?)".*?<td class="app-status">(?P<status>.*?)</td>', re.DOTALL)
  apps = [m.groupdict() for m in r.finditer(data)]
  for app in apps:
@@ -86,7 +86,7 @@ def downloadXpd(portalid, deviceid, appid):
   'portalid': portalid,
   'deviceid': deviceid,
   'localeid': constants.localeUs,
- })
+ }).data
 
 def parseXpd(data):
  """Parses an xpd file
@@ -103,4 +103,4 @@ def downloadSpk(url):
  Returns:
   The contents of the spk file
  """
- return http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword))
+ return http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword)).data

@@ -30,14 +30,14 @@ def switchToAppInstaller(dev):
 defaultCertFile = scriptRoot + '/certs/localtest.me.pem'
 def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertFile):
  """Installs an app on the specified device."""
- apkData = apkFile.read() if apkFile else None
+ apk = (os.path.basename(apkFile.name), apkFile.read()) if apkFile else None
 
  if host:
-  server = RemoteMarketServer(host, apkData)
+  server = RemoteMarketServer(host, apk)
  else:
-  server = LocalMarketServer(certFile, apkData)
+  server = LocalMarketServer(certFile, apk)
 
- print ('Uploading apk' if apkData else 'Starting task') if host else 'Starting server'
+ print ('Uploading apk' if apk else 'Starting task') if host else 'Starting server'
  server.run()
  xpdData = server.getXpd()
 

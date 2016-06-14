@@ -2,4 +2,3 @@ comtypes
 pycrypto
 pyinstaller
 pyusb >= 1.0.0a2
-requests

@@ -87,7 +87,7 @@ class AjaxUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
  def post(self):
   uploads = self.get_uploads()
   if len(uploads) != 1:
-   self.error(400)
+   return self.error(400)
   return self.json({'key': str(uploads[0].key())})
 
 
