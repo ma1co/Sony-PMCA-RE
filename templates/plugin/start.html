@@ -17,17 +17,9 @@
  <button onclick="pmcaDownload('{{ uri_for('taskStart') }}');">Get camera info</button>
  {% if blob %}
   <button onclick="pmcaDownload('{{ uri_for('blobTaskStart', blobKey = blob.key()) }}');">Install {{ blob.filename }}</button>
-  <span class="small">
-   <a href="{{ uri_for('blobApk', blobKey = blob.key()) }}">(Download apk)</a>
-   <a href="{{ uri_for('blobSpk', blobKey = blob.key()) }}">(Download spk)</a>
-  </span>
  {% endif %}
  {% if appId and app %}
   <button onclick="pmcaDownload('{{ uri_for('appTaskStart', appId = appId) }}');">Install {{ app.title }}</button>
-  <span class="small">
-   <a href="{{ uri_for('appApk', appId = appId) }}">(Download apk)</a>
-   <a href="{{ uri_for('appSpk', appId = appId) }}">(Download spk)</a>
-  </span>
  {% endif %}
 
  <h1>Response</h1>
