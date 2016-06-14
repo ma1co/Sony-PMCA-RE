@@ -46,4 +46,4 @@ If you want to develop your custom app, feel free to do so. Debug and release ce
 * **docs**: Technical documentation
 
 ## Special thanks ##
-Without the work done by the people at [nex-hack.info](http://www.nex-hack.info/), this wouldn't have been possible. Thanks a lot!
+Without the work done by the people at [nex-hack](http://www.personal-view.com/faqs/sony-hack/hack-development), this wouldn't have been possible. Thanks a lot!
