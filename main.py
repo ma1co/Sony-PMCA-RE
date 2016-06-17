@@ -28,10 +28,92 @@ class Task(ndb.Model):
  response = ndb.TextProperty()
 
 
-class AppStore(appstore.AppStore):
+class Camera(ndb.Model):
+ model = ndb.StringProperty(indexed=False)
+ apps = ndb.JsonProperty(default={})
+ firstDate = ndb.DateTimeProperty(indexed=False, auto_now_add=True)
+ lastDate = ndb.DateTimeProperty(indexed=False, auto_now=True)
+
+
+class Counter(ndb.Model):
+ count = ndb.IntegerProperty(indexed=False, default=0)
+
+ @classmethod
+ def _getInstance(cls, id):
+  return cls.get_by_id(id) or cls(id=id)
+
+ @classmethod
+ def getValue(cls, id):
+  return cls._getInstance(id).count
+
+ @classmethod
+ @ndb.transactional
+ def increment(cls, id):
+  instance = cls._getInstance(id)
+  instance.count += 1
+  instance.put()
+
+class CameraModelCounter(Counter):
+ pass
+
+class AppInstallCounter(Counter):
+ pass
+
+class AppUpdateCounter(Counter):
+ pass
+
+
+class RankedApp(appstore.App):
+ def __getattr__(self, name):
+  if name == 'rank':
+   return self.dict['rank']
+  return super(RankedApp, self).__getattr__(name)
+
+class RankedAppStore(appstore.AppStore):
+ def _loadApps(self):
+  apps = list(super(RankedAppStore, self)._loadApps())
+  for dict in apps:
+   dict['rank'] = AppInstallCounter.getValue(dict.get('package'))
+  return sorted(apps, key=lambda dict: dict['rank'], reverse=True)
+ def _createAppInstance(self, dict):
+  return RankedApp(self.repo, dict)
+
+
+class AppStore(RankedAppStore):
  def __init__(self):
   repo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo, (config.githubClientId, config.githubClientSecret))
   super(AppStore, self).__init__(repo)
+
+
+def diffApps(oldApps, newApps):
+ installedApps = []
+ updatedApps = []
+ for app, version in newApps.iteritems():
+  if oldApps.get(app) != version:
+   if app not in oldApps:
+    installedApps.append(app)
+   updatedApps.append(app)
+  oldApps[app] = version
+ return oldApps, installedApps, updatedApps
+
+def updateAppStats(data):
+ device = data.get('deviceinfo', {})
+ apps = dict((app['name'], app['version']) for app in data.get('applications', []) if 'name' in app and 'version' in app)
+ if 'name' in device and 'productcode' in device and 'deviceid' in device:
+  id = hashlib.sha1('camera_%s_%s_%s' % (device['name'], device['productcode'], device['deviceid'])).hexdigest()
+  camera = Camera.get_by_id(id)
+  isNewCamera = not camera
+  if not camera:
+   camera = Camera(id=id)
+  camera.model = device['name']
+  camera.apps, installed, updated = diffApps(camera.apps, apps)
+  camera.put()
+  if isNewCamera:
+   CameraModelCounter.increment(camera.model)
+  for app in installed:
+   AppInstallCounter.increment(app)
+  for app in updated:
+   AppUpdateCounter.increment(app)
 
 
 class BaseHandler(webapp2.RequestHandler):
@@ -161,7 +243,8 @@ class PortalHandler(BaseHandler):
  """Saves the data sent by the camera to the datastore and returns the actions to be taken next (called by the camera)"""
  def post(self):
   data = self.request.body
-  taskKey = int(marketserver.parsePostData(data).get('session', {}).get('correlationid', 0))
+  dataDict = marketserver.parsePostData(data)
+  taskKey = int(dataDict.get('session', {}).get('correlationid', 0))
   task = ndb.Key(Task, taskKey).get()
   if not task:
    return self.error(404)
@@ -174,6 +257,7 @@ class PortalHandler(BaseHandler):
   task.completed = True
   task.response = data
   task.put()
+  updateAppStats(dataDict)
   self.output(marketserver.constants.jsonMimeType, response)
 
 
