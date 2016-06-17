@@ -8,6 +8,7 @@ import os
 import webapp2
 
 from google.appengine.ext import blobstore
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
 
@@ -63,6 +64,18 @@ class AppUpdateCounter(Counter):
  pass
 
 
+def cached(key, func, time=15*60):
+ # TODO values > 1MB
+ res = memcache.get(key)
+ if not res:
+  res = func()
+  try:
+   memcache.add(key, res, time)
+  except:
+   pass
+ return res
+
+
 class RankedApp(appstore.App):
  def __getattr__(self, name):
   if name == 'rank':
@@ -79,7 +92,24 @@ class RankedAppStore(appstore.AppStore):
   return RankedApp(self.repo, dict)
 
 
-class AppStore(RankedAppStore):
+class CachedRelease(appstore.Release):
+ def _loadAsset(self):
+  return cached('app_release_asset_%s_%s_%s' % (self.package, self.version, self.url), super(CachedRelease, self)._loadAsset, 24*3600)
+
+class CachedApp(RankedApp):
+ def _loadRelease(self):
+  return cached('app_release_%s' % self.package, super(CachedApp, self)._loadRelease)
+ def _createReleaseInstance(self, dict):
+  return CachedRelease(self.package, dict)
+
+class CachedAppStore(RankedAppStore):
+ def _loadApps(self):
+  return cached('app_list', lambda: list(super(CachedAppStore, self)._loadApps()))
+ def _createAppInstance(self, dict):
+  return CachedApp(self.repo, dict)
+
+
+class AppStore(CachedAppStore):
  def __init__(self):
   repo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo, (config.githubClientId, config.githubClientSecret))
   super(AppStore, self).__init__(repo)
@@ -187,7 +217,7 @@ class PluginInstallHandler(BaseHandler):
  """Displays the help text to install the PMCA Downloader plugin"""
  def get(self):
   self.template('plugin/install.html', {
-   'text': marketclient.getPluginInstallText(),
+   'text': cached('plugin_install_text', marketclient.getPluginInstallText, 24*3600),
   })
 
 

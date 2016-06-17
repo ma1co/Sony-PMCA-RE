@@ -40,7 +40,7 @@ class App(object):
  def release(self):
   if not hasattr(self, '_release'):
    dict = self._loadRelease()
-   self._release = self._createRelease(dict) if dict else None
+   self._release = self._createReleaseInstance(dict) if dict else None
   return self._release
 
  def _loadRelease(self):
@@ -67,7 +67,7 @@ class App(object):
    if asset.get('content_type') == contentType:
     return asset.get('browser_download_url')
 
- def _createRelease(self, dict):
+ def _createReleaseInstance(self, dict):
   return Release(self.package, dict)
 
 
