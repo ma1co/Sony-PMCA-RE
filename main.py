@@ -31,7 +31,7 @@ class Task(ndb.Model):
 
 class Camera(ndb.Model):
  model = ndb.StringProperty(indexed=False)
- apps = ndb.JsonProperty(default={})
+ apps = ndb.JsonProperty()
  firstDate = ndb.DateTimeProperty(indexed=False, auto_now_add=True)
  lastDate = ndb.DateTimeProperty(indexed=False, auto_now=True)
 
@@ -116,6 +116,7 @@ class AppStore(CachedAppStore):
 
 
 def diffApps(oldApps, newApps):
+ oldApps = oldApps.copy()
  installedApps = []
  updatedApps = []
  for app, version in newApps.iteritems():
@@ -136,7 +137,7 @@ def updateAppStats(data):
   if not camera:
    camera = Camera(id=id)
   camera.model = device['name']
-  camera.apps, installed, updated = diffApps(camera.apps, apps)
+  camera.apps, installed, updated = diffApps(camera.apps or {}, apps)
   camera.put()
   if isNewCamera:
    CameraModelCounter.increment(camera.model)
