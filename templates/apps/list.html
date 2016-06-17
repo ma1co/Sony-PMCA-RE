@@ -2,14 +2,16 @@
 {% set title = 'Apps' %}
 {% block content %}
  <h1>Apps</h1>
- <p>Here is a list of open-source apps for your camera. Use them at your own risk!</p>
+ <p>Here is a list of apps for your camera. Use them at your own risk!</p>
  <ul class="apps">
-  {% for appId, app in apps.iteritems() %}
+  {% for app in apps.itervalues() %}
    <li>
-    <a href="{{ uri_for('appPlugin', appId = appId) }}">{{ app.title }}</a>:
-    {{ app.desc }}
-    <span class="small">(<a href="https://github.com/{{ app.repo }}">Source</a>)</span>
+    <a href="{{ uri_for('appPlugin', appId = app.package) }}">{{ app.name }}</a>
+    {% if app.author %}by {{ app.author }}{% endif %}
+    {% if app.desc %}: {{ app.desc }}{% endif %}
+    {% if app.homepage %}<span class="small">(<a href="{{ app.homepage }}">homepage</a>)</span>{% endif %}
    </li>
   {% endfor %}
  </ul>
+ <p>Want to add your own? Send us a <a href="https://github.com/{{ repo[0] }}/{{ repo[1] }}">pull request</a>.</p>
 {% endblock %}

@@ -5,16 +5,14 @@ import hashlib
 import jinja2
 import json
 import os
-import re
 import webapp2
-import yaml
 
-from collections import OrderedDict
-from google.appengine.api import urlfetch
 from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
 
+import config
+from pmca import appstore
 from pmca import marketclient
 from pmca import marketserver
 from pmca import spk
@@ -28,6 +26,12 @@ class Task(ndb.Model):
  date = ndb.DateTimeProperty(auto_now_add = True)
  completed = ndb.BooleanProperty(default = False, indexed = False)
  response = ndb.TextProperty()
+
+
+class AppStore(appstore.AppStore):
+ def __init__(self):
+  repo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo, (config.githubClientId, config.githubClientSecret))
+  super(AppStore, self).__init__(repo)
 
 
 class BaseHandler(webapp2.RequestHandler):
@@ -45,11 +49,6 @@ class BaseHandler(webapp2.RequestHandler):
   if filename:
    self.response.headers['Content-Disposition'] = 'attachment;filename="%s"' % filename
   self.response.write(data)
-
- def appConfig(self):
-  yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, lambda l, n: OrderedDict(l.construct_pairs(n)))# Preserve dict order
-  with open('config_apps.yaml', 'r') as f:
-   return yaml.load(f)
 
 
 class HomeHandler(BaseHandler):
@@ -96,10 +95,10 @@ class PluginHandler(BaseHandler):
   self.get({'blob': blob})
 
  def getApp(self, appId):
-  config = self.appConfig()
-  if not appId in config['apps']:
+  app = AppStore().apps.get(appId)
+  if not app:
    return self.error(404)
-  self.get({'appId': appId, 'app': config['apps'][appId]})
+  self.get({'app': app})
 
 
 class PluginInstallHandler(BaseHandler):
@@ -125,7 +124,7 @@ class TaskStartHandler(BaseHandler):
   self.get(Task(blob = blob.key()))
 
  def getApp(self, appId):
-  if not appId in self.appConfig()['apps']:
+  if not AppStore().apps.get(appId):
    return self.error(404)
   self.get(Task(app = appId))
 
@@ -162,7 +161,7 @@ class PortalHandler(BaseHandler):
  """Saves the data sent by the camera to the datastore and returns the actions to be taken next (called by the camera)"""
  def post(self):
   data = self.request.body
-  taskKey = int(marketserver.parsePostData(data)['session']['correlationid'])
+  taskKey = int(marketserver.parsePostData(data).get('session', {}).get('correlationid', 0))
   task = ndb.Key(Task, taskKey).get()
   if not task:
    return self.error(404)
@@ -193,12 +192,10 @@ class SpkHandler(BaseHandler):
   self.get(apkData)
 
  def getApp(self, appId):
-  config = self.appConfig()
-  if not appId in config['apps']:
+  app = AppStore().apps.get(appId)
+  if not app or not app.release:
    return self.error(404)
-  githubUrl = 'https://api.github.com/repos/%s/releases/latest?client_id=%s&client_secret=%s' % (config['apps'][appId]['repo'], config['github']['clientId'], config['github']['clientSecret'])
-  github = json.loads(urlfetch.fetch(githubUrl).content)
-  apkData = urlfetch.fetch(github['assets'][0]['browser_download_url']).content
+  apkData = app.release.asset
   self.get(apkData)
 
 
@@ -206,7 +203,8 @@ class AppsHandler(BaseHandler):
  """Displays apps available on github"""
  def get(self):
   self.template('apps/list.html', {
-   'apps': self.appConfig()['apps'],
+   'repo': (config.githubAppListUser, config.githubAppListRepo),
+   'apps': AppStore().apps,
   })
 
 
