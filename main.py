@@ -333,6 +333,17 @@ class CleanupHandler(BaseHandler):
   ndb.delete_multi(Task.gql('WHERE date < :1', deleteBeforeDate).fetch(keys_only = True))
 
 
+class ApiAppsHandler(BaseHandler):
+ def get(self):
+  self.json([dict(app.dict.items() + [('release', app.release.dict if app.release else None)]) for app in AppStore().apps.itervalues()])
+
+
+class ApiStatsHandler(BaseHandler):
+ def post(self):
+  data = self.request.body
+  updateAppStats(json.loads(data))
+
+
 app = webapp2.WSGIApplication([
  webapp2.Route('/', HomeHandler, 'home'),
  webapp2.Route('/upload', ApkUploadHandler, 'apkUpload'),
@@ -352,6 +363,8 @@ app = webapp2.WSGIApplication([
  webapp2.Route('/download/spk/app/<appId>', SpkHandler, 'appSpk', handler_method = 'getApp'),
  webapp2.Route('/apps', AppsHandler, 'apps'),
  webapp2.Route('/cleanup', CleanupHandler),
+ webapp2.Route('/api/apps', ApiAppsHandler, 'apiApps'),
+ webapp2.Route('/api/stats', ApiStatsHandler, 'apiStats'),
 ])
 
 jinjaEnv = jinja2.Environment(
