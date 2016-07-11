@@ -62,6 +62,8 @@ def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertF
   print 'Writing to output file'
   json.dump(result, outFile, indent=2)
 
+ return result
+
 
 def importDriver(driverName=None):
  """Imports the usb driver. Use in a with statement"""
@@ -119,6 +121,33 @@ def getDevice(driver):
   print 'Too many devices found. Only one camera is supported'
  else:
   return devices[0]
+
+
+def infoCommand(host=None, driverName=None):
+ """Display information about the camera connected via usb"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    info = installApp(device, host)
+    print ''
+    props = [
+     ('Model', info['deviceinfo']['name']),
+     ('Product code', info['deviceinfo']['productcode']),
+     ('Serial number', info['deviceinfo']['deviceid']),
+     ('Firmware version', info['deviceinfo']['fwversion']),
+    ]
+   else:
+    info = SonyExtCmdCamera(device).getCameraInfo()
+    firmware = SonyUpdaterCamera(device).getFirmwareVersion()
+    props = [
+     ('Model', info.modelName),
+     ('Product code', info.modelCode),
+     ('Serial number', info.serial),
+     ('Firmware version', firmware),
+    ]
+   for k, v in props:
+    print '%-20s%s' % (k + ': ', v)
 
 
 def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
@@ -192,6 +221,8 @@ def main():
  """Command line main"""
  parser = argparse.ArgumentParser()
  subparsers = parser.add_subparsers(dest='command', title='commands')
+ info = subparsers.add_parser('info', description='Display information about the camera connected via USB')
+ info.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
  install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default=config.appengineServer)
  install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
@@ -207,7 +238,9 @@ def main():
  market.add_argument('outFile', metavar='app.apk', type=argparse.FileType('wb'), help='the output apk file')
 
  args = parser.parse_args()
- if args.command == 'install':
+ if args.command == 'info':
+  infoCommand(config.appengineServer, args.driver)
+ elif args.command == 'install':
   installCommand(args.server, args.driver, args.apkFile, args.outFile)
  elif args.command == 'market':
   marketCommand(args.token)
