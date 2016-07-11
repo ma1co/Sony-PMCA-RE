@@ -7,6 +7,7 @@ import json
 import os, os.path
 import re
 import sys
+import time
 
 import config
 from pmca import installer
@@ -27,7 +28,7 @@ def printStatus(status):
 
 def switchToAppInstaller(dev):
  """Switches a camera in MTP mode to app installation mode"""
- print 'Switching to app install mode. Please run this command again when the camera has switched modes.'
+ print 'Switching to app install mode'
  SonyExtCmdCamera(dev).switchToAppInstaller()
 
 
@@ -125,10 +126,22 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
-    installApp(device, host, apkFile, outFile)
-   else:
+   if not isinstance(device, SonyMtpAppInstaller):
     switchToAppInstaller(device)
+
+    print 'Waiting for camera to switch...'
+    for i in xrange(10):
+     time.sleep(.5)
+     devices = list(listDevices(driver))
+     if len(devices) == 1 and isinstance(devices[0], SonyMtpAppInstaller):
+      device = devices[0]
+      break
+     elif devices:
+      raise Exception('Unexpected device')
+    else:
+     raise Exception('Timeout')
+
+   installApp(device, host, apkFile, outFile)
 
 
 def marketCommand(token=None):
