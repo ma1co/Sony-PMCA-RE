@@ -1,5 +1,6 @@
 """A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
 
+import sys
 import usb.core
 
 from . import *
@@ -28,6 +29,15 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
  ('dataResidue', Struct.INT32),
  ('status', Struct.INT8),
 ])
+
+class Context:
+ """Use this in a with statement when using the driver"""
+ def __enter__(self):
+  return sys.modules[__name__]
+
+ def __exit__(self, type, value, traceback):
+  pass
+
 
 def listDevices(vendor):
  """Lists all detected USB devices"""

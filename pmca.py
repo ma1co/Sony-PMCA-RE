@@ -8,6 +8,7 @@ import os, os.path
 import re
 import sys
 
+import config
 from pmca import installer
 from pmca import marketclient
 from pmca.marketserver.server import *
@@ -18,14 +19,17 @@ from pmca.usb.sony import *
 
 scriptRoot = getattr(sys, '_MEIPASS', os.path.dirname(__file__))
 
+
 def printStatus(status):
  """Print progress"""
  print '%s %d%%' % (status.message, status.percent)
+
 
 def switchToAppInstaller(dev):
  """Switches a camera in MTP mode to app installation mode"""
  print 'Switching to app install mode. Please run this command again when the camera has switched modes.'
  SonyExtCmdCamera(dev).switchToAppInstaller()
+
 
 defaultCertFile = scriptRoot + '/certs/localtest.me.pem'
 def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertFile):
@@ -58,8 +62,8 @@ def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertF
   json.dump(result, outFile, indent=2)
 
 
-def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
- """Install command main"""
+def importDriver(driverName=None):
+ """Imports the usb driver. Use in a with statement"""
  if not driverName:
   driverName = 'windows' if os.name == 'nt' else 'libusb'
 
@@ -73,14 +77,13 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
  else:
   raise Exception('Unknown driver')
 
+ return driver.Context()
+
+
+def listDevices(driver):
+ """List all Sony usb devices"""
  print 'Looking for Sony devices'
- # Scan for devices
- devices = list(driver.listDevices(SONY_ID_VENDOR))
-
- if not devices:
-  print 'No devices found. Ensure your camera is connected.'
-
- for device in devices:
+ for device in driver.listDevices(SONY_ID_VENDOR):
   if device.type == USB_CLASS_MSC:
    print '\nQuerying mass storage device'
    # Get device info
@@ -89,7 +92,7 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
 
    if isSonyMscCamera(info):
     print '%s %s is a camera in mass storage mode' % (info.manufacturer, info.model)
-    switchToAppInstaller(SonyMscCamera(drv))
+    yield SonyMscCamera(drv)
 
   elif device.type == USB_CLASS_PTP:
    print '\nQuerying MTP device'
@@ -99,10 +102,33 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
 
    if isSonyMtpCamera(info):
     print '%s %s is a camera in MTP mode' % (info.manufacturer, info.model)
-    switchToAppInstaller(SonyMtpCamera(drv))
+    yield SonyMtpCamera(drv)
    elif isSonyMtpAppInstaller(info):
     print '%s %s is a camera in app install mode' % (info.manufacturer, info.model)
-    installApp(SonyMtpAppInstaller(drv), host, apkFile, outFile)
+    yield SonyMtpAppInstaller(drv)
+  print ''
+
+
+def getDevice(driver):
+ """Check for exactly one Sony usb device"""
+ devices = list(listDevices(driver))
+ if not devices:
+  print 'No devices found. Ensure your camera is connected.'
+ elif len(devices) != 1:
+  print 'Too many devices found. Only one camera is supported'
+ else:
+  return devices[0]
+
+
+def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
+ """Install the given apk on the camera"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    installApp(device, host, apkFile, outFile)
+   else:
+    switchToAppInstaller(device)
 
 
 def marketCommand(token=None):
@@ -154,7 +180,7 @@ def main():
  parser = argparse.ArgumentParser()
  subparsers = parser.add_subparsers(dest='command', title='commands')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
- install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default='sony-pmca.appspot.com')
+ install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default=config.appengineServer)
  install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')

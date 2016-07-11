@@ -31,11 +31,11 @@ class SCSI_PASS_THROUGH_DIRECT(Structure):
  ]
 
 
-# Connect to a WMI object
-wmi = CoGetObject('winmgmts:')
-
 def listDevices():
  """Lists all detected mass storage devices"""
+ # Connect to a WMI object
+ wmi = CoGetObject('winmgmts:')
+
  def getUsbDrivesFromSerial(serial):
   for disk in wmi.InstancesOf('Win32_DiskDrive'):
    if disk.Properties_['InterfaceType'].Value == 'USB' and disk.Properties_['SerialNumber'].Value == serial:

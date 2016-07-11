@@ -55,11 +55,11 @@ class PROPVARIANT(Structure):
  ]
 
 
-# Create a device manager object
-pdm = CreateObject(PortableDeviceManager)
-
 def listDevices():
  """Lists all detected MTP devices"""
+ # Create a device manager object
+ pdm = CreateObject(PortableDeviceManager)
+
  length = c_ulong(0)
  pdm.GetDevices(POINTER(c_wchar_p)(), pointer(length))
  devices = (c_wchar_p * length.value)()
