@@ -10,9 +10,12 @@ from ..util import *
 SpkHeader = Struct('SpkHeader', [
  ('magic', Struct.STR % 4),
  ('keyOffset', Struct.INT32),
- ('keySize', Struct.INT32),
 ])
 spkHeaderMagic = '1spk'
+
+SpkKeyHeader = Struct('SpkKeyHeader', [
+ ('keySize', Struct.INT32),
+])
 
 def parse(data):
  """Parses an spk file
@@ -43,13 +46,15 @@ def parseContainer(data):
  header = SpkHeader.unpack(data)
  if header.magic != spkHeaderMagic:
   raise Exception('Wrong magic')
- keyOffset = SpkHeader.size + header.keyOffset
- dataOffset = keyOffset + header.keySize
+ keyHeaderOffset = SpkHeader.size + header.keyOffset
+ keyHeader = SpkKeyHeader.unpack(data, keyHeaderOffset)
+ keyOffset = keyHeaderOffset + SpkKeyHeader.size
+ dataOffset = keyOffset + keyHeader.keySize
  return data[keyOffset:dataOffset], data[dataOffset:]
 
 def dumpContainer(encryptedKey, encryptedData):
  """Builds an spk file from the encrypted key and data specified"""
- return SpkHeader.pack(magic=spkHeaderMagic, keyOffset=0, keySize=len(encryptedKey)) + encryptedKey + encryptedData
+ return SpkHeader.pack(magic=spkHeaderMagic, keyOffset=0) + SpkKeyHeader.pack(keySize=len(encryptedKey)) + encryptedKey + encryptedData
 
 def decryptKey(encryptedKey):
  """Decrypts an RSA-encrypted key"""
