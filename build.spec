@@ -1,6 +1,6 @@
 # This file is used by other spec files
 
-import os, subprocess, sys
+import os, shutil, subprocess, sys
 
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).strip()
@@ -21,5 +21,7 @@ exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name=output, console=
 if sys.platform == 'darwin' and not console:
  app = BUNDLE(exe, name=output+'.app')
  os.remove(exe.name)
+ subprocess.check_call(['hdiutil', 'create', DISTPATH+'/'+output+'.dmg', '-srcfolder', app.name])
+ shutil.rmtree(app.name)
 
 os.remove('frozenversion.py')
