@@ -9,6 +9,7 @@ from . import *
 from .. import *
 
 # Create and import the python comtypes wrapper for the needed DLLs
+comtypes.client._generate.__verbose__ = False
 GetModule('PortableDeviceApi.dll')
 GetModule('PortableDeviceTypes.dll')
 from comtypes.gen.PortableDeviceApiLib import *
