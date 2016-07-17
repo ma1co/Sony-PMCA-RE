@@ -19,7 +19,7 @@ install:
 
 script:
  # Run pyinstaller
- - pyinstaller pmca.spec
+ - pyinstaller pmca-console.spec
 
 deploy:
  # Deploy tagged releases

@@ -25,7 +25,7 @@ build: off
 
 after_test:
  # Run pyinstaller
- - pyinstaller pmca.spec
+ - pyinstaller pmca-console.spec
 
 artifacts:
  - path: dist\*
