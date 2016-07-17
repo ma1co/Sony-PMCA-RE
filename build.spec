@@ -18,5 +18,8 @@ a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, typ
 # Generate executable
 pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name=output, console=console)
+if sys.platform == 'darwin' and not console:
+ app = BUNDLE(exe, name=output+'.app')
+ os.remove(exe.name)
 
 os.remove('frozenversion.py')

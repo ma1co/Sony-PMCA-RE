@@ -8,9 +8,14 @@ There are two ways to install apps on your camera. Be sure it is connected over 
 **Go to [sony-pmca.appspot.com](https://sony-pmca.appspot.com/) to try it out!** You can upload your own apps and install them to your camera using the official Sony browser plugin. Since other browser vendors are disabling NPAPI plugins, please try it using **Internet Explorer**.
 
 ### Local installer ###
-Download the [latest release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) (Windows or OS X) or clone this repository. Run `pmca-console --help` for more information.
+Download the [latest release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) (Windows or OS X) or clone this repository.
 
-#### Usage ####
+#### Graphical user interface ####
+Run `pmca-gui` for a simple gui.
+
+#### Command line ####
+Run `pmca-console` in the command line for more options. Usage:
+
 * Test the USB connection to your camera (the result is written to the specified file):
 
         pmca-console install -o outfile.txt
@@ -42,6 +47,7 @@ If you want to develop your custom app, feel free to do so. Debug and release ce
 
 ## About this repository ##
 * **pmca-console.py**: Source for the USB installer console application. See the releases page for pyinstaller builds for Windows and OS X.
+* **pmca-gui.py**: A simple gui for pmca-console. See the releases page.
 * **main.py**: The source code for the Google App Engine website served at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/).
 * **docs**: Technical documentation
 
