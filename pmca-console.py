@@ -7,9 +7,16 @@ from pmca.commands.market import *
 from pmca.commands.usb import *
 from pmca import spk
 
+if getattr(sys, 'frozen', False):
+ from frozenversion import version
+else:
+ version = None
+
 def main():
  """Command line main"""
  parser = argparse.ArgumentParser()
+ if version:
+  parser.add_argument('--version', action='version', version=version)
  subparsers = parser.add_subparsers(dest='command', title='commands')
  info = subparsers.add_parser('info', description='Display information about the camera connected via USB')
  info.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')

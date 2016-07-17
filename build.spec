@@ -4,6 +4,8 @@ import os, subprocess, sys
 
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).strip()
+with open('frozenversion.py', 'w') as f:
+ f.write('version = "%s"' % version)
 
 # Generate filename
 suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx'}
@@ -16,3 +18,5 @@ a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, typ
 # Generate executable
 pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name=output, console=console)
+
+os.remove('frozenversion.py')
