@@ -29,7 +29,7 @@ class InfoTask(BackgroundTask):
  def doBefore(self):
   self.ui.infoButton.config(state=DISABLED)
 
- def do(self, host):
+ def do(self, arg):
   try:
    print ''
    infoCommand(config.appengineServer)

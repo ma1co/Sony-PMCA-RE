@@ -27,12 +27,12 @@ def main():
  install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')
  market = subparsers.add_parser('market', description='Download apps from the official Sony app store')
  market.add_argument('-t', dest='token', help='Specify an auth token')
- market = subparsers.add_parser('apk2spk', description='Convert apk to spk')
- market.add_argument('inFile', metavar='app.apk', type=argparse.FileType('rb'), help='the apk file to convert')
- market.add_argument('outFile', metavar='app' + spk.constants.extension, type=argparse.FileType('wb'), help='the output spk file')
- market = subparsers.add_parser('spk2apk', description='Convert spk to apk')
- market.add_argument('inFile', metavar='app' + spk.constants.extension, type=argparse.FileType('rb'), help='the spk file to convert')
- market.add_argument('outFile', metavar='app.apk', type=argparse.FileType('wb'), help='the output apk file')
+ apk2spk = subparsers.add_parser('apk2spk', description='Convert apk to spk')
+ apk2spk.add_argument('inFile', metavar='app.apk', type=argparse.FileType('rb'), help='the apk file to convert')
+ apk2spk.add_argument('outFile', metavar='app' + spk.constants.extension, type=argparse.FileType('wb'), help='the output spk file')
+ spk2apk = subparsers.add_parser('spk2apk', description='Convert spk to apk')
+ spk2apk.add_argument('inFile', metavar='app' + spk.constants.extension, type=argparse.FileType('rb'), help='the spk file to convert')
+ spk2apk.add_argument('outFile', metavar='app.apk', type=argparse.FileType('wb'), help='the output apk file')
 
  args = parser.parse_args()
  if args.command == 'info':
