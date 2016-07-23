@@ -52,8 +52,10 @@ class HttpHandler(BaseHTTPRequestHandler):
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
- def __init__(self, repo, certFile, host='127.0.0.1', port=443):
+ def __init__(self, repo, certFile, host='127.0.0.1', port=4443):
   HTTPServer.__init__(self, (host, port), HttpHandler)
+  self.host = host
+  self.port = port
   self.url = 'https://' + host + '/'
   self.appstore = appstore.AppStore(repo)
   self.apk = None
@@ -105,7 +107,9 @@ class LocalMarketServer(HTTPServer):
 class RemoteMarketServer:
  """A wrapper for a remote api"""
 
- def __init__(self, host):
+ def __init__(self, host, port=443):
+  self.host = host
+  self.port = port
   self.base = 'https://' + host
   self.taskStartUrl = ''
   self.task = None

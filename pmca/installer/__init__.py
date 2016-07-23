@@ -42,7 +42,7 @@ def _parseStatus(data):
  data = json.loads(data)
  return Status(data['status'], data['status text'], data['percent'], data['total size'])
 
-def install(dev, xpdData, statusFunc = None):
+def install(dev, host, port, xpdData, statusFunc=None):
  """Sends an xpd file to the camera, lets it access the internet through SSL, waits for the response"""
  # Initialize communication
  dev.emptyBuffer()
@@ -80,7 +80,9 @@ def install(dev, xpdData, statusFunc = None):
    # The camera wants us to open an SSL socket
    connectionId = message.connectionId
    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-   sock.connect((message.host, 443))
+   if message.host != host:
+    raise Exception('Connecting to wrong host: %s' % message.host)
+   sock.connect((host, port))
   elif isinstance(message, SslSendDataMessage) and sock and message.connectionId == connectionId:
    # The camera wants to send data over the socket
    sock.send(message.data)
