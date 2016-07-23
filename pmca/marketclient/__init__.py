@@ -2,6 +2,7 @@
 
 from collections import namedtuple
 import json
+import posixpath
 import re
 
 import constants
@@ -19,7 +20,7 @@ def download(portalid, deviceid, appid):
  """
  xpdData = downloadXpd(portalid, deviceid, appid)
  name, url = parseXpd(xpdData)
- return name, downloadSpk(url)
+ return downloadSpk(url)
 
 def login(email, password):
  """Tries to authenticate the specified user
@@ -94,6 +95,7 @@ def downloadSpk(url):
  """Downloads an spk file
 
  Returns:
-  The contents of the spk file
+  ('file name', 'spk data')
  """
- return http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword)).data
+ response = http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword))
+ return posixpath.basename(response.url.path), response.data

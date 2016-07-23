@@ -3,10 +3,11 @@
 import mimetools
 import urllib
 import urllib2
+from urlparse import urlparse
 from cookielib import CookieJar
 from collections import namedtuple
 
-HttpResponse = namedtuple('HttpResponse', 'data, headers, cookies')
+HttpResponse = namedtuple('HttpResponse', 'url, data, headers, cookies')
 
 def postForm(url, data, headers={}, cookies={}, auth=None):
  return post(url, urllib.urlencode(data), headers, cookies, auth)
@@ -43,4 +44,4 @@ def request(url, data=None, headers={}, cookies={}, auth=None):
  response = opener.open(request)
  cj = CookieJar()
  cj.extract_cookies(response, request)
- return HttpResponse(response.read(), response.info().headers, dict((c.name, c.value) for c in cj))
+ return HttpResponse(urlparse(response.geturl()), response.read(), response.info().headers, dict((c.name, c.value) for c in cj))
