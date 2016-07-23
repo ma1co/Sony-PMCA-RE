@@ -24,7 +24,10 @@ def main():
  install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default=config.appengineServer)
  install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
- install.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='the apk file to install')
+ installMode = install.add_mutually_exclusive_group()
+ installMode.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='install an apk file')
+ installMode.add_argument('-a', dest='appPackage', help='the package name of an app from the app list')
+ installMode.add_argument('-i', dest='appInteractive', action='store_true', help='select an app from the app list (interactive)')
  market = subparsers.add_parser('market', description='Download apps from the official Sony app store')
  market.add_argument('-t', dest='token', help='Specify an auth token')
  apk2spk = subparsers.add_parser('apk2spk', description='Convert apk to spk')
@@ -38,7 +41,13 @@ def main():
  if args.command == 'info':
   infoCommand(config.appengineServer, args.driver)
  elif args.command == 'install':
-  installCommand(args.server, args.driver, args.apkFile, args.outFile)
+  if args.appInteractive:
+   pkg = appSelectionCommand(args.server)
+   if not pkg:
+    return
+  else:
+   pkg = args.appPackage
+  installCommand(args.server, args.driver, args.apkFile, pkg, args.outFile)
  elif args.command == 'market':
   marketCommand(args.token)
  elif args.command == 'apk2spk':

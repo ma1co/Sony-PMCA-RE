@@ -1,10 +1,12 @@
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from collections import OrderedDict
 from io import BytesIO
 import json
 import ssl
 from threading import Thread
 
 from . import *
+from .. import appstore
 from ..util import http
 from .. import spk
 
@@ -50,18 +52,28 @@ class HttpHandler(BaseHTTPRequestHandler):
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
- def __init__(self, certFile, apk=None, host='127.0.0.1', port=443):
+ def __init__(self, repo, certFile, host='127.0.0.1', port=443):
   HTTPServer.__init__(self, (host, port), HttpHandler)
   self.url = 'https://' + host + '/'
-  self.apk = apk
+  self.appstore = appstore.AppStore(repo)
+  self.apk = None
   self.result = None
   self.socket = ssl.wrap_socket(self.socket, certfile=certFile)
 
- def run(self):
+ def listApps(self):
+  return self.appstore.apps
+
+ def startup(self):
   """Start the local server"""
   thread = Thread(target=self.serve_forever)
   thread.daemon = True
   thread.start()
+
+ def setApk(self, apkName, apkData):
+  self.apk = apkData
+
+ def setApp(self, package):
+  self.setApk(None, self.appstore.apps[package].release.asset)
 
  def getXpd(self):
   """Return the xpd contents"""
@@ -87,31 +99,42 @@ class LocalMarketServer(HTTPServer):
  def handleGet(self, handler):
   """Handle GET requests to the server"""
   # Send the spk file to the camera
-  handler.output(spk.constants.mimeType, spk.dump(self.apk[1]), 'app%s' % spk.constants.extension)
+  handler.output(spk.constants.mimeType, spk.dump(self.apk), 'app%s' % spk.constants.extension)
 
 
 class RemoteMarketServer:
  """A wrapper for a remote api"""
 
- def __init__(self, host, apk=None):
+ def __init__(self, host):
   self.base = 'https://' + host
-  self.apk = apk
+  self.taskStartUrl = ''
+  self.task = None
 
- def run(self):
+ def listApps(self):
+  apps = (appstore.App(None, dict) for dict in json.loads(http.get(self.base + '/api/apps').data))
+  return OrderedDict((app.package, app) for app in apps)
+
+ def startup(self):
+  pass
+
+ def setApk(self, apkName, apkData):
   """Uploads the apk (if any)"""
-  self.taskStartUrl = '/ajax/task/start'
-  if self.apk:
-   url = json.loads(http.get(self.base + '/ajax/upload').data)['url']
-   blobKey = json.loads(http.postFile(url, self.apk[0], self.apk[1]).data)['key']
-   self.taskStartUrl += '/blob/' + blobKey
+  url = json.loads(http.get(self.base + '/ajax/upload').data)['url']
+  blobKey = json.loads(http.postFile(url, apkName, apkData).data)['key']
+  self.taskStartUrl = '/blob/' + blobKey
+
+ def setApp(self, package):
+  self.taskStartUrl = '/app/' + package
 
  def getXpd(self):
   """Create a new task and download the xpd"""
-  self.task = str(json.loads(http.get(self.base + self.taskStartUrl).data)['id'])
+  self.task = str(json.loads(http.get(self.base + '/ajax/task/start' + self.taskStartUrl).data)['id'])
   return http.get(self.base + '/camera/xpd/' + self.task).data
 
  def getResult(self):
   """Return the task result"""
+  if not self.task:
+   raise Exception('Task was not started')
   result = json.loads(http.get(self.base + '/ajax/task/get/' + self.task).data)
   if not result['completed']:
    raise Exception('Task was not completed')
@@ -119,3 +142,16 @@ class RemoteMarketServer:
 
  def shutdown(self):
   pass
+
+
+class ServerContext:
+ """Use this in a with statement"""
+ def __init__(self, server):
+  self._server = server
+
+ def __enter__(self):
+  self._server.startup()
+  return self._server
+
+ def __exit__(self, type, value, traceback):
+  self._server.shutdown()

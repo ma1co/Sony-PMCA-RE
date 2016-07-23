@@ -3,6 +3,8 @@ import os
 import sys
 import time
 
+import config
+from .. import appstore
 from .. import installer
 from ..marketserver.server import *
 from ..usb import *
@@ -23,37 +25,57 @@ def switchToAppInstaller(dev):
  SonyExtCmdCamera(dev).switchToAppInstaller()
 
 
+defaultAppStoreRepo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo)
 defaultCertFile = scriptRoot + '/certs/localtest.me.pem'
-def installApp(dev, host=None, apkFile=None, outFile=None, certFile=defaultCertFile):
- """Installs an app on the specified device."""
- apk = (os.path.basename(apkFile.name), apkFile.read()) if apkFile else None
-
+def createMarketServer(host=None, repo=defaultAppStoreRepo, certFile=defaultCertFile):
  if host:
-  server = RemoteMarketServer(host, apk)
+  print 'Using remote server %s' % host
+  return RemoteMarketServer(host)
  else:
-  server = LocalMarketServer(certFile, apk)
+  print 'Using local server'
+  return LocalMarketServer(repo, certFile)
 
- print ('Uploading apk' if apk else 'Starting task') if host else 'Starting server'
- server.run()
- xpdData = server.getXpd()
 
- print 'Starting communication'
- # Point the camera to the web api
- result = installer.install(dev, xpdData, printStatus)
- if result.code != 0:
-  raise Exception('Communication error %d: %s' % (result.code, result.message))
+def listApps(host=None):
+ print 'Loading app list'
+ server = createMarketServer(host)
+ apps = server.listApps().values()
+ print 'Found %d apps' % len(apps)
+ return apps
 
- print 'Downloading result' if host else 'Stopping server'
- result = server.getResult()
- server.shutdown()
 
- print 'Task completed successfully'
+def installApp(dev, host=None, apkFile=None, appPackage=None, outFile=None):
+ """Installs an app on the specified device."""
+ with ServerContext(createMarketServer(host)) as server:
+  if apkFile:
+   if isinstance(server, RemoteMarketServer):
+    print 'Uploading apk'
+   server.setApk(os.path.basename(apkFile.name), apkFile.read())
+  elif appPackage:
+   if isinstance(server, LocalMarketServer):
+    print 'Downloading apk'
+   server.setApp(appPackage)
 
- if outFile:
-  print 'Writing to output file'
-  json.dump(result, outFile, indent=2)
+  print 'Starting task'
+  xpdData = server.getXpd()
 
- return result
+  print 'Starting communication'
+  # Point the camera to the web api
+  result = installer.install(dev, xpdData, printStatus)
+  if result.code != 0:
+   raise Exception('Communication error %d: %s' % (result.code, result.message))
+
+  if isinstance(server, RemoteMarketServer):
+   print 'Downloading result'
+  result = server.getResult()
+
+  print 'Task completed successfully'
+
+  if outFile:
+   print 'Writing to output file'
+   json.dump(result, outFile, indent=2)
+
+  return result
 
 
 def importDriver(driverName=None):
@@ -141,7 +163,7 @@ def infoCommand(host=None, driverName=None):
     print '%-20s%s' % (k + ': ', v)
 
 
-def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
+def installCommand(host=None, driverName=None, apkFile=None, appPackage=None, outFile=None):
  """Install the given apk on the camera"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
@@ -161,4 +183,16 @@ def installCommand(host=None, driverName=None, apkFile=None, outFile=None):
     else:
      raise Exception('Timeout')
 
-   installApp(device, host, apkFile, outFile)
+   installApp(device, host, apkFile, appPackage, outFile)
+
+
+def appSelectionCommand(host=None):
+ apps = listApps(host)
+ for i, app in enumerate(apps):
+  print ' [%2d] %s' % (i+1, app.package)
+ i = int(raw_input('Enter number of app to install (0 to abort): '))
+ if i != 0:
+  pkg = apps[i - 1].package
+  print ''
+  print 'Installing %s' % pkg
+  return pkg

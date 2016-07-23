@@ -20,6 +20,10 @@ Run `pmca-console` in the command line for more options. Usage:
 
         pmca-console install -o outfile.txt
 
+* Install an app from the app list:
+
+        pmca-console install -i
+
 * Install an app on your camera (the app is uploaded and served from Google appengine):
 
         pmca-console install -f app.apk
