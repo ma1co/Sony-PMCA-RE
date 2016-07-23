@@ -23,7 +23,7 @@ def marketCommand(token=None):
  apps = []
  for device in devices:
   print '%s (%s)' % (device.name, device.serial)
-  for app in marketclient.getApps(device.deviceid):
+  for app in marketclient.getApps(device.name):
    if not app.price:
     apps.append((device.deviceid, app.id))
     print ' [%2d] %s' % (len(apps), app.name)

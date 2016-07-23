@@ -9,7 +9,7 @@ from ..util import http
 from .. import xpd
 
 MarketDevice = namedtuple('MarketDevice', 'deviceid, name, serial')
-MarketApp = namedtuple('MarketApp', 'id, name, img, status, price')
+MarketApp = namedtuple('MarketApp', 'id, name, img, price')
 
 def download(portalid, deviceid, appid):
  """Downloads an app from the PMCA store
@@ -53,25 +53,17 @@ def getPluginInstallText():
  r = re.compile('<div id="notinstallpopup".*?>(.*?)</div>', re.DOTALL)
  return r.search(contents).group(1)
 
-def getApps(deviceid):
- """Fetches the list of apps compatible with the given device
-
- Note: The US locale is used.
- This may return apps that aren't available in the region connected to your account.
- We want to get Dollar prices however.
- """
- data = http.get(constants.baseUrl + '/wifiall.php', headers = {
-  'User-Agent': constants.cameraUserAgent,
+def getApps(devicename=None):
+ """Fetches the list of apps compatible with the given device"""
+ data = json.loads(http.get(constants.baseUrl + '/api/api_all_contents.php', data = {
+  'setname': devicename or '',
+ }, headers = {
+  'X-Requested-With': 'XMLHttpRequest',
  }, cookies = {
-  'deviceid': deviceid,
   'localeid': constants.localeUs,
- }).data
- r = re.compile('<td class="app-name">(?P<name>.*?)</td>.*?<a href="\./wifidetail\.php\?EID=(?P<id>.*?)&.*?<img src="(?P<img>.*?)".*?<td class="app-status">(?P<status>.*?)</td>', re.DOTALL)
- apps = [m.groupdict() for m in r.finditer(data)]
- for app in apps:
-  app['name'] = app['name'].replace('<br />', ' ')
-  app['price'] = app['status'] if app['status'].startswith('$') else None
- return [MarketApp(**app) for app in apps]
+ }).data)
+ for app in data['contents']:
+  yield MarketApp(app['app_id'], re.sub('\s+', ' ', app['app_name']), app['appimg_url'], None if app['app_price'] == 'Free' else app['app_price'])
 
 def downloadXpd(portalid, deviceid, appid):
  """Fetches the xpd file for the given app
