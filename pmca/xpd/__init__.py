@@ -1,7 +1,6 @@
 """Methods for reading and writing xpd files"""
 
-import hashlib
-import hmac
+from Crypto.Hash import HMAC, SHA256
 from ConfigParser import ConfigParser
 from StringIO import StringIO
 
@@ -31,4 +30,4 @@ def dump(items):
 
 def calculateChecksum(data):
  """The function used to calculate CIC checksums for xpd files"""
- return hmac.new(constants.cicKey, data, hashlib.sha256).hexdigest()
+ return HMAC.new(constants.cicKey, data, SHA256).hexdigest()

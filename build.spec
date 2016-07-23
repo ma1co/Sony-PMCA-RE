@@ -2,6 +2,8 @@
 
 import os, shutil, subprocess, sys
 
+excludes = ['encodings.bz2_codec', 'encodings.idna', 'Crypto.Cipher._DES', 'Crypto.Cipher._DES3', 'Crypto.Hash._SHA256', '_hashlib', 'numpy']
+
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).strip()
 with open('frozenversion.py', 'w') as f:
@@ -12,7 +14,7 @@ suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx'}
 output += '-' + version + suffix.get(sys.platform, '')
 
 # Analyze files
-a = Analysis([input], excludes=['numpy'], datas=[('certs/*', 'certs')])# Don't let comtypes include numpy
+a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')])
 a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, type) for name, path, type in a.binaries]# libusb binaries are not found in subdirs
 
 # Generate executable
