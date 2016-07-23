@@ -38,6 +38,7 @@ def getDevices(portalid):
  """Fetches the list of devices for the current user"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=mycamera', cookies = {
   'portalid': portalid,
+  'localeid': constants.localeUs,
  }).data)
  contents = data['mycamera']['contents']
  r = re.compile('<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
