@@ -46,6 +46,7 @@ class MtpDevice:
  PTP_OC_CloseSession = 0x1003
  PTP_RC_OK = 0x2001
  PTP_RC_SessionNotOpen = 0x2003
+ PTP_RC_DeviceBusy = 0x2019
  PTP_RC_SessionAlreadyOpened = 0x201E
 
  def __init__(self, driver):

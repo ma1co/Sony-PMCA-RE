@@ -71,9 +71,14 @@ class SonyMtpCamera(MtpDevice):
  PTP_OC_SonyGetAVIndexID = 0x9285
 
  def sendSonyExtCommand(self, cmd, data, bufferSize):
-  response = self.driver.sendWriteCommand(self.PTP_OC_SonyDiExtCmd_write, [cmd], data)
+  response = self.PTP_RC_DeviceBusy
+  while response == self.PTP_RC_DeviceBusy:
+   response = self.driver.sendWriteCommand(self.PTP_OC_SonyDiExtCmd_write, [cmd], data)
   self._checkResponse(response)
-  response, data = self.driver.sendReadCommand(self.PTP_OC_SonyDiExtCmd_read, [cmd])
+
+  response = self.PTP_RC_DeviceBusy
+  while response == self.PTP_RC_DeviceBusy:
+   response, data = self.driver.sendReadCommand(self.PTP_OC_SonyDiExtCmd_read, [cmd])
   self._checkResponse(response)
   return data
 
