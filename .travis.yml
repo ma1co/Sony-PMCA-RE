@@ -1,21 +1,26 @@
 # Run os x builds on travis-ci.org
 
-language: objective-c
+os: osx
+language: generic
+
+before_install:
+ # Update brew
+ - brew update
+ - brew --version
+
+ # Install python
+ - brew install python || brew upgrade python
+
+ # Install libusb
+ - brew install libusb || brew upgrade libusb
 
 install:
- # Install python
- - brew install --framework python
- - brew link --overwrite python
-
  # Install dependencies
  - pip install -r requirements.txt
 
  # Log versions
  - python --version
  - pip list
-
- # Install libusb
- - brew install libusb
 
 script:
  # Run pyinstaller
