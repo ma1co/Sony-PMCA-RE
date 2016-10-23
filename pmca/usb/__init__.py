@@ -1,5 +1,6 @@
 from collections import namedtuple
 
+from .driver import *
 from ..util import *
 
 MscDeviceInfo = namedtuple('MscDeviceInfo', 'manufacturer, model')
@@ -10,15 +11,13 @@ class MscDevice:
  """Manages communication with a USB mass storage device"""
  MSC_OC_INQUIRY = 0x12
 
- MSC_RESPONSE_OK = 0
-
  def __init__(self, driver):
   self.driver = driver
   self.reset()
 
- def _checkResponse(self, status):
-  if status != self.MSC_RESPONSE_OK:
-   raise Exception('Response status not OK: 0x%x' % status)
+ def _checkResponse(self, sense):
+  if sense != MSC_SENSE_OK:
+   raise Exception('Mass storage error: Sense 0x%x 0x%x 0x%x' % sense)
 
  def reset(self):
   self.driver.reset()

@@ -50,11 +50,19 @@ class SonyMscCamera(MscDevice):
  """Methods to communicate a camera in mass storage mode"""
  MSC_OC_ExtCmd = 0x7a
 
+ MSC_SENSE_DeviceBusy = (0x9, 0x81, 0x81)
+
  def sendSonyExtCommand(self, cmd, data, bufferSize):
   command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*'\x00'
-  response = self.driver.sendWriteCommand(command, data)
+
+  response = self.MSC_SENSE_DeviceBusy
+  while response == self.MSC_SENSE_DeviceBusy:
+   response = self.driver.sendWriteCommand(command, data)
   self._checkResponse(response)
-  response, data = self.driver.sendReadCommand(command, bufferSize)
+
+  response = self.MSC_SENSE_DeviceBusy
+  while response == self.MSC_SENSE_DeviceBusy:
+   response, data = self.driver.sendReadCommand(command, bufferSize)
   self._checkResponse(response)
   return data
 

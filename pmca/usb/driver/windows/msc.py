@@ -30,6 +30,13 @@ class SCSI_PASS_THROUGH_DIRECT(Structure):
   ('Cdb', c_ubyte * 16),
  ]
 
+class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(Structure):
+ _fields_ = [
+  ('sptd', SCSI_PASS_THROUGH_DIRECT),
+  ('Filler', c_ulong),
+  ('ucSenseBuf', c_ubyte * 32),
+ ]
+
 
 def listDevices():
  """Lists all detected mass storage devices"""
@@ -58,7 +65,7 @@ class MscDriver:
   self.device = device.handle
 
  def _sendScsiCommand(self, command, direction, data):
-  sptd = SCSI_PASS_THROUGH_DIRECT(
+  sptd = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(sptd = SCSI_PASS_THROUGH_DIRECT(
    Length = sizeof(SCSI_PASS_THROUGH_DIRECT),
    DataIn = direction,
    DataTransferLength = sizeof(data) if data else 0,
@@ -66,11 +73,18 @@ class MscDriver:
    CdbLength = len(command),
    Cdb = (c_ubyte * 16).from_buffer_copy(command.ljust(16, '\x00')),
    TimeOutValue = 5,
-  )
+   SenseInfoLength = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.size,
+   SenseInfoOffset = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.offset,
+  ))
   handle = CreateFile('\\\\.\\%s' % self.device, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING, 0, None)
   DeviceIoControl(handle, IOCTL_SCSI_PASS_THROUGH_DIRECT, sptd, sptd)
   CloseHandle(handle)
-  return sptd.ScsiStatus
+  if sptd.sptd.ScsiStatus != 0:
+   sense = parseMscSense(bytearray(sptd.ucSenseBuf))
+   if sense == MSC_SENSE_OK:
+    raise Exception('Mass storage error')
+   return sense
+  return MSC_SENSE_OK
 
  def reset(self):
   pass

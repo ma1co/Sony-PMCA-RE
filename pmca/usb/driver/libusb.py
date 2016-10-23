@@ -84,6 +84,8 @@ class UsbDriver:
 
 class MscDriver(UsbDriver):
  """Communicate with a USB mass storage device"""
+ MSC_OC_REQUEST_SENSE = 0x03
+
  DIRECTION_WRITE = 0
  DIRECTION_READ = 0x80
 
@@ -98,25 +100,58 @@ class MscDriver(UsbDriver):
    command = command.ljust(16, '\x00'),
   ))
 
- def _readResponse(self):
+ def _readResponse(self, failOnError=False):
   response = MscCommandStatusWrapper.unpack(self.read(MscCommandStatusWrapper.size))
   if response.signature != 'USBS':
    raise Exception('Wrong status signature')
-  return response.status
+  if response.status != 0:
+   if failOnError:
+    raise Exception('Mass storage error')
+   else:
+    return self.requestSense()
+  return MSC_SENSE_OK
 
- def sendCommand(self, command):
+ def requestSense(self):
+  size = 18
+  response, data = self.sendReadCommand(dump8(self.MSC_OC_REQUEST_SENSE) + 3*'\x00' + dump8(size) + '\x00', size, failOnError=True)
+  return parseMscSense(bytearray(data))
+
+ def sendCommand(self, command, failOnError=False):
   self._writeCommand(self.DIRECTION_WRITE, command, 0)
-  return self._readResponse()
+  return self._readResponse(failOnError)
 
- def sendWriteCommand(self, command, data):
+ def sendWriteCommand(self, command, data, failOnError=False):
   self._writeCommand(self.DIRECTION_WRITE, command, len(data))
-  self.write(data)
-  return self._readResponse()
 
- def sendReadCommand(self, command, size):
+  stalled = False
+  try:
+   self.write(data)
+  except usb.core.USBError:
+   # Write stall
+   stalled = True
+   self.dev.clear_halt(self.epOut)
+
+  sense = self._readResponse(failOnError)
+  if stalled and sense == MSC_SENSE_OK:
+   raise Exception('Mass storage write error')
+  return sense
+
+ def sendReadCommand(self, command, size, failOnError=False):
   self._writeCommand(self.DIRECTION_READ, command, size)
-  data = self.read(size)
-  return self._readResponse(), data
+
+  stalled = False
+  data = None
+  try:
+   data = self.read(size)
+  except usb.core.USBError:
+   # Read stall
+   stalled = True
+   self.dev.clear_halt(self.epIn)
+
+  sense = self._readResponse(failOnError)
+  if stalled and sense == MSC_SENSE_OK:
+   raise Exception('Mass storage read error')
+  return sense, data
 
 
 class MtpDriver(UsbDriver):
