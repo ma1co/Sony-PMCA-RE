@@ -11,8 +11,8 @@ CameraInfo = namedtuple('CameraInfo', 'plist, modelName, modelCode, serial')
 
 ResponseMessage = namedtuple('ResponseMessage', 'data')
 RequestMessage = namedtuple('RequestMessage', 'data')
-InitResponseMessage = namedtuple('InitResponseMessage', 'data')
-SslStartMessage = namedtuple('SslStartMessage', 'connectionId, host')
+InitResponseMessage = namedtuple('InitResponseMessage', 'protocols')
+SslStartMessage = namedtuple('SslStartMessage', 'connectionId, host, port')
 SslSendDataMessage = namedtuple('SslSendDataMessage', 'connectionId, data')
 SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
@@ -216,8 +216,79 @@ class SonyMtpAppInstaller(MtpDevice):
  PTP_RC_InternalError = 0xa806
  PTP_RC_TooMuchData = 0xa809
 
+ SONY_MSG_Common = 0
+ SONY_MSG_Common_Start = 0x400
+ SONY_MSG_Common_Hello = 0x401
+ SONY_MSG_Common_Bye = 0x402
+
+ SONY_MSG_Tcp = 1
+ SONY_MSG_Tcp_ProxyConnect = 0x501
+ SONY_MSG_Tcp_ProxyDisconnect = 0x502
+ SONY_MSG_Tcp_ProxyData = 0x503
+ SONY_MSG_Tcp_ProxyEnd = 0x504
+
+ SONY_MSG_Rest = 2
+ SONY_MSG_Rest_In = 0
+ SONY_MSG_Rest_Out = 2# anything != 0
+
+ InfoMsgHeader = Struct('InfoMsgHeader', [
+  ('', 4),# read: 0x10000 / write: 0
+  ('magic', Struct.INT16),
+  ('', 2),# 0
+  ('dataSize', Struct.INT32),
+  ('', 2),# read: 0x3000 / write: 0
+  ('padding', 42),
+ ], Struct.LITTLE_ENDIAN)
+ InfoMsgHeaderMagic = 0xb481
+
+ MsgHeader = Struct('MsgHeader', [
+  ('type', Struct.INT16),
+ ], Struct.BIG_ENDIAN)
+
+ CommonMsgHeader = Struct('CommonMsgHeader', [
+  ('version', Struct.INT16),
+  ('type', Struct.INT32),
+  ('size', Struct.INT32),
+  ('padding', 6),
+ ], Struct.BIG_ENDIAN)
+ CommonMsgVersion = 1
+
+ TcpMsgHeader = Struct('TcpMsgHeader', [
+  ('socketFd', Struct.INT32),
+ ], Struct.BIG_ENDIAN)
+
+ RestMsgHeader = Struct('RestMsgHeader', [
+  ('type', Struct.INT16),
+  ('size', Struct.INT16),
+ ], Struct.BIG_ENDIAN)
+
+ ProxyConnectMsgHeader = Struct('ProxyConnectMsgHeader', [
+  ('port', Struct.INT16),
+  ('hostSize', Struct.INT32),
+ ], Struct.BIG_ENDIAN)
+
+ SslDataMsgHeader = Struct('SslDataMsgHeader', [
+  ('size', Struct.INT32),
+ ], Struct.BIG_ENDIAN)
+
+ ProtocolMsgHeader = Struct('ProtocolMsgHeader', [
+  ('numProtocols', Struct.INT32),
+ ], Struct.BIG_ENDIAN)
+
+ ProtocolMsgProto = Struct('ProtocolMsgProto', [
+  ('name', Struct.STR % 4),
+  ('id', Struct.INT16),
+ ], Struct.BIG_ENDIAN)
+ ProtocolMsgProtos = [('TCPT', 0x01), ('REST', 0x100)]
+
+ ThreeValueMsg = Struct('ThreeValueMsg', [
+  ('a', Struct.INT16),
+  ('b', Struct.INT32),
+  ('c', Struct.INT32),
+ ], Struct.BIG_ENDIAN)
+
  def _write(self, data):
-  info = 4*'\x00' + '\x81\xb4\x00\x00' + dump32le(len(data)) + 40*'\x00' + '\x02\x41\x00\x00' + 4*'\x00'
+  info = self.InfoMsgHeader.pack(magic=self.InfoMsgHeaderMagic, dataSize=len(data))
 
   response = self.PTP_RC_SonyDeviceBusy
   while response == self.PTP_RC_SonyDeviceBusy:
@@ -232,6 +303,8 @@ class SonyMtpAppInstaller(MtpDevice):
  def _read(self):
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
   self._checkResponse(response)
+  self.InfoMsgHeader.unpack(data)
+
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
   self._checkResponse(response, [self.PTP_RC_NoData])
   return data
@@ -241,37 +314,75 @@ class SonyMtpAppInstaller(MtpDevice):
   data = self._read()
   if data == '':
    return None
-  else:
-   type = data[:4]
-   if type == '\x00\x02\x00\x01':
-    return ResponseMessage(data[6:-1])
-   elif type == '\x00\x02\x00\x00':
-    return RequestMessage(data[6:-1])
-   elif type == '\x00\x00\x00\x01' or type == '\x00\x01\x00\x01':
-    type = data[6:8]
-    if type == '\x04\x01':
-     return InitResponseMessage(data[20:])
-    elif type == '\x05\x01':
-     return SslStartMessage(parse16be(data[20:22]), data[28:])
-    elif type == '\x05\x02':
-     return SslEndMessage(parse16be(data[20:22]))
-    elif type == '\x05\x03':
-     return SslSendDataMessage(parse16be(data[20:22]), data[26:])
-    else:
-     raise Exception('Unknown type 2: %s' % repr(type))
+
+  type = self.MsgHeader.unpack(data).type
+  data = data[self.MsgHeader.size:]
+
+  if type == self.SONY_MSG_Common:
+   header = self.CommonMsgHeader.unpack(data)
+   data = data[self.CommonMsgHeader.size:header.size]
+   if header.type == self.SONY_MSG_Common_Hello:
+    n = self.ProtocolMsgHeader.unpack(data).numProtocols
+    protos = (self.ProtocolMsgProto.unpack(data, self.ProtocolMsgHeader.size+i*self.ProtocolMsgProto.size) for i in xrange(n))
+    return InitResponseMessage([(p.name, p.id) for p in protos])
+   elif header.type == self.SONY_MSG_Common_Bye:
+    raise Exception('Bye from camera')
    else:
-    raise Exception('Unknown type 1: %s' % repr(type))
+    raise Exception('Unknown common message type: 0x%x' % header.type)
+
+  elif type == self.SONY_MSG_Tcp:
+   header = self.CommonMsgHeader.unpack(data)
+   data = data[self.CommonMsgHeader.size:header.size]
+   tcpHeader = self.TcpMsgHeader.unpack(data)
+   data = data[self.TcpMsgHeader.size:]
+   if header.type == self.SONY_MSG_Tcp_ProxyConnect:
+    proxy = self.ProxyConnectMsgHeader.unpack(data)
+    host = data[self.ProxyConnectMsgHeader.size:self.ProxyConnectMsgHeader.size+proxy.hostSize]
+    return SslStartMessage(tcpHeader.socketFd, host, proxy.port)
+   elif header.type == self.SONY_MSG_Tcp_ProxyDisconnect:
+    return SslEndMessage(tcpHeader.socketFd)
+   elif header.type == self.SONY_MSG_Tcp_ProxyData:
+    size = self.SslDataMsgHeader.unpack(data).size
+    return SslSendDataMessage(tcpHeader.socketFd, data[self.SslDataMsgHeader.size:self.SslDataMsgHeader.size+size])
+   else:
+    raise Exception('Unknown tcp message type: 0x%x' % header.type)
+
+  elif type == self.SONY_MSG_Rest:
+   header = self.RestMsgHeader.unpack(data)
+   data = data[self.RestMsgHeader.size:self.RestMsgHeader.size+header.size]
+   if header.type == self.SONY_MSG_Rest_Out:
+    return ResponseMessage(data)
+   elif header.type == self.SONY_MSG_Rest_In:
+    return RequestMessage(data)
+   else:
+    raise Exception('Unknown rest message type: 0x%x' % header.type)
+
+  else:
+   raise Exception('Unknown message type: 0x%x' % type)
 
  def _receiveResponse(self, type):
   msg = None
-  while msg == None:
+  while msg is None:
    msg = self.receive()
   if not isinstance(msg, type):
    raise Exception('Wrong response: %s' % str(msg))
   return msg
 
- def _sendCommand(self, type1, type2, data):
-  self._write(type1 + '\x00\x00' + type2 + dump32be(len(data) + 18) + 8*'\x00' + data)
+ def _sendMessage(self, type, data):
+  self._write(self.MsgHeader.pack(type=type) + data)
+
+ def _sendCommonMessage(self, subType, data, type=SONY_MSG_Common):
+  self._sendMessage(type, self.CommonMsgHeader.pack(
+   version = self.CommonMsgVersion,
+   type = subType,
+   size = self.CommonMsgHeader.size + len(data)
+  ) + data)
+
+ def _sendTcpMessage(self, subType, socketFd, data):
+  self._sendCommonMessage(subType, self.TcpMsgHeader.pack(socketFd=socketFd) + data, self.SONY_MSG_Tcp)
+
+ def _sendRestMessage(self, subType, data):
+  self._sendMessage(self.SONY_MSG_Rest, self.RestMsgHeader.pack(type=subType, size=len(data)) + data)
 
  def emptyBuffer(self):
   """Receives and discards all pending messages from the camera"""
@@ -279,25 +390,27 @@ class SonyMtpAppInstaller(MtpDevice):
   while msg:
    msg = self.receive()
 
- def sendInit(self):
+ def sendInit(self, protocols=ProtocolMsgProtos):
   """Send an initialization message to the camera"""
-  data = '\x00\x02TCPT\x00\x01REST\x01\x00'
-  self._sendCommand('\x00\x00\x00\x01', '\x04\x00', data)
-  self._receiveResponse(InitResponseMessage)
+  data = self.ProtocolMsgHeader.pack(numProtocols=len(protocols))
+  for name, id in protocols:
+   data += self.ProtocolMsgProto.pack(name=name, id=id)
+  self._sendCommonMessage(self.SONY_MSG_Common_Start, data)
+  return self._receiveResponse(InitResponseMessage).protocols
 
  def sendRequest(self, data):
   """Sends a REST request to the camera. Used to start communication"""
-  self._write('\x00\x02\x00\x01' + dump16be(len(data)) + data)
+  self._sendRestMessage(self.SONY_MSG_Rest_Out, data)
   return self._receiveResponse(ResponseMessage).data
 
  def sendSslData(self, req, data):
   """Sends raw SSL response data to the camera"""
-  self._sendCommand('\x00\x01\x00\x01', '\x05\x03', dump16be(req) + dump32be(len(data)) + data)
+  self._sendTcpMessage(self.SONY_MSG_Tcp_ProxyData, req, self.SslDataMsgHeader.pack(size=len(data)) + data)
 
  def sendSslEnd(self, req):
   """Lets the camera know that the SSL socket has been closed"""
-  self._sendCommand('\x00\x01\x00\x01', '\x05\x04', dump16be(req) + '\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00')
+  self._sendTcpMessage(self.SONY_MSG_Tcp_ProxyEnd, req, self.ThreeValueMsg.pack(a=1, b=1, c=0))
 
  def sendEnd(self):
   """Ends the communication with the camera"""
-  self._sendCommand('\x00\x00\x00\x01', '\x04\x02', 8*'\x00')
+  self._sendCommonMessage(self.SONY_MSG_Common_Bye, self.ThreeValueMsg.pack(a=0, b=0, c=0))

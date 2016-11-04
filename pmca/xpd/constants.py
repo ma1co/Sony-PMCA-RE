@@ -1,4 +1,4 @@
-mimeType = 'application/x-psn-dstartup'
+mimeType = 'application/x-psn-dstartup2'
 sectionName = 'DrmTCD'
 
 # ScalarAMarket.apk/lib/libscalaramarket-jni.so, ScalarAUsbDlApp.apk/lib/libjniusbdluser.so
