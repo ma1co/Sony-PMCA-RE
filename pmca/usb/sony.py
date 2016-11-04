@@ -211,18 +211,29 @@ class SonyMtpAppInstaller(MtpDevice):
  PTP_OC_SendProxyMessage = 0x948d
  PTP_OC_GetDeviceCapability = 0x940a
 
+ PTP_RC_NoData = 0xa488
+ PTP_RC_SonyDeviceBusy = 0xa489
+ PTP_RC_InternalError = 0xa806
+ PTP_RC_TooMuchData = 0xa809
+
  def _write(self, data):
   info = 4*'\x00' + '\x81\xb4\x00\x00' + dump32le(len(data)) + 40*'\x00' + '\x02\x41\x00\x00' + 4*'\x00'
-  response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessageInfo, [], info)
+
+  response = self.PTP_RC_SonyDeviceBusy
+  while response == self.PTP_RC_SonyDeviceBusy:
+   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessageInfo, [], info)
   self._checkResponse(response)
-  response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessage, [], data)
+
+  response = self.PTP_RC_SonyDeviceBusy
+  while response == self.PTP_RC_SonyDeviceBusy:
+   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessage, [], data)
   self._checkResponse(response)
 
  def _read(self):
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
   self._checkResponse(response)
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
-  self._checkResponse(response, [0xa488])
+  self._checkResponse(response, [self.PTP_RC_NoData])
   return data
 
  def receive(self):
