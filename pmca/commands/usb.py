@@ -152,12 +152,12 @@ def infoCommand(host=None, driverName=None):
     ]
    else:
     info = SonyExtCmdCamera(device).getCameraInfo()
-    firmware = SonyUpdaterCamera(device).getFirmwareVersion()
+    firmwareOld, firmwareNew = SonyUpdaterCamera(device).getFirmwareVersion()
     props = [
      ('Model', info.modelName),
      ('Product code', info.modelCode),
      ('Serial number', info.serial),
-     ('Firmware version', firmware),
+     ('Firmware version', firmwareOld),
     ]
    for k, v in props:
     print '%-20s%s' % (k + ': ', v)

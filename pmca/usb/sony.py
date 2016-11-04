@@ -183,30 +183,140 @@ class SonyUpdaterCamera:
 
  # from libupdaterufp.so
  SONY_CMD_Updater = 0
- SONY_CMD_Updater_init = 0x1
- SONY_CMD_Updater_chk_guard = 0x10
- SONY_CMD_Updater_query_version = 0x20
- SONY_CMD_Updater_switch_mode = 0x30
- SONY_CMD_Updater_write_firm = 0x40
- SONY_CMD_Updater_complete = 0x100
- SONY_CMD_Updater_get_state = 0x200
+ CMD_INIT = 0x1
+ CMD_CHK_GUARD = 0x10
+ CMD_QUERY_VERSION = 0x20
+ CMD_SWITCH_MODE = 0x30
+ CMD_WRITE_FIRM = 0x40
+ CMD_COMPLETE = 0x100
+ CMD_GET_STATE = 0x200
 
- DIRECTION_OUT = 0
- DIRECTION_IN = 1
+ PacketHeader = Struct('PacketHeader', [
+  ('bodySize', Struct.INT32),
+  ('protocolVersion', Struct.INT16),
+  ('commandId', Struct.INT16),
+  ('responseId', Struct.INT16),
+  ('sequenceNumber', Struct.INT16),
+  ('reserved', 20),
+ ])
+ protocolVersion = 0x100
+
+ GetStateResponse = Struct('GetStateResponse', [
+  ('currentStateId', Struct.INT16),
+ ])
+
+ InitResponse = Struct('InitResponse', [
+  ('maxCmdPacketSize', Struct.INT32),
+  ('maxResPacketSize', Struct.INT32),
+  ('minTimeOut', Struct.INT32),
+  ('intervalBeforeCommand', Struct.INT32),
+  ('intervalBeforeResponse', Struct.INT32),
+ ])
+
+ QueryVersionResponse = Struct('QueryVersionResponse', [
+  ('oldFirmMinorVersion', Struct.INT16),
+  ('oldFirmMajorVersion', Struct.INT16),
+  ('newFirmMinorVersion', Struct.INT16),
+  ('newFirmMajorVersion', Struct.INT16),
+ ])
+
+ WriteParam = Struct('WriteParam', [
+  ('dataNumber', Struct.INT32),
+  ('remainingSize', Struct.INT32),
+ ])
+
+ WriteResponse = Struct('WriteResponse', [
+  ('windowSize', Struct.INT32),
+  ('numStatus', Struct.INT32),
+ ])
+
+ WriteResponseStatus = Struct('WriteResponseStatus', [
+  ('code', Struct.INT16),
+ ])
+
+ ERR_OK = 0x1
+ ERR_BUSY = 0x2
+ ERR_PROV = 0x100
+ ERR_SEQUENCE = 0x101
+ ERR_PACKET_SIZE = 0x102
+ ERR_INVALID_PARAM = 0x103
+
+ STAT_OK = 0x1
+ STAT_BUSY = 0x2
+ STAT_INVALID_DATA = 0x40
+ STAT_LOW_BATTERY = 0x100
+ STAT_INVALID_MODEL = 0x140
+ STAT_INVALID_REGION = 0x141
+ STAT_INVALID_VERSION = 0x142
 
  BUFFER_SIZE = 512
 
  def __init__(self, dev):
   self.dev = dev
 
- def _sendCommand(self, command, direction, data='', sequence=0):
-  header = dump32le(len(data)) + '\x00\x01' + dump16le(command) + dump8(direction) + '\x00' + dump16le(sequence) + 20*'\x00'
-  return self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, header + data, self.BUFFER_SIZE)
+ def _sendCommand(self, command, data='', bufferSize=BUFFER_SIZE):
+  commandHeader = self.PacketHeader.pack(
+   bodySize = len(data),
+   protocolVersion = self.protocolVersion,
+   commandId = command,
+   responseId = 0,
+   sequenceNumber = 0,
+  )
+  response = self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, commandHeader + data, bufferSize)
+
+  if bufferSize == 0:
+   return ''
+  responseHeader = self.PacketHeader.unpack(response)
+  if responseHeader.responseId != self.ERR_OK:
+   raise Exception('Response error: 0x%x' % responseHeader.responseId)
+  return response[self.PacketHeader.size:self.PacketHeader.size+responseHeader.bodySize]
+
+ def _sendWriteCommands(self, command, file, size):
+  i = 0
+  remaining = size
+  windowSize = 0
+  while True:
+   i += 1
+   data = file.read(windowSize)
+   remaining -= len(data)
+   writeParam = self.WriteParam.pack(dataNumber=i, remainingSize=remaining)
+   windowSize, status = self._parseWriteResponse(self._sendCommand(command, writeParam + data))
+   if status == [self.STAT_OK]:
+    break
+   elif status != [self.STAT_BUSY]:
+    raise Exception('Updater write status error: ' + ', '.join(['0x%x' % s for s in status]))
+
+ def _parseWriteResponse(self, data):
+  response = self.WriteResponse.unpack(data)
+  status = [self.WriteResponseStatus.unpack(data, self.WriteResponse.size+i*self.WriteResponseStatus.size).code for i in xrange(response.numStatus)]
+  return response.windowSize, status
+
+ def getState(self):
+  return self.GetStateResponse.unpack(self._sendCommand(self.CMD_GET_STATE)).currentStateId
+
+ def init(self):
+  self.InitResponse.unpack(self._sendCommand(self.CMD_INIT))
+
+ def checkGuard(self, file, size):
+  self._sendWriteCommands(self.CMD_CHK_GUARD, file, size)
 
  def getFirmwareVersion(self):
-  """Returns the camera's firmware version"""
-  data = self._sendCommand(self.SONY_CMD_Updater_query_version, self.DIRECTION_IN)
-  return '%x.%02x' % (parse8(data[34]), parse8(data[32]))
+  response = self.QueryVersionResponse.unpack(self._sendCommand(self.CMD_QUERY_VERSION))
+  return (
+   '%x.%02x' % (response.oldFirmMajorVersion, response.oldFirmMinorVersion),
+   '%x.%02x' % (response.newFirmMajorVersion, response.newFirmMinorVersion),
+  )
+
+ def switchMode(self):
+  reserved, status = self._parseWriteResponse(self._sendCommand(self.CMD_SWITCH_MODE))
+  if status != [self.STAT_OK]:
+   raise Exception('Updater mode switch failed')
+
+ def writeFirmware(self, file, size):
+  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size)
+
+ def complete(self):
+  self._sendCommand(self.CMD_COMPLETE, bufferSize=0)
 
 
 class SonyMtpAppInstaller(MtpDevice):
