@@ -60,6 +60,9 @@ class SonyMscCamera(MscDevice):
    response = self.driver.sendWriteCommand(command, data)
   self._checkResponse(response)
 
+  if bufferSize == 0:
+   return ''
+
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
    response, data = self.driver.sendReadCommand(command, bufferSize)
@@ -83,6 +86,9 @@ class SonyMtpCamera(MtpDevice):
   while response == self.PTP_RC_DeviceBusy:
    response = self.driver.sendWriteCommand(self.PTP_OC_SonyDiExtCmd_write, [cmd], data)
   self._checkResponse(response)
+
+  if bufferSize == 0:
+   return ''
 
   response = self.PTP_RC_DeviceBusy
   while response == self.PTP_RC_DeviceBusy:
@@ -131,8 +137,10 @@ class SonyExtCmdCamera:
  def __init__(self, dev):
   self.dev = dev
 
- def _sendCommand(self, cmd):
-  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00', self.BUFFER_SIZE)
+ def _sendCommand(self, cmd, bufferSize=BUFFER_SIZE):
+  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00', bufferSize)
+  if bufferSize == 0:
+   return ''
   size = parse32le(data[:4])
   return data[16:16+size]
 
@@ -163,11 +171,11 @@ class SonyExtCmdCamera:
 
  def switchToAppInstaller(self):
   """Tells the camera to switch to app installation mode"""
-  self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode)
+  self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode, bufferSize=0)
 
  def powerOff(self):
   """Forces the camera to turn off"""
-  self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff)
+  self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff, bufferSize=0)
 
 
 class SonyUpdaterCamera:
