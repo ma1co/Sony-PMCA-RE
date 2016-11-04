@@ -36,6 +36,10 @@ Run `pmca-console` in the command line for more options. Usage:
 
         pmca-console market
 
+* Update the camera's firmware:
+
+        pmca-console firmware -f FirmwareData.dat
+
 #### Windows drivers ####
 On Windows, the choice defaults to the default Windows USB drivers. If you want to use libusb on Windows, you'll have to install generic drivers for your camera using [Zadig](http://zadig.akeo.ie/) (select *libusb-win32*). You can then run `pmca-console install -d libusb`.
 

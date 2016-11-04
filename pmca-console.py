@@ -36,6 +36,9 @@ def main():
  spk2apk = subparsers.add_parser('spk2apk', description='Convert spk to apk')
  spk2apk.add_argument('inFile', metavar='app' + spk.constants.extension, type=argparse.FileType('rb'), help='the spk file to convert')
  spk2apk.add_argument('outFile', metavar='app.apk', type=argparse.FileType('wb'), help='the output apk file')
+ firmware = subparsers.add_parser('firmware', description='Update the firmware')
+ firmware.add_argument('-f', dest='datFile', type=argparse.FileType('rb'), required=True, help='the firmware file')
+ firmware.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -54,6 +57,8 @@ def main():
   args.outFile.write(spk.dump(args.inFile.read()))
  elif args.command == 'spk2apk':
   args.outFile.write(spk.parse(args.inFile.read()))
+ elif args.command == 'firmware':
+  firmwareUpdateCommand(args.datFile, args.driver)
 
 
 if __name__ == '__main__':

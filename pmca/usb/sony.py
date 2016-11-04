@@ -178,6 +178,11 @@ class SonyExtCmdCamera:
   self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff, bufferSize=0)
 
 
+class SonyUpdaterSequenceError(Exception):
+ def __init__(self):
+  Exception.__init__(self, 'Wrong updater command sequence')
+
+
 class SonyUpdaterCamera:
  """Methods to send updater commands to a camera"""
 
@@ -268,28 +273,41 @@ class SonyUpdaterCamera:
    return ''
   responseHeader = self.PacketHeader.unpack(response)
   if responseHeader.responseId != self.ERR_OK:
+   if responseHeader.responseId == self.ERR_SEQUENCE:
+    raise SonyUpdaterSequenceError()
    raise Exception('Response error: 0x%x' % responseHeader.responseId)
   return response[self.PacketHeader.size:self.PacketHeader.size+responseHeader.bodySize]
 
- def _sendWriteCommands(self, command, file, size):
+ def _sendWriteCommands(self, command, file, size, progress=None):
   i = 0
-  remaining = size
+  written = 0
   windowSize = 0
   while True:
    i += 1
-   data = file.read(windowSize)
-   remaining -= len(data)
-   writeParam = self.WriteParam.pack(dataNumber=i, remainingSize=remaining)
+   data = file.read(min(windowSize, size-written))
+   written += len(data)
+   writeParam = self.WriteParam.pack(dataNumber=i, remainingSize=size-written)
    windowSize, status = self._parseWriteResponse(self._sendCommand(command, writeParam + data))
+   if progress:
+    progress(written, size)
    if status == [self.STAT_OK]:
     break
    elif status != [self.STAT_BUSY]:
-    raise Exception('Updater write status error: ' + ', '.join(['0x%x' % s for s in status]))
+    raise Exception('Firmware update error: ' + ', '.join([self._statusToStr(s) for s in status]))
 
  def _parseWriteResponse(self, data):
   response = self.WriteResponse.unpack(data)
   status = [self.WriteResponseStatus.unpack(data, self.WriteResponse.size+i*self.WriteResponseStatus.size).code for i in xrange(response.numStatus)]
   return response.windowSize, status
+
+ def _statusToStr(self, status):
+  return {
+   self.STAT_INVALID_DATA: 'Invalid data',
+   self.STAT_LOW_BATTERY: 'Low battery',
+   self.STAT_INVALID_MODEL: 'Invalid model',
+   self.STAT_INVALID_REGION: 'Invalid region',
+   self.STAT_INVALID_VERSION: 'Invalid version',
+  }.get(status, 'Unknown (0x%x)' % status)
 
  def getState(self):
   return self.GetStateResponse.unpack(self._sendCommand(self.CMD_GET_STATE)).currentStateId
@@ -312,8 +330,8 @@ class SonyUpdaterCamera:
   if status != [self.STAT_OK]:
    raise Exception('Updater mode switch failed')
 
- def writeFirmware(self, file, size):
-  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size)
+ def writeFirmware(self, file, size, progress=None):
+  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size, progress)
 
  def complete(self):
   self._sendCommand(self.CMD_COMPLETE, bufferSize=0)

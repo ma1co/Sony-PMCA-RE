@@ -5,6 +5,7 @@ import time
 
 import config
 from .. import appstore
+from .. import firmware
 from .. import installer
 from ..marketserver.server import *
 from ..usb import *
@@ -196,3 +197,37 @@ def appSelectionCommand(host=None):
   print ''
   print 'Installing %s' % pkg
   return pkg
+
+
+def firmwareUpdateCommand(file, driverName=None):
+ offset, size = firmware.readDat(file)
+
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device and not isinstance(device, SonyMtpAppInstaller):
+   dev = SonyUpdaterCamera(device)
+
+   print 'Initializing firmware update'
+   dev.init()
+   file.seek(offset)
+   dev.checkGuard(file, size)
+   print 'Updating from version %s to version %s' % dev.getFirmwareVersion()
+
+   try:
+    dev.switchMode()
+    print 'Switching to updater mode'
+    print 'Please press Ok to reset the camera, then run this command again to install the firmware'
+
+   except SonyUpdaterSequenceError:
+    def progress(written, total):
+     p = int(written * 20 / total) * 5
+     if p != progress.percent:
+      print '%d%%' % p
+      progress.percent = p
+    progress.percent = -1
+
+    print 'Writing firmware'
+    file.seek(offset)
+    dev.writeFirmware(file, size, progress)
+    dev.complete()
+    print 'Done'
