@@ -204,7 +204,11 @@ def firmwareUpdateCommand(file, driverName=None):
 
  with importDriver(driverName) as driver:
   device = getDevice(driver)
-  if device and not isinstance(device, SonyMtpAppInstaller):
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    print 'Error: Cannot use camera in app install mode. Please restart the device.'
+    return
+
    dev = SonyUpdaterCamera(device)
 
    print 'Initializing firmware update'

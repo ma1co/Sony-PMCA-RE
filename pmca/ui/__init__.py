@@ -23,6 +23,15 @@ class UiRoot(Tk):
   self.after(100, self._processQueue)
 
 
+class UiFrame(Frame):
+ def __init__(self, parent, **kwargs):
+  Frame.__init__(self, parent, **kwargs)
+  self._parent = parent
+
+ def run(self, func):
+  self._parent.run(func)
+
+
 class BackgroundTask:
  """Similar to Android's AsyncTask"""
  def __init__(self, ui):
