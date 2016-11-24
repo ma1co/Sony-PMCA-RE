@@ -1,3 +1,4 @@
+certifi
 comtypes
 pycrypto
 # Use an old version of pyinstaller until bug #1957 is fixed

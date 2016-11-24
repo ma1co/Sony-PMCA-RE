@@ -16,6 +16,7 @@ output += '-' + version + suffix.get(sys.platform, '')
 # Analyze files
 a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')])
 a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, type) for name, path, type in a.binaries]# libusb binaries are not found in subdirs
+a.datas = [d for d in a.datas if not (d[0].startswith('certifi') and not d[0].endswith('cacert.pem'))]
 
 # Generate executable
 pyz = PYZ(a.pure, a.zipped_data)

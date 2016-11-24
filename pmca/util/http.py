@@ -1,6 +1,7 @@
 """Some methods to make HTTP requests"""
 
 import mimetools
+import ssl
 import urllib
 import urllib2
 from urlparse import urlparse
@@ -40,7 +41,16 @@ def request(url, data=None, headers={}, cookies={}, auth=None):
  manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
  if auth:
   manager.add_password(None, request.get_full_url(), auth[0], auth[1])
- opener = urllib2.build_opener(urllib2.HTTPBasicAuthHandler(manager), urllib2.HTTPDigestAuthHandler(manager))
+ try:
+  import certifi
+  certFile = certifi.where()
+ except:
+  certFile = None
+ opener = urllib2.build_opener(
+  urllib2.HTTPSHandler(context=ssl.create_default_context(cafile=certFile)),
+  urllib2.HTTPBasicAuthHandler(manager),
+  urllib2.HTTPDigestAuthHandler(manager),
+ )
  response = opener.open(request)
  cj = CookieJar()
  cj.extract_cookies(response, request)
