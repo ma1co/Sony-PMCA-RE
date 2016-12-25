@@ -2,7 +2,7 @@
 
 import os, shutil, subprocess, sys
 
-excludes = ['encodings.bz2_codec', 'encodings.idna', 'Crypto.Cipher._DES', 'Crypto.Cipher._DES3', 'Crypto.Hash._SHA256', 'numpy']
+excludes = ['bz2', 'collections.__main__', 'doctest', 'gzip', 'lzma', 'numpy', 'zipfile']
 
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).decode('ascii').strip()

@@ -9,7 +9,9 @@ before_install:
  - brew --version
 
  # Install python
- - brew install python || brew upgrade python
+ - brew install python3 || brew upgrade python3
+ - python3 -m venv venv
+ - source venv/bin/activate
 
  # Install libusb
  - brew install libusb || brew upgrade libusb

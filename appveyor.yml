@@ -3,7 +3,7 @@
 version: "Build #{build}"
 
 environment:
- PYTHON: C:\Python27
+ PYTHON: C:\Python35
 
 install:
  # Path setup

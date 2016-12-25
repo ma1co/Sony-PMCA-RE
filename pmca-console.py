@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A command line application to install apps on Android-enabled Sony cameras"""
 import argparse
 
