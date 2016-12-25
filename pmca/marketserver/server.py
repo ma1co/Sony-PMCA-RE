@@ -1,9 +1,14 @@
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from collections import OrderedDict
 from io import BytesIO
 import json
 import ssl
 from threading import Thread
+
+try:
+ from http.server import BaseHTTPRequestHandler, HTTPServer
+except ImportError:
+ # Python 2
+ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 from . import *
 from .. import appstore
@@ -104,7 +109,7 @@ class LocalMarketServer(HTTPServer):
   handler.output(spk.constants.mimeType, spk.dump(self.apk), 'app%s' % spk.constants.extension)
 
 
-class RemoteMarketServer:
+class RemoteMarketServer(object):
  """A wrapper for a remote api"""
 
  def __init__(self, host, port=443):
@@ -133,7 +138,7 @@ class RemoteMarketServer:
  def getXpd(self):
   """Create a new task and download the xpd"""
   self.task = str(json.loads(http.get(self.base + '/ajax/task/start' + self.taskStartUrl).data)['id'])
-  return http.get(self.base + '/camera/xpd/' + self.task).data
+  return http.get(self.base + '/camera/xpd/' + self.task).raw_data
 
  def getResult(self):
   """Return the task result"""
@@ -148,7 +153,7 @@ class RemoteMarketServer:
   pass
 
 
-class ServerContext:
+class ServerContext(object):
  """Use this in a with statement"""
  def __init__(self, server):
   self._server = server

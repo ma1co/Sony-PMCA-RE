@@ -13,6 +13,7 @@ comtypes.client._generate.__verbose__ = False
 GetModule('PortableDeviceApi.dll')
 GetModule('PortableDeviceTypes.dll')
 from comtypes.gen.PortableDeviceApiLib import *
+from comtypes.gen.PortableDeviceApiLib import _tagpropertykey as tpka
 from comtypes.gen.PortableDeviceTypesLib import *
 
 
@@ -70,7 +71,7 @@ def listDevices():
   idVendor, idProduct = parseDeviceId(id)
   yield UsbDevice(id, idVendor, idProduct, USB_CLASS_PTP)
 
-class MtpDriver:
+class MtpDriver(object):
  """Send and receive MTP packages to a device."""
  def __init__(self, device):
   self.device = CreateObject(PortableDevice)
@@ -90,7 +91,7 @@ class MtpDriver:
    p = PROPVARIANT()
    p.vt = VT_UI4
    p.ulVal = value
-   params.add(cast(pointer(p), POINTER(tag_inner_PROPVARIANT)))
+   params.Add(cast(pointer(p), POINTER(tag_inner_PROPVARIANT)))
   return params
 
  def _initInitialCommand(self, command, code, args):
@@ -102,12 +103,12 @@ class MtpDriver:
  def _initDataCommand(self, command, context, lengthKey, data):
   params = self._initCommandValues(command, context)
   params.SetUnsignedLargeIntegerValue(lengthKey, len(data))
-  params.SetBufferValue(WPD_PROPERTY_MTP_EXT_TRANSFER_DATA, (c_ubyte * len(data))(*bytearray(data)), len(data))
+  params.SetBufferValue(WPD_PROPERTY_MTP_EXT_TRANSFER_DATA, (c_ubyte * len(data)).from_buffer_copy(data), len(data))
   return params
 
  def _send(self, params):
-  result = cast(self.device.SendCommand(0, params), POINTER(IPortableDeviceValues))
-  code = result.GetErrorValue(WPD_PROPERTY_COMMON_HRESULT)
+  result = self.device.SendCommand(0, params)
+  code = result.GetErrorValue(cast(WPD_PROPERTY_COMMON_HRESULT, POINTER(tpka)))
   if code != 0:
    raise Exception('MTP SendCommand failed: 0x%x' % code)
   return result
@@ -118,10 +119,10 @@ class MtpDriver:
   return self._getResponse(result)
 
  def _getContext(self, result):
-  return result.GetStringValue(WPD_PROPERTY_MTP_EXT_TRANSFER_CONTEXT)
+  return result.GetStringValue(cast(WPD_PROPERTY_MTP_EXT_TRANSFER_CONTEXT, POINTER(tpka)))
 
  def _getResponse(self, result):
-  return result.GetUnsignedIntegerValue(WPD_PROPERTY_MTP_EXT_RESPONSE_CODE)
+  return result.GetUnsignedIntegerValue(cast(WPD_PROPERTY_MTP_EXT_RESPONSE_CODE, POINTER(tpka)))
 
  def reset(self):
   pass
@@ -149,10 +150,10 @@ class MtpDriver:
   params = self._initInitialCommand(WPD_COMMAND_MTP_EXT_EXECUTE_COMMAND_WITH_DATA_TO_READ, code, args)
   result = self._send(params)
   context = self._getContext(result)
-  length = result.GetUnsignedIntegerValue(WPD_PROPERTY_MTP_EXT_TRANSFER_TOTAL_DATA_SIZE)
+  length = result.GetUnsignedIntegerValue(cast(WPD_PROPERTY_MTP_EXT_TRANSFER_TOTAL_DATA_SIZE, POINTER(tpka)))
 
-  params = self._initDataCommand(WPD_COMMAND_MTP_EXT_READ_DATA, context, WPD_PROPERTY_MTP_EXT_TRANSFER_NUM_BYTES_TO_READ, '\00'*length)
+  params = self._initDataCommand(WPD_COMMAND_MTP_EXT_READ_DATA, context, WPD_PROPERTY_MTP_EXT_TRANSFER_NUM_BYTES_TO_READ, b'\0'*length)
   result = self._send(params)
-  data, length = result.GetBufferValue(WPD_PROPERTY_MTP_EXT_TRANSFER_DATA)
+  data, length = result.GetBufferValue(cast(WPD_PROPERTY_MTP_EXT_TRANSFER_DATA, POINTER(tpka)))
 
-  return self._readResponse(context), str(bytearray(data[:length]))
+  return self._readResponse(context), bytes(bytearray(data[:length]))

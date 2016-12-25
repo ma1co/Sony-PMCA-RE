@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """A simple gui interface"""
+from __future__ import print_function
 import sys
-from tkFileDialog import *
 import traceback
 
 import config
@@ -13,7 +13,7 @@ if getattr(sys, 'frozen', False):
 else:
  version = None
 
-class PrintRedirector:
+class PrintRedirector(object):
  """Redirect writes to a function"""
  def __init__(self, func, parent=None):
   self.func = func
@@ -22,6 +22,8 @@ class PrintRedirector:
   if self.parent:
    self.parent.write(str)
   self.func(str)
+ def flush(self):
+  self.parent.flush()
 
 
 class AppLoadTask(BackgroundTask):
@@ -31,7 +33,7 @@ class AppLoadTask(BackgroundTask):
 
  def do(self, arg):
   try:
-   print ''
+   print('')
    return listApps(config.appengineServer)
   except Exception:
    traceback.print_exc()
@@ -49,7 +51,7 @@ class InfoTask(BackgroundTask):
 
  def do(self, arg):
   try:
-   print ''
+   print('')
    infoCommand(config.appengineServer)
   except Exception:
    traceback.print_exc()
@@ -64,9 +66,10 @@ class InstallTask(BackgroundTask):
   self.ui.installButton.config(state=DISABLED)
   return self.ui.getMode(), self.ui.getSelectedApk(), self.ui.getSelectedApp()
 
- def do(self, (mode, apkFilename, app)):
+ def do(self, args):
+  (mode, apkFilename, app) = args
   try:
-   print ''
+   print('')
    if mode == self.ui.MODE_APP and app:
     installCommand(config.appengineServer, None, None, app.package)
    elif mode == self.ui.MODE_APK and apkFilename:
@@ -90,7 +93,7 @@ class FirmwareUpdateTask(BackgroundTask):
  def do(self, datFile):
   try:
    if datFile:
-    print ''
+    print('')
     with open(datFile, 'rb') as f:
      firmwareUpdateCommand(f)
   except Exception:

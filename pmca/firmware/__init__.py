@@ -6,7 +6,7 @@ from ..util import *
 DatHeader = Struct('DatHeader', [
  ('magic', Struct.STR % 8),
 ])
-datHeaderMagic = '\x89\x55\x46\x55\x0d\x0a\x1a\x0a'
+datHeaderMagic = b'\x89\x55\x46\x55\x0d\x0a\x1a\x0a'
 
 DatChunkHeader = Struct('DatChunkHeader', [
  ('size', Struct.INT32),
@@ -25,7 +25,7 @@ def readDat(file):
   if len(data) != DatChunkHeader.size:
    break
   chunk = DatChunkHeader.unpack(data)
-  if chunk.type == 'FDAT':
+  if chunk.type == b'FDAT':
    return file.tell(), chunk.size
   file.seek(chunk.size, os.SEEK_CUR)
  raise Exception('FDAT chunk not found')

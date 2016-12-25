@@ -119,7 +119,7 @@ def diffApps(oldApps, newApps):
  oldApps = oldApps.copy()
  installedApps = []
  updatedApps = []
- for app, version in newApps.iteritems():
+ for app, version in newApps.items():
   if oldApps.get(app) != version:
    if app not in oldApps:
     installedApps.append(app)
@@ -335,7 +335,7 @@ class CleanupHandler(BaseHandler):
 
 class ApiAppsHandler(BaseHandler):
  def get(self):
-  self.json([dict(app.dict.items() + [('release', app.release.dict if app.release else None)]) for app in AppStore().apps.itervalues()])
+  self.json([dict(list(app.dict.items()) + [('release', app.release.dict if app.release else None)]) for app in AppStore().apps.values()])
 
 
 class ApiStatsHandler(BaseHandler):

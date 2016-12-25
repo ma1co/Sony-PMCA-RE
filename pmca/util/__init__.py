@@ -28,12 +28,12 @@ def dump16be(value):
  return struct.pack('>H', value)
 
 def parse8(data):
- return ord(data)
+ return struct.unpack('B', data)[0]
 
 def dump8(value):
- return chr(value)
+ return struct.pack('B', value)
 
-class Struct:
+class Struct(object):
  LITTLE_ENDIAN = '<'
  BIG_ENDIAN = '>'
  PADDING = '%dx'

@@ -15,11 +15,11 @@ Status = namedtuple('Status', 'code, message, percent, totalSize')
 Result = namedtuple('Result', 'code, message')
 
 def _buildRequest(endpoint, contentType, data):
- return 'POST %s REST/1.0\r\nContent-type: %s\r\n\r\n%s' % (endpoint, contentType, data)
+ return b'POST %s REST/1.0\r\nContent-type: %s\r\n\r\n%s' % (endpoint.encode('latin1'), contentType.encode('latin1'), data)
 
 def _parseHttp(data):
- headers, data = data.split('\r\n\r\n')[:2]
- headers = headers.split('\r\n')
+ headers, data = data.split(b'\r\n\r\n')[:2]
+ headers = headers.decode('latin1').split('\r\n')
  firstLine = headers[0]
  headers = dict(h.split(': ') for h in headers[1:])
  return firstLine, headers, data
@@ -35,11 +35,11 @@ def _parseResponse(data):
  return Response(protocol, int(code), status, headers, data)
 
 def _parseResult(data):
- data = json.loads(data)
+ data = json.loads(data.decode('latin1'))
  return Result(data['resultCode'], data['message'])
 
 def _parseStatus(data):
- data = json.loads(data)
+ data = json.loads(data.decode('latin1'))
  return Status(data['status'], data['status text'], data['percent'], data['total size'])
 
 def install(dev, host, port, xpdData, statusFunc=None):
@@ -48,7 +48,7 @@ def install(dev, host, port, xpdData, statusFunc=None):
  dev.emptyBuffer()
  dev.sendInit()
 
- # Start the installatin by sending the xpd data in a REST request
+ # Start the installation by sending the xpd data in a REST request
  response = dev.sendRequest(_buildRequest('/task/start', xpd.constants.mimeType, xpdData))
  response = _parseResponse(response)
  result = _parseResult(response.data)
@@ -60,19 +60,19 @@ def install(dev, host, port, xpdData, statusFunc=None):
 
  # Main loop
  while True:
-  if sock != None:
+  if sock is not None:
    ready = select.select([sock], [], [], 0)
    if ready[0]:
     # There is data waiting on the socket, let's send it to the camera
     resp = sock.recv(2 ** 14)
-    if resp != '':
+    if resp != b'':
      dev.sendSslData(connectionId, resp)
     else:
      dev.sendSslEnd(connectionId)
 
   # Receive the next message from the camera
   message = dev.receive()
-  if message == None:
+  if message is None:
    # Nothing received, let's wait
    continue
 

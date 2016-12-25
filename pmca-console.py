@@ -59,6 +59,8 @@ def main():
   args.outFile.write(spk.parse(args.inFile.read()))
  elif args.command == 'firmware':
   firmwareUpdateCommand(args.datFile, args.driver)
+ else:
+  parser.print_usage()
 
 
 if __name__ == '__main__':

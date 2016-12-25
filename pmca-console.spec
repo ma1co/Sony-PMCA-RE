@@ -4,4 +4,5 @@ input = 'pmca-console.py'
 output = 'pmca-console'
 console = True
 
-execfile('build.spec')
+with open('build.spec') as f:
+ exec(f.read())

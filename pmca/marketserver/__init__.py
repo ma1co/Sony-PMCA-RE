@@ -2,7 +2,7 @@
 
 import json
 
-import constants
+from . import constants
 from .. import xpd
 
 def parsePostData(data):
@@ -36,7 +36,7 @@ def parsePostData(data):
    },
   }
  """
- return json.loads(data)
+ return json.loads(data.decode('latin1'))
 
 def getXpdResponse(correlation, url):
  """Creates an xpd file which points the camera to the supplied portal url"""
@@ -55,8 +55,8 @@ def getJsonInstallResponse(appName, spkUrl):
    "attrname": "appname",
    "attrvalue": appName,
   }],
- }]})
+ }]}).encode('latin1')
 
 def getJsonResponse():
  """Creates the response that has to be returned by the portal url if no more actions have to be taken"""
- return json.dumps({"actions": []})
+ return json.dumps({"actions": []}).encode('latin1')

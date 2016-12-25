@@ -53,7 +53,7 @@ class SonyMscCamera(MscDevice):
  MSC_SENSE_DeviceBusy = (0x9, 0x81, 0x81)
 
  def sendSonyExtCommand(self, cmd, data, bufferSize):
-  command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*'\x00'
+  command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*b'\0'
 
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
@@ -61,7 +61,7 @@ class SonyMscCamera(MscDevice):
   self._checkResponse(response)
 
   if bufferSize == 0:
-   return ''
+   return b''
 
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
@@ -88,7 +88,7 @@ class SonyMtpCamera(MtpDevice):
   self._checkResponse(response)
 
   if bufferSize == 0:
-   return ''
+   return b''
 
   response = self.PTP_RC_DeviceBusy
   while response == self.PTP_RC_DeviceBusy:
@@ -102,7 +102,7 @@ class SonyMtpCamera(MtpDevice):
   self._checkResponse(response)
 
 
-class SonyExtCmdCamera:
+class SonyExtCmdCamera(object):
  """Methods to send Sony external commands to a camera"""
 
  # DevInfoSender (libInfraDevInfoSender.so)
@@ -138,9 +138,9 @@ class SonyExtCmdCamera:
   self.dev = dev
 
  def _sendCommand(self, cmd, bufferSize=BUFFER_SIZE):
-  data = self.dev.sendSonyExtCommand(cmd[0], 4*'\x00' + dump32le(cmd[1]) + 8*'\x00', bufferSize)
+  data = self.dev.sendSonyExtCommand(cmd[0], 4*b'\0' + dump32le(cmd[1]) + 8*b'\0', bufferSize)
   if bufferSize == 0:
-   return ''
+   return b''
   size = parse32le(data[:4])
   return data[16:16+size]
 
@@ -151,15 +151,15 @@ class SonyExtCmdCamera:
   plistData = data.read(plistSize)
   data.read(4)
   modelSize = parse8(data.read(1))
-  modelName = data.read(modelSize)
-  modelCode = binascii.hexlify(data.read(5))
-  serial = binascii.hexlify(data.read(4))
+  modelName = data.read(modelSize).decode('latin1')
+  modelCode = binascii.hexlify(data.read(5)).decode('latin1')
+  serial = binascii.hexlify(data.read(4)).decode('latin1')
   return CameraInfo(plistData, modelName, modelCode, serial)
 
  def getKikiLog(self):
   """Reads the first part of /tmp/kikilog.dat"""
   self._sendCommand(self.SONY_CMD_KikiLogSender_InitKikiLog)
-  kikilog = ''
+  kikilog = b''
   remaining = 1
   while remaining:
    data = BytesIO(self._sendCommand(self.SONY_CMD_KikiLogSender_ReadKikiLog))
@@ -183,7 +183,7 @@ class SonyUpdaterSequenceError(Exception):
   Exception.__init__(self, 'Wrong updater command sequence')
 
 
-class SonyUpdaterCamera:
+class SonyUpdaterCamera(object):
  """Methods to send updater commands to a camera"""
 
  # from libupdaterufp.so
@@ -259,7 +259,7 @@ class SonyUpdaterCamera:
  def __init__(self, dev):
   self.dev = dev
 
- def _sendCommand(self, command, data='', bufferSize=BUFFER_SIZE):
+ def _sendCommand(self, command, data=b'', bufferSize=BUFFER_SIZE):
   commandHeader = self.PacketHeader.pack(
    bodySize = len(data),
    protocolVersion = self.protocolVersion,
@@ -270,7 +270,7 @@ class SonyUpdaterCamera:
   response = self.dev.sendSonyExtCommand(self.SONY_CMD_Updater, commandHeader + data, bufferSize)
 
   if bufferSize == 0:
-   return ''
+   return b''
   responseHeader = self.PacketHeader.unpack(response)
   if responseHeader.responseId != self.ERR_OK:
    if responseHeader.responseId == self.ERR_SEQUENCE:
@@ -297,7 +297,7 @@ class SonyUpdaterCamera:
 
  def _parseWriteResponse(self, data):
   response = self.WriteResponse.unpack(data)
-  status = [self.WriteResponseStatus.unpack(data, self.WriteResponse.size+i*self.WriteResponseStatus.size).code for i in xrange(response.numStatus)]
+  status = [self.WriteResponseStatus.unpack(data, self.WriteResponse.size+i*self.WriteResponseStatus.size).code for i in range(response.numStatus)]
   return response.windowSize, status
 
  def _statusToStr(self, status):
@@ -415,7 +415,7 @@ class SonyMtpAppInstaller(MtpDevice):
   ('name', Struct.STR % 4),
   ('id', Struct.INT16),
  ], Struct.BIG_ENDIAN)
- ProtocolMsgProtos = [('TCPT', 0x01), ('REST', 0x100)]
+ ProtocolMsgProtos = [(b'TCPT', 0x01), (b'REST', 0x100)]
 
  ThreeValueMsg = Struct('ThreeValueMsg', [
   ('a', Struct.INT16),
@@ -448,7 +448,7 @@ class SonyMtpAppInstaller(MtpDevice):
  def receive(self):
   """Receives and parses the next message from the camera"""
   data = self._read()
-  if data == '':
+  if data == b'':
    return None
 
   type = self.MsgHeader.unpack(data).type
@@ -459,7 +459,7 @@ class SonyMtpAppInstaller(MtpDevice):
    data = data[self.CommonMsgHeader.size:header.size]
    if header.type == self.SONY_MSG_Common_Hello:
     n = self.ProtocolMsgHeader.unpack(data).numProtocols
-    protos = (self.ProtocolMsgProto.unpack(data, self.ProtocolMsgHeader.size+i*self.ProtocolMsgProto.size) for i in xrange(n))
+    protos = (self.ProtocolMsgProto.unpack(data, self.ProtocolMsgHeader.size+i*self.ProtocolMsgProto.size) for i in range(n))
     return InitResponseMessage([(p.name, p.id) for p in protos])
    elif header.type == self.SONY_MSG_Common_Bye:
     raise Exception('Bye from camera')
@@ -474,7 +474,7 @@ class SonyMtpAppInstaller(MtpDevice):
    if header.type == self.SONY_MSG_Tcp_ProxyConnect:
     proxy = self.ProxyConnectMsgHeader.unpack(data)
     host = data[self.ProxyConnectMsgHeader.size:self.ProxyConnectMsgHeader.size+proxy.hostSize]
-    return SslStartMessage(tcpHeader.socketFd, host, proxy.port)
+    return SslStartMessage(tcpHeader.socketFd, host.decode('latin1'), proxy.port)
    elif header.type == self.SONY_MSG_Tcp_ProxyDisconnect:
     return SslEndMessage(tcpHeader.socketFd)
    elif header.type == self.SONY_MSG_Tcp_ProxyData:

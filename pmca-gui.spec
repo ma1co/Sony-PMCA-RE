@@ -4,4 +4,5 @@ input = 'pmca-gui.py'
 output = 'pmca-gui'
 console = False
 
-execfile('build.spec')
+with open('build.spec') as f:
+ exec(f.read())

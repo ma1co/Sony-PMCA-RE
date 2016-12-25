@@ -1,10 +1,21 @@
 """Methods for reading and writing xpd files"""
 
 from Crypto.Hash import HMAC, SHA256
-from ConfigParser import ConfigParser
-from StringIO import StringIO
+import sys
 
-import constants
+try:
+ from configparser import ConfigParser
+except ImportError:
+ # Python 2
+ from ConfigParser import ConfigParser
+
+if sys.version_info >= (3,):
+ from io import StringIO
+else:
+ # Python 2
+ from StringIO import StringIO
+
+from . import constants
 
 def parse(data):
  """Parses an xpd file
@@ -14,7 +25,7 @@ def parse(data):
  """
  config = ConfigParser()
  config.optionxform = str
- config.readfp(StringIO(data))
+ config.read_file(StringIO(data.decode('latin1')))
  return dict(config.items(constants.sectionName))
 
 def dump(items):
@@ -22,11 +33,11 @@ def dump(items):
  config = ConfigParser()
  config.optionxform = str
  config.add_section(constants.sectionName)
- for k, v in items.iteritems():
+ for k, v in items.items():
   config.set(constants.sectionName, k, v)
  f = StringIO()
  config.write(f)
- return f.getvalue()
+ return f.getvalue().encode('latin1')
 
 def calculateChecksum(data):
  """The function used to calculate CIC checksums for xpd files"""

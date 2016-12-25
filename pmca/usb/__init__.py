@@ -7,7 +7,7 @@ MscDeviceInfo = namedtuple('MscDeviceInfo', 'manufacturer, model')
 MtpDeviceInfo = namedtuple('MtpDeviceInfo', 'manufacturer, model, serialNumber, operationsSupported, vendorExtension')
 
 
-class MscDevice:
+class MscDevice(object):
  """Manages communication with a USB mass storage device"""
  MSC_OC_INQUIRY = 0x12
 
@@ -21,10 +21,10 @@ class MscDevice:
 
  def reset(self):
   self.driver.reset()
-  self.driver.sendCommand(6 * '\x00')
+  self.driver.sendCommand(6 * b'\0')
 
  def _sendInquiryCommand(self, size):
-  response, data = self.driver.sendReadCommand(dump8(self.MSC_OC_INQUIRY) + 3*'\x00' + dump8(size) + '\x00', size)
+  response, data = self.driver.sendReadCommand(dump8(self.MSC_OC_INQUIRY) + 3*b'\0' + dump8(size) + b'\0', size)
   self._checkResponse(response)
   return data
 
@@ -33,12 +33,12 @@ class MscDevice:
   l = 5 + parse8(self._sendInquiryCommand(5)[4:5])
   data = self._sendInquiryCommand(l)
 
-  vendor = data[8:16].rstrip()
-  product = data[16:32].rstrip()
+  vendor = data[8:16].decode('latin1').rstrip()
+  product = data[16:32].decode('latin1').rstrip()
   return MscDeviceInfo(vendor, product)
 
 
-class MtpDevice:
+class MtpDevice(object):
  """Manages communication with a PTP/MTP device. Inspired by libptp2"""
  PTP_OC_GetDeviceInfo = 0x1001
  PTP_OC_OpenSession = 0x1002

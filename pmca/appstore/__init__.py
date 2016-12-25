@@ -86,4 +86,4 @@ class Release(object):
   return self._loadAsset()
 
  def _loadAsset(self):
-  return http.get(self.url).data
+  return http.get(self.url).raw_data

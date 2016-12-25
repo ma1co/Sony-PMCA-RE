@@ -152,7 +152,7 @@ def listDevices():
  logicalDrives = dict((_getStorageNumber(l), l) for l in _listLogicalDrives())
  disks = dict(_listDeviceClass(GUID_DEVINTERFACE_DISK))
  usbDevices = dict(_listDeviceClass(GUID_DEVINTERFACE_USB_DEVICE))
- for usbInst, usbPath in usbDevices.iteritems():
+ for usbInst, usbPath in usbDevices.items():
   for diskInst in _listDeviceChildren(usbInst):
    if diskInst in disks:
     storageNumber = _getStorageNumber(disks[diskInst])
@@ -162,7 +162,7 @@ def listDevices():
      break# only return the first disk for every device
 
 
-class MscDriver:
+class MscDriver(object):
  """Communicate with a USB mass storage device"""
  def __init__(self, device):
   self.device = device.handle
@@ -174,16 +174,16 @@ class MscDriver:
    DataTransferLength = sizeof(data) if data else 0,
    DataBuffer = cast(data, c_void_p),
    CdbLength = len(command),
-   Cdb = (c_ubyte * 16).from_buffer_copy(command.ljust(16, '\x00')),
+   Cdb = (c_ubyte * 16).from_buffer_copy(command.ljust(16, b'\0')),
    TimeOutValue = 5,
    SenseInfoLength = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.size,
    SenseInfoOffset = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.offset,
   ))
   handle = CreateFile('\\\\.\\%s' % self.device, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING, 0, None)
-  DeviceIoControl(handle, IOCTL_SCSI_PASS_THROUGH_DIRECT, sptd, sptd)
+  result = DeviceIoControl(handle, IOCTL_SCSI_PASS_THROUGH_DIRECT, sptd, sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER))
   CloseHandle(handle)
-  if sptd.sptd.ScsiStatus != 0:
-   sense = parseMscSense(bytearray(sptd.ucSenseBuf))
+  if SCSI_PASS_THROUGH_DIRECT.from_buffer_copy(result).ScsiStatus != 0:
+   sense = parseMscSense(result[SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.offset:])
    if sense == MSC_SENSE_OK:
     raise Exception('Mass storage error')
    return sense
@@ -202,4 +202,4 @@ class MscDriver:
  def sendReadCommand(self, command, size):
   buffer = (c_ubyte * size)()
   status = self._sendScsiCommand(command, SCSI_IOCTL_DATA_IN, buffer)
-  return status, str(bytearray(buffer))
+  return status, bytes(bytearray(buffer))

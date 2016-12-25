@@ -1,13 +1,22 @@
 """Gui related classes"""
-import Queue
 import threading
-from Tkinter import *
-from ttk import *
+
+try:
+ from queue import Queue, Empty
+ from tkinter import *
+ from tkinter.ttk import *
+ from tkinter.filedialog import askopenfilename
+except ImportError:
+ # Python 2
+ from Queue import Queue, Empty
+ from Tkinter import *
+ from ttk import *
+ from tkFileDialog import askopenfilename
 
 class UiRoot(Tk):
  def __init__(self):
   Tk.__init__(self)
-  self._queue = Queue.Queue()
+  self._queue = Queue()
   self._processQueue()
 
  def run(self, func):
@@ -18,7 +27,7 @@ class UiRoot(Tk):
   while True:
    try:
     self._queue.get(block=False)()
-   except Queue.Empty:
+   except Empty:
     break
   self.after(100, self._processQueue)
 
@@ -32,7 +41,7 @@ class UiFrame(Frame):
   self._parent.run(func)
 
 
-class BackgroundTask:
+class BackgroundTask(object):
  """Similar to Android's AsyncTask"""
  def __init__(self, ui):
   self.ui = ui

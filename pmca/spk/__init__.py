@@ -2,16 +2,20 @@
 
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
+import sys
 
-import constants
-import util
+if sys.version_info >= (3,):
+ long = int
+
+from . import constants
+from . import util
 from ..util import *
 
 SpkHeader = Struct('SpkHeader', [
  ('magic', Struct.STR % 4),
  ('keyOffset', Struct.INT32),
 ])
-spkHeaderMagic = '1spk'
+spkHeaderMagic = b'1spk'
 
 SpkKeyHeader = Struct('SpkKeyHeader', [
  ('keySize', Struct.INT32),
@@ -64,9 +68,9 @@ def decryptKey(encryptedKey):
 def decryptData(key, encryptedData):
  """Decrypts the apk data using the specified AES key"""
  aes = AES.new(key, AES.MODE_ECB)
- return ''.join(util.unpad(aes.decrypt(c)) for c in util.chunk(encryptedData, constants.blockSize + constants.paddingSize))
+ return b''.join(util.unpad(aes.decrypt(c)) for c in util.chunk(encryptedData, constants.blockSize + constants.paddingSize))
 
 def encryptData(key, data):
  """Encrypts the apk data using the specified AES key"""
  aes = AES.new(key, AES.MODE_ECB)
- return ''.join(aes.encrypt(util.pad(c, constants.paddingSize)) for c in util.chunk(data, constants.blockSize))
+ return b''.join(aes.encrypt(util.pad(c, constants.paddingSize)) for c in util.chunk(data, constants.blockSize))

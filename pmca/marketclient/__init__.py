@@ -5,7 +5,7 @@ import json
 import posixpath
 import re
 
-import constants
+from . import constants
 from ..util import http
 from .. import xpd
 
@@ -80,7 +80,7 @@ def downloadXpd(portalid, deviceid, appid):
   'portalid': portalid,
   'deviceid': deviceid,
   'localeid': constants.localeUs,
- }).data
+ }).raw_data
 
 def parseXpd(data):
  """Parses an xpd file
@@ -98,4 +98,4 @@ def downloadSpk(url):
   ('file name', 'spk data')
  """
  response = http.get(url, auth = (constants.downloadAuthUser, constants.downloadAuthPassword))
- return posixpath.basename(response.url.path), response.data
+ return posixpath.basename(response.url.path), response.raw_data

@@ -30,7 +30,7 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
  ('status', Struct.INT8),
 ])
 
-class Context:
+class Context(object):
  """Use this in a with statement when using the driver"""
  def __enter__(self):
   return sys.modules[__name__]
@@ -47,7 +47,7 @@ def listDevices(vendor):
    yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
 
 
-class UsbDriver:
+class UsbDriver(object):
  """Bulk reading and writing to USB devices"""
  USB_ENDPOINT_TYPE_BULK = 2
  USB_ENDPOINT_MASK = 1
@@ -91,18 +91,18 @@ class MscDriver(UsbDriver):
 
  def _writeCommand(self, direction, command, dataSize, tag=0, lun=0):
   self.write(MscCommandBlockWrapper.pack(
-   signature = 'USBC',
+   signature = b'USBC',
    tag = tag,
    dataTransferLength = dataSize,
    flags = direction,
    lun = lun,
    commandLength = len(command),
-   command = command.ljust(16, '\x00'),
+   command = command.ljust(16, b'\0'),
   ))
 
  def _readResponse(self, failOnError=False):
   response = MscCommandStatusWrapper.unpack(self.read(MscCommandStatusWrapper.size))
-  if response.signature != 'USBS':
+  if response.signature != b'USBS':
    raise Exception('Wrong status signature')
   if response.status != 0:
    if failOnError:
@@ -113,8 +113,8 @@ class MscDriver(UsbDriver):
 
  def requestSense(self):
   size = 18
-  response, data = self.sendReadCommand(dump8(self.MSC_OC_REQUEST_SENSE) + 3*'\x00' + dump8(size) + '\x00', size, failOnError=True)
-  return parseMscSense(bytearray(data))
+  response, data = self.sendReadCommand(dump8(self.MSC_OC_REQUEST_SENSE) + 3*b'\0' + dump8(size) + b'\0', size, failOnError=True)
+  return parseMscSense(data)
 
  def sendCommand(self, command, failOnError=False):
   self._writeCommand(self.DIRECTION_WRITE, command, 0)
@@ -161,7 +161,7 @@ class MtpDriver(UsbDriver):
  TYPE_DATA = 2
  TYPE_RESPONSE = 3
 
- def _writePtp(self, type, code, transaction, data=''):
+ def _writePtp(self, type, code, transaction, data=b''):
   self.write(PtpHeader.pack(
    size = PtpHeader.size + len(data),
    type = type,
@@ -193,7 +193,7 @@ class MtpDriver(UsbDriver):
    self.transaction += 1
   except AttributeError:
    self.transaction = 0
-  self._writePtp(self.TYPE_COMMAND, code, self.transaction, ''.join([dump32le(arg) for arg in args]))
+  self._writePtp(self.TYPE_COMMAND, code, self.transaction, b''.join([dump32le(arg) for arg in args]))
 
  def sendCommand(self, code, args):
   """Send a PTP/MTP command without data phase"""

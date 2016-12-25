@@ -5,7 +5,7 @@ import os, shutil, subprocess, sys
 excludes = ['encodings.bz2_codec', 'encodings.idna', 'Crypto.Cipher._DES', 'Crypto.Cipher._DES3', 'Crypto.Hash._SHA256', 'numpy']
 
 # Get version from git
-version = subprocess.check_output(['git', 'describe', '--always', '--tags']).strip()
+version = subprocess.check_output(['git', 'describe', '--always', '--tags']).decode('ascii').strip()
 with open('frozenversion.py', 'w') as f:
  f.write('version = "%s"' % version)
 
