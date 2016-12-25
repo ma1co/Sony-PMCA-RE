@@ -1,6 +1,6 @@
 certifi
 comtypes
-pycrypto
+pycryptodome
 # Use an old version of pyinstaller until bug #1957 is fixed
 pyinstaller==3.1.0
 pyusb
