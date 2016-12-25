@@ -2,7 +2,6 @@
 
 from collections import namedtuple
 import random
-import ssl
 import string
 
 try:
@@ -49,17 +48,14 @@ def request(url, data=None, headers={}, cookies={}, auth=None):
  manager = HTTPPasswordMgrWithDefaultRealm()
  if auth:
   manager.add_password(None, request.get_full_url(), auth[0], auth[1])
+ handlers = [HTTPBasicAuthHandler(manager), HTTPDigestAuthHandler(manager)]
  try:
-  import certifi
-  certFile = certifi.where()
+  import certifi, ssl
+  handlers.append(HTTPSHandler(context=ssl.create_default_context(cafile=certifi.where())))
  except:
-  certFile = None
- opener = build_opener(
-  HTTPSHandler(context=ssl.create_default_context(cafile=certFile)),
-  HTTPBasicAuthHandler(manager),
-  HTTPDigestAuthHandler(manager),
- )
- response = opener.open(request)
+  # App engine
+  pass
+ response = build_opener(*handlers).open(request)
  cj = CookieJar()
  cj.extract_cookies(response, request)
  headers = dict(response.headers)
