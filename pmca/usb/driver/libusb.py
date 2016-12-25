@@ -1,7 +1,7 @@
 """A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
 
 import sys
-import usb.core
+import usb.core, usb.util
 
 from . import *
 from ...util import *
@@ -58,6 +58,9 @@ class UsbDriver(object):
   self.dev = device.handle
   self.epIn = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_IN)
   self.epOut = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT)
+
+ def __del__(self):
+  usb.util.dispose_resources(self.dev)
 
  def _findEndpoint(self, type, direction):
   interface = self.dev.get_active_configuration()[(0, 0)]
@@ -170,7 +173,9 @@ class MtpDriver(UsbDriver):
   ) + data)
 
  def _readPtp(self):
-  data = self.read(self.MAX_PKG_LEN)
+  data = b''
+  while data == b'':
+   data = self.read(self.MAX_PKG_LEN)
   header = PtpHeader.unpack(data)
   if header.size > self.MAX_PKG_LEN:
    data += self.read(header.size - self.MAX_PKG_LEN)
