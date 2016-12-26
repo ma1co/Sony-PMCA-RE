@@ -9,9 +9,10 @@ before_install:
  - brew --version
 
  # Install python
- - brew install python3 || brew upgrade python3
- - python3 -m venv venv
- - source venv/bin/activate
+ - brew install pyenv || brew upgrade pyenv
+ - eval "$(pyenv init -)"
+ - env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.5.2
+ - pyenv local 3.5.2
 
  # Install libusb
  - brew install libusb || brew upgrade libusb
