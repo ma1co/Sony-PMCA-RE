@@ -2,7 +2,9 @@
 
 import os, shutil, subprocess, sys
 
-excludes = ['bz2', 'collections.__main__', 'doctest', 'gzip', 'lzma', 'numpy', 'zipfile']
+excludes = ['bz2', 'collections.__main__', 'doctest', 'ftplib', 'gzip', 'lzma', 'numpy', 'pickle', 'plistlib', 'zipfile']
+if sys.platform != 'win32':
+ excludes.append('pmca.usb.driver.windows')
 
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).decode('ascii').strip()
@@ -24,7 +26,7 @@ exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name=output, console=
 if sys.platform == 'darwin' and not console:
  app = BUNDLE(exe, name=output+'.app')
  os.remove(exe.name)
- subprocess.check_call(['hdiutil', 'create', DISTPATH+'/'+output+'.dmg', '-srcfolder', app.name])
+ subprocess.check_call(['hdiutil', 'create', '-ov', DISTPATH+'/'+output+'.dmg', '-srcfolder', app.name])
  shutil.rmtree(app.name)
 
 os.remove('frozenversion.py')

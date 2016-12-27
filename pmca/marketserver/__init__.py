@@ -43,7 +43,7 @@ def getXpdResponse(correlation, url):
  return xpd.dump({
   'TCD': url,
   'TKN': correlation,
-  'CIC': xpd.calculateChecksum(url)
+  'CIC': xpd.calculateChecksum(url.encode('latin1'))
  })
 
 def getJsonInstallResponse(appName, spkUrl):

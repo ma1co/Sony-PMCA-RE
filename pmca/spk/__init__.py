@@ -2,6 +2,7 @@
 
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
+from Crypto.Util.number import bytes_to_long, long_to_bytes
 import sys
 
 if sys.version_info >= (3,):
@@ -63,7 +64,11 @@ def dumpContainer(encryptedKey, encryptedData):
 def decryptKey(encryptedKey):
  """Decrypts an RSA-encrypted key"""
  rsa = RSA.construct((long(constants.rsaModulus), long(constants.rsaExponent)))
- return rsa.encrypt(encryptedKey, 0)[0]
+ try:
+  return rsa.encrypt(encryptedKey, 0)[0]
+ except NotImplementedError:
+  # pycryptodome
+  return long_to_bytes(rsa._encrypt(bytes_to_long(encryptedKey)))
 
 def decryptData(key, encryptedData):
  """Decrypts the apk data using the specified AES key"""
