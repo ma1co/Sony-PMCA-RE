@@ -2,7 +2,7 @@
 
 import os, shutil, subprocess, sys
 
-excludes = ['bz2', 'collections.__main__', 'doctest', 'ftplib', 'gzip', 'lzma', 'numpy', 'pickle', 'plistlib', 'zipfile']
+excludes = ['bz2', 'cffi', 'collections.__main__', 'doctest', 'ftplib', 'gzip', 'lzma', 'numpy', 'pickle', 'plistlib', 'zipfile']
 if sys.platform != 'win32':
  excludes.append('pmca.usb.driver.windows')
 
@@ -16,7 +16,7 @@ suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx'}
 output += '-' + version + suffix.get(sys.platform, '')
 
 # Analyze files
-a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')], hookspath=['hooks'])
+a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')], hookspath=['hooks'], runtime_hooks=['hooks/rthook-Crypto.py'])
 a.binaries = [((os.path.basename(name) if type == 'BINARY' else name), path, type) for name, path, type in a.binaries]# libusb binaries are not found in subdirs
 a.datas = [d for d in a.datas if not (d[0].startswith('certifi') and not d[0].endswith('cacert.pem'))]
 
