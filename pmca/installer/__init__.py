@@ -15,7 +15,7 @@ Status = namedtuple('Status', 'code, message, percent, totalSize')
 Result = namedtuple('Result', 'code, message')
 
 def _buildRequest(endpoint, contentType, data):
- return b'POST %s REST/1.0\r\nContent-type: %s\r\n\r\n%s' % (endpoint.encode('latin1'), contentType.encode('latin1'), data)
+ return b'POST ' + endpoint.encode('latin1') + b' REST/1.0\r\nContent-type: ' + contentType.encode('latin1') + b'\r\n\r\n' + data
 
 def _parseHttp(data):
  headers, data = data.split(b'\r\n\r\n')[:2]

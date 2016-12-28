@@ -24,11 +24,11 @@ def postFile(url, fileName, fileData, fieldName='', headers={}, cookies={}, auth
  boundary = ''.join(random.choice('-_' + string.digits + string.ascii_letters) for _ in range(40))
  headers['Content-type'] = 'multipart/form-data; boundary=%s' % boundary
  data = b'\r\n'.join([
-  b'--%s' % boundary.encode('latin1'),
-  b'Content-Disposition: form-data; name="%s"; filename="%s"' % (fieldName.encode('latin1'), fileName.encode('latin1')),
+  b'--' + boundary.encode('latin1'),
+  b'Content-Disposition: form-data; name="' + fieldName.encode('latin1') + b'"; filename="' + fileName.encode('latin1') + b'"',
   b'',
   fileData,
-  b'--%s--' % boundary.encode('latin1'),
+  b'--' + boundary.encode('latin1') + b'--',
   b'',
  ])
  return request(url, data, headers, cookies, auth)
