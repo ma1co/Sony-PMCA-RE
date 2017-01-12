@@ -158,7 +158,9 @@ def infoCommand(host=None, driverName=None):
     ]
    else:
     info = SonyExtCmdCamera(device).getCameraInfo()
-    firmwareOld, firmwareNew = SonyUpdaterCamera(device).getFirmwareVersion()
+    updater = SonyUpdaterCamera(device)
+    updater.init()
+    firmwareOld, firmwareNew = updater.getFirmwareVersion()
     props = [
      ('Model', info.modelName),
      ('Product code', info.modelCode),

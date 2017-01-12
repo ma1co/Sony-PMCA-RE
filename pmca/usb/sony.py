@@ -19,12 +19,12 @@ SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 SONY_ID_VENDOR = 0x054c
 SONY_MANUFACTURER = 'Sony Corporation'
 SONY_MANUFACTURER_SHORT = 'Sony'
-SONY_MSC_MODEL = 'DSC'
+SONY_MSC_MODELS = ['DSC', 'Camcorder']
 
 
 def isSonyMscCamera(info):
  """Pass a mass storage device info tuple. Guesses if the device is a camera in mass storage mode."""
- return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model == SONY_MSC_MODEL
+ return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model in SONY_MSC_MODELS
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
@@ -138,7 +138,7 @@ class SonyExtCmdCamera(object):
   self.dev = dev
 
  def _sendCommand(self, cmd, bufferSize=BUFFER_SIZE):
-  data = self.dev.sendSonyExtCommand(cmd[0], 4*b'\0' + dump32le(cmd[1]) + 8*b'\0', bufferSize)
+  data = self.dev.sendSonyExtCommand(cmd[0], 4*b'\0' + dump32le(cmd[1]) + (self.BUFFER_SIZE-8)*b'\0', bufferSize)
   if bufferSize == 0:
    return b''
   size = parse32le(data[:4])
@@ -327,7 +327,7 @@ class SonyUpdaterCamera(object):
 
  def switchMode(self):
   reserved, status = self._parseWriteResponse(self._sendCommand(self.CMD_SWITCH_MODE))
-  if status != [self.STAT_OK]:
+  if status != [self.STAT_OK] and status != [self.STAT_BUSY]:
    raise Exception('Updater mode switch failed')
 
  def writeFirmware(self, file, size, progress=None):
