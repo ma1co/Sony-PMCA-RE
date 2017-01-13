@@ -5,7 +5,7 @@ from ...util import *
 USB_CLASS_PTP = 6
 USB_CLASS_MSC = 8
 
-UsbDevice = namedtuple('UsbDevice', 'handle, idVendor, idProduct, type')
+UsbDevice = namedtuple('UsbDevice', 'handle, idVendor, idProduct')
 
 MSC_SENSE_OK = (0, 0, 0)
 

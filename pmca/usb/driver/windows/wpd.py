@@ -1,5 +1,6 @@
 """A wrapper to use the Windows Portable Device Api (WPD)"""
 
+import comtypes
 from comtypes import GUID
 from comtypes.automation import *
 from comtypes.client import *
@@ -57,7 +58,25 @@ class PROPVARIANT(Structure):
  ]
 
 
-def listDevices():
+class MtpContext(object):
+ def __init__(self):
+  self.classType = USB_CLASS_PTP
+
+ def __enter__(self):
+  comtypes.CoInitialize()
+  return self
+
+ def __exit__(self, *ex):
+  comtypes.CoUninitialize()
+
+ def listDevices(self, vendor):
+  return (dev for dev in _listDevices() if dev.idVendor == vendor)
+
+ def openDevice(self, device):
+  return _MtpDriver(device.handle)
+
+
+def _listDevices():
  """Lists all detected MTP devices"""
  # Create a device manager object
  pdm = CreateObject(PortableDeviceManager)
@@ -69,13 +88,13 @@ def listDevices():
 
  for id in devices:
   idVendor, idProduct = parseDeviceId(id)
-  yield UsbDevice(id, idVendor, idProduct, USB_CLASS_PTP)
+  yield UsbDevice(id, idVendor, idProduct)
 
-class MtpDriver(object):
+class _MtpDriver(object):
  """Send and receive MTP packages to a device."""
  def __init__(self, device):
   self.device = CreateObject(PortableDevice)
-  self.device.Open(device.handle, CreateObject(PortableDeviceValues))
+  self.device.Open(device, CreateObject(PortableDeviceValues))
 
  def _initCommandValues(self, command, context=None):
   params = CreateObject(PortableDeviceValues)

@@ -1,6 +1,5 @@
 """A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
 
-import sys
 import usb.core, usb.util
 
 from . import *
@@ -30,24 +29,43 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
  ('status', Struct.INT8),
 ])
 
-class Context(object):
- """Use this in a with statement when using the driver"""
- def __enter__(self):
-  return sys.modules[__name__]
 
- def __exit__(self, type, value, traceback):
+class _UsbContext(object):
+ def __init__(self, classType, driverClass):
+  self.classType = classType
+  self._driverClass = driverClass
+
+ def __enter__(self):
+  return self
+
+ def __exit__(self, *ex):
   pass
 
+ def listDevices(self, vendor):
+  return _listDevices(vendor, self.classType)
 
-def listDevices(vendor):
+ def openDevice(self, device):
+  return self._driverClass(device.handle)
+
+
+class MscContext(_UsbContext):
+ def __init__(self):
+  super(MscContext, self).__init__(USB_CLASS_MSC, _MscDriver)
+
+class MtpContext(_UsbContext):
+ def __init__(self):
+  super(MtpContext, self).__init__(USB_CLASS_PTP, _MtpDriver)
+
+
+def _listDevices(vendor, classType):
  """Lists all detected USB devices"""
  for dev in usb.core.find(find_all=True, idVendor=vendor):
   interface = next((interface for config in dev for interface in config), None)
-  if interface:
-   yield UsbDevice(dev, dev.idVendor, dev.idProduct, interface.bInterfaceClass)
+  if interface and interface.bInterfaceClass == classType:
+   yield UsbDevice(dev, dev.idVendor, dev.idProduct)
 
 
-class UsbDriver(object):
+class _UsbDriver(object):
  """Bulk reading and writing to USB devices"""
  USB_ENDPOINT_TYPE_BULK = 2
  USB_ENDPOINT_MASK = 1
@@ -55,7 +73,7 @@ class UsbDriver(object):
  USB_ENDPOINT_IN = 1
 
  def __init__(self, device):
-  self.dev = device.handle
+  self.dev = device
   self.epIn = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_IN)
   self.epOut = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT)
 
@@ -85,7 +103,7 @@ class UsbDriver(object):
   return self.dev.write(self.epOut, data)
 
 
-class MscDriver(UsbDriver):
+class _MscDriver(_UsbDriver):
  """Communicate with a USB mass storage device"""
  MSC_OC_REQUEST_SENSE = 0x03
 
@@ -157,7 +175,7 @@ class MscDriver(UsbDriver):
   return sense, data
 
 
-class MtpDriver(UsbDriver):
+class _MtpDriver(_UsbDriver):
  """Send and receive PTP/MTP packages to a device. Inspired by libptp2"""
  MAX_PKG_LEN = 512
  TYPE_COMMAND = 1

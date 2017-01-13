@@ -84,6 +84,26 @@ def installApp(dev, host=None, apkFile=None, appPackage=None, outFile=None):
   return result
 
 
+class UsbDriverList:
+ def __init__(self, *contexts):
+  self._contexts = contexts
+  self._drivers = []
+
+ def __enter__(self):
+  self._drivers = [context.__enter__() for context in self._contexts]
+  return self
+
+ def __exit__(self, *ex):
+  for context in self._contexts:
+   context.__exit__(*ex)
+  self._drivers = []
+
+ def listDevices(self, vendor):
+  for driver in self._drivers:
+   for dev in driver.listDevices(vendor):
+    yield (driver.classType, driver.openDevice(dev))
+
+
 def importDriver(driverName=None):
  """Imports the usb driver. Use in a with statement"""
  if not driverName:
@@ -99,27 +119,25 @@ def importDriver(driverName=None):
  else:
   raise Exception('Unknown driver')
 
- return driver.Context()
+ return UsbDriverList(driver.MscContext(), driver.MtpContext())
 
 
-def listDevices(driver):
+def listDevices(driverList):
  """List all Sony usb devices"""
  print('Looking for Sony devices')
- for device in driver.listDevices(SONY_ID_VENDOR):
-  if device.type == USB_CLASS_MSC:
+ for type, drv in driverList.listDevices(SONY_ID_VENDOR):
+  if type == USB_CLASS_MSC:
    print('\nQuerying mass storage device')
    # Get device info
-   drv = driver.MscDriver(device)
    info = MscDevice(drv).getDeviceInfo()
 
    if isSonyMscCamera(info):
     print('%s %s is a camera in mass storage mode' % (info.manufacturer, info.model))
     yield SonyMscCamera(drv)
 
-  elif device.type == USB_CLASS_PTP:
+  elif type == USB_CLASS_PTP:
    print('\nQuerying MTP device')
    # Get device info
-   drv = driver.MtpDriver(device)
    info = MtpDevice(drv).getDeviceInfo()
 
    if isSonyMtpCamera(info):

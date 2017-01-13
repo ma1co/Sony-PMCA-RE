@@ -100,6 +100,24 @@ GUID_DEVINTERFACE_DISK = GUID('{53F56307-B6BF-11D0-94F2-00A0C91EFB8B}')
 DIGCF_PRESENT = 2
 DIGCF_DEVICEINTERFACE = 16
 
+
+class MscContext(object):
+ def __init__(self):
+  self.classType = USB_CLASS_MSC
+
+ def __enter__(self):
+  return self
+
+ def __exit__(self, *ex):
+  pass
+
+ def listDevices(self, vendor):
+  return (dev for dev in _listDevices() if dev.idVendor == vendor)
+
+ def openDevice(self, device):
+  return _MscDriver(device.handle)
+
+
 def _listDeviceClass(guid):
  handle = SetupDiGetClassDevs(byref(guid), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT)
  if handle == INVALID_HANDLE_VALUE:
@@ -146,7 +164,7 @@ def _getStorageNumber(path):
  CloseHandle(handle)
  return deviceNumber.DeviceType, deviceNumber.DeviceNumber
 
-def listDevices():
+def _listDevices():
  """Lists all detected mass storage devices"""
  # Similar to what calibre does: https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/winusb.py
  logicalDrives = dict((_getStorageNumber(l), l) for l in _listLogicalDrives())
@@ -158,14 +176,14 @@ def listDevices():
     storageNumber = _getStorageNumber(disks[diskInst])
     if storageNumber in logicalDrives:
      idVendor, idProduct = parseDeviceId(usbPath)
-     yield UsbDevice(logicalDrives[storageNumber], idVendor, idProduct, USB_CLASS_MSC)
+     yield UsbDevice(logicalDrives[storageNumber], idVendor, idProduct)
      break# only return the first disk for every device
 
 
-class MscDriver(object):
+class _MscDriver(object):
  """Communicate with a USB mass storage device"""
  def __init__(self, device):
-  self.device = device.handle
+  self.device = device
 
  def _sendScsiCommand(self, command, direction, data):
   sptd = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(sptd = SCSI_PASS_THROUGH_DIRECT(
