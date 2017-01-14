@@ -60,6 +60,7 @@ class PROPVARIANT(Structure):
 
 class MtpContext(object):
  def __init__(self):
+  self.name = 'Windows-MTP'
   self.classType = USB_CLASS_PTP
 
  def __enter__(self):

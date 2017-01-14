@@ -103,6 +103,7 @@ DIGCF_DEVICEINTERFACE = 16
 
 class MscContext(object):
  def __init__(self):
+  self.name = 'Windows-MSC'
   self.classType = USB_CLASS_MSC
 
  def __enter__(self):

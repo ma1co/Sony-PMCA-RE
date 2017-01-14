@@ -31,7 +31,8 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
 
 
 class _UsbContext(object):
- def __init__(self, classType, driverClass):
+ def __init__(self, name, classType, driverClass):
+  self.name = 'libusb-%s' % name
   self.classType = classType
   self._driverClass = driverClass
 
@@ -50,11 +51,11 @@ class _UsbContext(object):
 
 class MscContext(_UsbContext):
  def __init__(self):
-  super(MscContext, self).__init__(USB_CLASS_MSC, _MscDriver)
+  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, _MscDriver)
 
 class MtpContext(_UsbContext):
  def __init__(self):
-  super(MtpContext, self).__init__(USB_CLASS_PTP, _MtpDriver)
+  super(MtpContext, self).__init__('MTP', USB_CLASS_PTP, _MtpDriver)
 
 
 def _listDevices(vendor, classType):

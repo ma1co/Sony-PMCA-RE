@@ -106,20 +106,28 @@ class UsbDriverList:
 
 def importDriver(driverName=None):
  """Imports the usb driver. Use in a with statement"""
- if not driverName:
-  driverName = 'windows' if os.name == 'nt' else 'libusb'
+ MscContext = None
+ MtpContext = None
 
- # Import the specified driver
- if driverName == 'libusb':
-  print('Using libusb')
-  from ..usb.driver import libusb as driver
- elif driverName == 'windows':
-  print('Using Windows drivers')
-  from ..usb.driver import windows as driver
- else:
+ # Load native drivers
+ if driverName == 'native' or driverName is None:
+  if os.name == 'nt':
+   from ..usb.driver.windows.msc import MscContext
+   from ..usb.driver.windows.wpd import MtpContext
+  else:
+   print('No native drivers available')
+ elif driverName != 'libusb':
   raise Exception('Unknown driver')
 
- return UsbDriverList(driver.MscContext(), driver.MtpContext())
+ # Fallback to libusb
+ if MscContext is None:
+  from ..usb.driver.libusb import MscContext
+ if MtpContext is None:
+  from ..usb.driver.libusb import MtpContext
+
+ drivers = [MscContext(), MtpContext()]
+ print('Using drivers %s' % ', '.join(d.name for d in drivers))
+ return UsbDriverList(*drivers)
 
 
 def listDevices(driverList):

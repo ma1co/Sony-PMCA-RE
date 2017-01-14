@@ -19,10 +19,10 @@ def main():
   parser.add_argument('--version', action='version', version=version)
  subparsers = parser.add_subparsers(dest='command', title='commands')
  info = subparsers.add_parser('info', description='Display information about the camera connected via USB')
- info.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
+ info.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
  install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default=config.appengineServer)
- install.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
+ install.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  installMode = install.add_mutually_exclusive_group()
  installMode.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='install an apk file')
@@ -38,7 +38,7 @@ def main():
  spk2apk.add_argument('outFile', metavar='app.apk', type=argparse.FileType('wb'), help='the output apk file')
  firmware = subparsers.add_parser('firmware', description='Update the firmware')
  firmware.add_argument('-f', dest='datFile', type=argparse.FileType('rb'), required=True, help='the firmware file')
- firmware.add_argument('-d', dest='driver', choices=['libusb', 'windows'], help='specify the driver')
+ firmware.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
 
  args = parser.parse_args()
  if args.command == 'info':
