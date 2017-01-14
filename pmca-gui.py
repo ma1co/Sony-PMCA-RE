@@ -110,6 +110,7 @@ class InstallerUi(UiRoot):
 
   self.title(title)
   self.geometry('450x500')
+  self['menu'] = Menu(self)
 
   tabs = Notebook(self, padding=5)
   tabs.pack(fill=X)
