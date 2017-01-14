@@ -111,9 +111,11 @@ def importDriver(driverName=None):
 
  # Load native drivers
  if driverName == 'native' or driverName is None:
-  if os.name == 'nt':
+  if sys.platform == 'win32':
    from ..usb.driver.windows.msc import MscContext
    from ..usb.driver.windows.wpd import MtpContext
+  elif sys.platform == 'darwin':
+   from ..usb.driver.osx import MscContext
   else:
    print('No native drivers available')
  elif driverName != 'libusb':

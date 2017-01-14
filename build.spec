@@ -5,6 +5,8 @@ import os, shutil, subprocess, sys
 excludes = ['bz2', 'cffi', 'collections.__main__', 'doctest', 'ftplib', 'gzip', 'lzma', 'numpy', 'pickle', 'plistlib', 'zipfile']
 if sys.platform != 'win32':
  excludes.append('pmca.usb.driver.windows')
+if sys.platform != 'darwin':
+ excludes.append('pmca.usb.driver.osx')
 
 # Get version from git
 version = subprocess.check_output(['git', 'describe', '--always', '--tags']).decode('ascii').strip()
