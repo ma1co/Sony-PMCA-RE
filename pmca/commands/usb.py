@@ -203,22 +203,24 @@ def installCommand(host=None, driverName=None, apkFile=None, appPackage=None, ou
  """Install the given apk on the camera"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
-  if device:
-   if not isinstance(device, SonyMtpAppInstaller):
-    switchToAppInstaller(device)
+  if device and not isinstance(device, SonyMtpAppInstaller):
+   switchToAppInstaller(device)
+   device = None
 
-    print('Waiting for camera to switch...')
-    for i in range(10):
-     time.sleep(.5)
+   print('Waiting for camera to switch...')
+   for i in range(10):
+    time.sleep(.5)
+    try:
      devices = list(listDevices(driver))
      if len(devices) == 1 and isinstance(devices[0], SonyMtpAppInstaller):
       device = devices[0]
       break
-     elif devices:
-      raise Exception('Unexpected device')
-    else:
-     raise Exception('Timeout')
+    except:
+     pass
+   else:
+    print('Operation timed out. Please run this command again when your camera has connected.')
 
+  if device:
    installApp(device, host, apkFile, appPackage, outFile)
 
 
