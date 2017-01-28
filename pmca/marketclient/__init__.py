@@ -10,7 +10,7 @@ from ..util import http
 from .. import xpd
 
 MarketDevice = namedtuple('MarketDevice', 'deviceid, name, serial')
-MarketApp = namedtuple('MarketApp', 'id, name, img, price')
+MarketApp = namedtuple('MarketApp', 'id, name, img, price, date')
 
 def download(portalid, deviceid, appid):
  """Downloads an app from the PMCA store
@@ -64,7 +64,7 @@ def getApps(devicename=None):
   'localeid': constants.localeUs,
  }).data)
  for app in data['contents']:
-  yield MarketApp(app['app_id'], re.sub('\s+', ' ', app['app_name']), app['appimg_url'], None if app['app_price'] == 'Free' else app['app_price'])
+  yield MarketApp(app['app_id'], re.sub('\s+', ' ', app['app_name']), app['appimg_url'], None if app['app_price'] == 'Free' else app['app_price'], int(app['regist_date']))
 
 def downloadXpd(portalid, deviceid, appid):
  """Fetches the xpd file for the given app
