@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from datetime import datetime
 import yaml
 
 from .github import GithubApi
@@ -51,7 +52,7 @@ class App(object):
     if asset:
      return {
       'version': dict.get('name') or dict.get('tag_name'),
-      'date': dict.get('created_at'),
+      'date': datetime.strptime(dict.get('created_at'), '%Y-%m-%dT%H:%M:%SZ'),
       'desc': dict.get('body'),
       'url': asset,
      }

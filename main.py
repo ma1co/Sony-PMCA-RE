@@ -150,7 +150,11 @@ def updateAppStats(data):
 class BaseHandler(webapp2.RequestHandler):
  def json(self, data):
   """Outputs the given dict as JSON"""
-  self.output('application/json', json.dumps(data))
+  def jsonRepr(o):
+   if isinstance(o, datetime.datetime):
+    return o.strftime('%Y-%m-%dT%H:%M:%SZ')
+   raise TypeError
+  self.output('application/json', json.dumps(data, default=jsonRepr))
 
  def template(self, name, data = {}):
   """Renders a jinja2 template"""
