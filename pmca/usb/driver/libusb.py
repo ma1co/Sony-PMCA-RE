@@ -94,8 +94,6 @@ class _UsbDriver(object):
     self.dev.detach_kernel_driver(0)
   except NotImplementedError:
    pass
-  if self.dev._ctx.backend.__module__ == 'usb.backend.libusb1':
-   self.dev.reset()
 
  def read(self, length):
   return self.dev.read(self.epIn, length).tostring()

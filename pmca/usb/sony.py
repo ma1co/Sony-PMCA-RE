@@ -3,6 +3,7 @@
 import binascii
 from collections import namedtuple
 from io import BytesIO
+import time
 
 from . import *
 from ..util import *
@@ -52,9 +53,13 @@ class SonyMscCamera(MscDevice):
 
  MSC_SENSE_DeviceBusy = (0x9, 0x81, 0x81)
 
+ WAIT_BEFORE_WRITE = .03
+ WAIT_BEFORE_READ = .07
+
  def sendSonyExtCommand(self, cmd, data, bufferSize):
   command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*b'\0'
 
+  time.sleep(self.WAIT_BEFORE_WRITE)
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
    response = self.driver.sendWriteCommand(command, data)
@@ -63,6 +68,7 @@ class SonyMscCamera(MscDevice):
   if bufferSize == 0:
    return b''
 
+  time.sleep(self.WAIT_BEFORE_READ)
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
    response, data = self.driver.sendReadCommand(command, bufferSize)
