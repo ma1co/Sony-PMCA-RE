@@ -2,7 +2,6 @@
 """A command line application to install apps on Android-enabled Sony cameras"""
 import argparse
 
-import config
 from pmca.commands.market import *
 from pmca.commands.usb import *
 from pmca import spk
@@ -21,7 +20,7 @@ def main():
  info = subparsers.add_parser('info', description='Display information about the camera connected via USB')
  info.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
- install.add_argument('-s', dest='server', help='hostname for the remote server (set to empty to start a local server)', default=config.appengineServer)
+ install.add_argument('-s', dest='server', help='hostname for the remote server')
  install.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
  installMode = install.add_mutually_exclusive_group()
@@ -42,7 +41,7 @@ def main():
 
  args = parser.parse_args()
  if args.command == 'info':
-  infoCommand(config.appengineServer, args.driver)
+  infoCommand(None, args.driver)
  elif args.command == 'install':
   if args.appInteractive:
    pkg = appSelectionCommand(args.server)

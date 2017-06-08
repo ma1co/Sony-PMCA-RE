@@ -4,7 +4,6 @@ from __future__ import print_function
 import sys
 import traceback
 
-import config
 from pmca.commands.usb import *
 from pmca.ui import *
 
@@ -34,7 +33,7 @@ class AppLoadTask(BackgroundTask):
  def do(self, arg):
   try:
    print('')
-   return listApps(config.appengineServer)
+   return listApps()
   except Exception:
    traceback.print_exc()
 
@@ -52,7 +51,7 @@ class InfoTask(BackgroundTask):
  def do(self, arg):
   try:
    print('')
-   infoCommand(config.appengineServer)
+   infoCommand()
   except Exception:
    traceback.print_exc()
 
@@ -71,12 +70,12 @@ class InstallTask(BackgroundTask):
   try:
    print('')
    if mode == self.ui.MODE_APP and app:
-    installCommand(config.appengineServer, None, None, app.package)
+    installCommand(None, None, None, app.package)
    elif mode == self.ui.MODE_APK and apkFilename:
     with open(apkFilename, 'rb') as f:
-     installCommand(config.appengineServer, None, f)
+     installCommand(None, None, f)
    else:
-    installCommand(config.appengineServer)
+    installCommand()
   except Exception:
    traceback.print_exc()
 

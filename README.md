@@ -24,13 +24,9 @@ Run `pmca-console` in the command line for more options. Usage:
 
         pmca-console install -i
 
-* Install an app on your camera (the app is uploaded and served from Google appengine):
+* Install an app on your camera (the app is served from a local web server):
 
         pmca-console install -f app.apk
-
-* Install an app using a local web server:
-
-        pmca-console install -s "" -f app.apk
 
 * Download apps from the official Sony app store (interactive):
 
