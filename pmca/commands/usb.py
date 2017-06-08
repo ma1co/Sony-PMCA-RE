@@ -39,7 +39,7 @@ def createMarketServer(host=None, repo=defaultAppStoreRepo, certFile=defaultCert
   return RemoteMarketServer(host)
  else:
   print('Using local server')
-  return LocalMarketServer(repo, certFile)
+  return LocalMarketServer(repo, certFile, config.officialServer)
 
 
 def listApps(host=None):

@@ -57,11 +57,12 @@ class HttpHandler(BaseHTTPRequestHandler):
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
- def __init__(self, repo, certFile, host='127.0.0.1', port=4443):
+ def __init__(self, repo, certFile, fakeHost, host='127.0.0.1', port=4443):
   HTTPServer.__init__(self, (host, port), HttpHandler)
   self.host = host
   self.port = port
   self.url = 'https://' + host + '/'
+  self.fakeUrl = 'https://' + fakeHost + '/'
   self.appstore = appstore.AppStore(repo)
   self.apk = None
   self.result = None
@@ -84,7 +85,7 @@ class LocalMarketServer(HTTPServer):
 
  def getXpd(self):
   """Return the xpd contents"""
-  return getXpdResponse('0', self.url)
+  return getXpdResponse('0', self.fakeUrl)
 
  def getResult(self):
   """Return the result sent from the camera"""

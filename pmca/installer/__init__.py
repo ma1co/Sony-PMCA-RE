@@ -80,8 +80,7 @@ def install(dev, host, port, xpdData, statusFunc=None):
    # The camera wants us to open an SSL socket
    connectionId = message.connectionId
    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-   if message.host != host:
-    raise Exception('Connecting to wrong host: %s' % message.host)
+   # Ignoring message.host
    sock.connect((host, port))
   elif isinstance(message, SslSendDataMessage) and sock and message.connectionId == connectionId:
    # The camera wants to send data over the socket
