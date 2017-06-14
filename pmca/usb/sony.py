@@ -299,7 +299,7 @@ class SonyUpdaterCamera(object):
    if status == [self.STAT_OK]:
     break
    elif status != [self.STAT_BUSY]:
-    raise Exception('Firmware update error: ' + ', '.join([self._statusToStr(s) for s in status]))
+    raise Exception('Firmware update error: ' + ', '.join([self._statusToStr(s) for s in status if s != self.STAT_OK]))
 
  def _parseWriteResponse(self, data):
   response = self.WriteResponse.unpack(data)
@@ -308,6 +308,7 @@ class SonyUpdaterCamera(object):
 
  def _statusToStr(self, status):
   return {
+   self.STAT_BUSY: 'Busy',
    self.STAT_INVALID_DATA: 'Invalid data',
    self.STAT_LOW_BATTERY: 'Low battery',
    self.STAT_INVALID_MODEL: 'Invalid model',
