@@ -1,5 +1,6 @@
 """A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
 
+import sys
 import usb.core, usb.util
 
 from . import *
@@ -94,6 +95,8 @@ class _UsbDriver(object):
     self.dev.detach_kernel_driver(0)
   except NotImplementedError:
    pass
+  if sys.platform == 'darwin':
+   self.dev.reset()
 
  def read(self, length):
   return self.dev.read(self.epIn, length).tostring()
