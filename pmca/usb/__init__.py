@@ -33,8 +33,8 @@ class MscDevice(object):
   l = 5 + parse8(self._sendInquiryCommand(5)[4:5])
   data = self._sendInquiryCommand(l)
 
-  vendor = data[8:16].decode('latin1').rstrip()
-  product = data[16:32].decode('latin1').rstrip()
+  vendor = data[8:16].decode('latin1').rstrip(' \0')
+  product = data[16:32].decode('latin1').rstrip(' \0')
   return MscDeviceInfo(vendor, product)
 
 
