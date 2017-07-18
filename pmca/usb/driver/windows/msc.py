@@ -161,9 +161,13 @@ def _listLogicalDrives(type=DRIVE_REMOVABLE):
 def _getStorageNumber(path):
  handle = CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING, 0, None)
  deviceNumber = STORAGE_DEVICE_NUMBER()
- DeviceIoControl(handle, IOCTL_STORAGE_GET_DEVICE_NUMBER, None, deviceNumber)
+ try:
+  DeviceIoControl(handle, IOCTL_STORAGE_GET_DEVICE_NUMBER, None, deviceNumber)
+  storageNumber = deviceNumber.DeviceType, deviceNumber.DeviceNumber
+ except:
+  storageNumber = None
  CloseHandle(handle)
- return deviceNumber.DeviceType, deviceNumber.DeviceNumber
+ return storageNumber
 
 def _listDevices():
  """Lists all detected mass storage devices"""
@@ -175,7 +179,7 @@ def _listDevices():
   for diskInst in _listDeviceChildren(usbInst):
    if diskInst in disks:
     storageNumber = _getStorageNumber(disks[diskInst])
-    if storageNumber in logicalDrives:
+    if storageNumber and storageNumber in logicalDrives:
      idVendor, idProduct = parseDeviceId(usbPath)
      yield UsbDevice(logicalDrives[storageNumber], idVendor, idProduct)
      break# only return the first disk for every device
