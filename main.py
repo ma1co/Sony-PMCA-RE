@@ -7,10 +7,8 @@ import json
 import os
 import webapp2
 
-from google.appengine.ext import blobstore
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from google.appengine.ext.webapp import blobstore_handlers
 
 import config
 from pmca import appstore
@@ -22,7 +20,6 @@ from pmca import xpd
 
 class Task(ndb.Model):
  """The Entity used to save task data in the datastore between requests"""
- blob = ndb.BlobKeyProperty(indexed = False)
  app = ndb.StringProperty(indexed = False)
  date = ndb.DateTimeProperty(auto_now_add = True)
  completed = ndb.BooleanProperty(default = False, indexed = False)
@@ -174,48 +171,16 @@ class HomeHandler(BaseHandler):
   self.template('home.html')
 
 
-class ApkUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
- """Handles the upload of apk files to Google appengine"""
- def get(self):
-  self.template('apk/upload.html', {
-   'uploadUrl': blobstore.create_upload_url(self.uri_for('apkUpload')),
-  })
-
- def post(self):
-  uploads = self.get_uploads()
-  if len(uploads) == 1:
-   return self.redirect_to('blobPlugin', blobKey = uploads[0].key())
-  self.get()
-
-
-class AjaxUploadHandler(BaseHandler, blobstore_handlers.BlobstoreUploadHandler):
- """An api to upload apk files"""
- def get(self):
-  self.json({'url': blobstore.create_upload_url(self.uri_for('ajaxUpload'))})
-
- def post(self):
-  uploads = self.get_uploads()
-  if len(uploads) != 1:
-   return self.error(400)
-  return self.json({'key': str(uploads[0].key())})
-
-
 class PluginHandler(BaseHandler):
  """Displays the page to start a new USB task sequence"""
- def get(self, args = {}):
-  self.template('plugin/start.html', args)
-
- def getBlob(self, blobKey):
-  blob = blobstore.get(blobKey)
-  if not blob:
-   return self.error(404)
-  self.get({'blob': blob})
+ def get(self, app = None):
+  self.template('plugin/start.html', {'app': app})
 
  def getApp(self, appId):
   app = AppStore().apps.get(appId)
   if not app:
    return self.error(404)
-  self.get({'app': app})
+  self.get(app)
 
 
 class PluginInstallHandler(BaseHandler):
@@ -233,12 +198,6 @@ class TaskStartHandler(BaseHandler):
    task = Task()
   taskId = task.put().id()
   self.json({'id': taskId})
-
- def getBlob(self, blobKey):
-  blob = blobstore.get(blobKey)
-  if not blob:
-   return self.error(404)
-  self.get(Task(blob = blob.key()))
 
  def getApp(self, appId):
   if not AppStore().apps.get(appId):
@@ -283,9 +242,7 @@ class PortalHandler(BaseHandler):
   task = ndb.Key(Task, taskKey).get()
   if not task:
    return self.error(404)
-  if not task.completed and task.blob:
-   response = marketserver.getJsonInstallResponse('App', self.uri_for('blobSpk', blobKey = task.blob, _full = True))
-  elif not task.completed and task.app:
+  if not task.completed and task.app:
    response = marketserver.getJsonInstallResponse('App', self.uri_for('appSpk', appId = task.app, _full = True))
   else:
    response = marketserver.getJsonResponse()
@@ -301,14 +258,6 @@ class SpkHandler(BaseHandler):
  def get(self, apkData):
   spkData = spk.dump(apkData)
   self.output(spk.constants.mimeType, spkData, "app%s" % spk.constants.extension)
-
- def getBlob(self, blobKey):
-  blob = blobstore.get(blobKey)
-  if not blob:
-   return self.error(404)
-  with blob.open() as f:
-   apkData = f.read()
-  self.get(apkData)
 
  def getApp(self, appId):
   app = AppStore().apps.get(appId)
@@ -332,8 +281,6 @@ class CleanupHandler(BaseHandler):
  keepForMinutes = 60
  def get(self):
   deleteBeforeDate = datetime.datetime.now() - datetime.timedelta(minutes = self.keepForMinutes)
-  for blob in blobstore.BlobInfo.gql('WHERE creation < :1', deleteBeforeDate):
-   blob.delete()
   ndb.delete_multi(Task.gql('WHERE date < :1', deleteBeforeDate).fetch(keys_only = True))
 
 
@@ -350,20 +297,15 @@ class ApiStatsHandler(BaseHandler):
 
 app = webapp2.WSGIApplication([
  webapp2.Route('/', HomeHandler, 'home'),
- webapp2.Route('/upload', ApkUploadHandler, 'apkUpload'),
  webapp2.Route('/plugin', PluginHandler, 'plugin'),
- webapp2.Route('/plugin/blob/<blobKey>', PluginHandler, 'blobPlugin', handler_method = 'getBlob'),
  webapp2.Route('/plugin/app/<appId>', PluginHandler, 'appPlugin', handler_method = 'getApp'),
  webapp2.Route('/plugin/install', PluginInstallHandler, 'installPlugin'),
- webapp2.Route('/ajax/upload', AjaxUploadHandler, 'ajaxUpload'),
  webapp2.Route('/ajax/task/start', TaskStartHandler, 'taskStart'),
- webapp2.Route('/ajax/task/start/blob/<blobKey>', TaskStartHandler, 'blobTaskStart', handler_method = 'getBlob'),
  webapp2.Route('/ajax/task/start/app/<appId>', TaskStartHandler, 'appTaskStart', handler_method = 'getApp'),
  webapp2.Route('/ajax/task/get/<taskKey>', TaskViewHandler, 'taskGet', handler_method = 'getTask'),
  webapp2.Route('/ajax/task/view/<taskKey>', TaskViewHandler, 'taskView', handler_method = 'viewTask'),
  webapp2.Route('/camera/xpd/<taskKey>', XpdHandler, 'xpd'),
  webapp2.Route('/camera/portal', PortalHandler, 'portal'),
- webapp2.Route('/download/spk/blob/<blobKey>', SpkHandler, 'blobSpk', handler_method = 'getBlob'),
  webapp2.Route('/download/spk/app/<appId>', SpkHandler, 'appSpk', handler_method = 'getApp'),
  webapp2.Route('/apps', AppsHandler, 'apps'),
  webapp2.Route('/cleanup', CleanupHandler),

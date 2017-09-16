@@ -1,5 +1,6 @@
 User-agent: *
 Disallow: /ajax/
+Disallow: /api/
 Disallow: /camera/
 Disallow: /download/
 Disallow: /plugin/
