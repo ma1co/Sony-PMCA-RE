@@ -20,9 +20,9 @@ def main():
  info = subparsers.add_parser('info', description='Display information about the camera connected via USB')
  info.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
- install.add_argument('-s', dest='server', help='hostname for the remote server')
  install.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
+ install.add_argument('-l', dest='local', action='store_true', help='local only (don\'t send statistics)')
  installMode = install.add_mutually_exclusive_group()
  installMode.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='install an apk file')
  installMode.add_argument('-a', dest='appPackage', help='the package name of an app from the app list')
@@ -41,15 +41,15 @@ def main():
 
  args = parser.parse_args()
  if args.command == 'info':
-  infoCommand(None, args.driver)
+  infoCommand(args.driver)
  elif args.command == 'install':
   if args.appInteractive:
-   pkg = appSelectionCommand(args.server)
+   pkg = appSelectionCommand()
    if not pkg:
     return
   else:
    pkg = args.appPackage
-  installCommand(args.server, args.driver, args.apkFile, pkg, args.outFile)
+  installCommand(args.driver, args.apkFile, pkg, args.outFile, args.local)
  elif args.command == 'market':
   marketCommand(args.token)
  elif args.command == 'apk2spk':

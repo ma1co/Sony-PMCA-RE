@@ -31,36 +31,36 @@ def switchToAppInstaller(dev):
  SonyExtCmdCamera(dev).switchToAppInstaller()
 
 
-defaultAppStoreRepo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo)
-defaultCertFile = scriptRoot + '/certs/localtest.me.pem'
-def createMarketServer(host=None, repo=defaultAppStoreRepo, certFile=defaultCertFile):
- if host:
-  print('Using remote server %s' % host)
-  return RemoteMarketServer(host)
- else:
-  print('Using local server')
-  return LocalMarketServer(repo, certFile, config.officialServer)
+appListCache = None
+def listApps(enableCache=False):
+ global appListCache
+ remoteAppStore = RemoteAppStore(config.appengineServer)
+ appStoreRepo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo)
+
+ if not appListCache or not enableCache:
+  print('Loading app list')
+  try:
+   apps = remoteAppStore.listApps()
+  except:
+   print('Cannot connect to remote server, falling back to appstore repository')
+   apps = appstore.AppStore(appStoreRepo).apps
+  print('Found %d apps' % len(apps))
+  appListCache = apps
+ return appListCache
 
 
-def listApps(host=None):
- print('Loading app list')
- server = createMarketServer(host)
- apps = list(server.listApps().values())
- print('Found %d apps' % len(apps))
- return apps
-
-
-def installApp(dev, host=None, apkFile=None, appPackage=None, outFile=None):
+def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
  """Installs an app on the specified device."""
- with ServerContext(createMarketServer(host)) as server:
+ certFile = scriptRoot + '/certs/localtest.me.pem'
+ with ServerContext(LocalMarketServer(certFile, config.officialServer)) as server:
   if apkFile:
-   if isinstance(server, RemoteMarketServer):
-    print('Uploading apk')
-   server.setApk(os.path.basename(apkFile.name), apkFile.read())
+   server.setApk(apkFile.read())
   elif appPackage:
-   if isinstance(server, LocalMarketServer):
-    print('Downloading apk')
-   server.setApp(appPackage)
+   print('Downloading apk')
+   apps = listApps(True)
+   if appPackage not in apps:
+    raise Exception('Unknown app: %s' % appPackage)
+   server.setApk(apps[appPackage].release.asset)
 
   print('Starting task')
   xpdData = server.getXpd()
@@ -71,9 +71,13 @@ def installApp(dev, host=None, apkFile=None, appPackage=None, outFile=None):
   if result.code != 0:
    raise Exception('Communication error %d: %s' % (result.code, result.message))
 
-  if isinstance(server, RemoteMarketServer):
-   print('Downloading result')
   result = server.getResult()
+
+  if not local:
+   try:
+    RemoteAppStore(config.appengineServer).sendStats(result)
+   except:
+    pass
 
   print('Task completed successfully')
 
@@ -170,13 +174,13 @@ def getDevice(driver):
   return devices[0]
 
 
-def infoCommand(host=None, driverName=None):
+def infoCommand(driverName=None):
  """Display information about the camera connected via usb"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
    if isinstance(device, SonyMtpAppInstaller):
-    info = installApp(device, host)
+    info = installApp(device)
     print('')
     props = [
      ('Model', info['deviceinfo']['name']),
@@ -199,7 +203,7 @@ def infoCommand(host=None, driverName=None):
     print('%-20s%s' % (k + ': ', v))
 
 
-def installCommand(host=None, driverName=None, apkFile=None, appPackage=None, outFile=None):
+def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None, local=False):
  """Install the given apk on the camera"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
@@ -221,11 +225,11 @@ def installCommand(host=None, driverName=None, apkFile=None, appPackage=None, ou
     print('Operation timed out. Please run this command again when your camera has connected.')
 
   if device:
-   installApp(device, host, apkFile, appPackage, outFile)
+   installApp(device, apkFile, appPackage, outFile, local)
 
 
-def appSelectionCommand(host=None):
- apps = listApps(host)
+def appSelectionCommand():
+ apps = list(listApps().values())
  for i, app in enumerate(apps):
   print(' [%2d] %s' % (i+1, app.package))
  i = int(input('Enter number of app to install (0 to abort): '))

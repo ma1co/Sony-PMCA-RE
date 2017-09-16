@@ -33,7 +33,7 @@ class AppLoadTask(BackgroundTask):
  def do(self, arg):
   try:
    print('')
-   return listApps()
+   return list(listApps().values())
   except Exception:
    traceback.print_exc()
 
@@ -70,10 +70,10 @@ class InstallTask(BackgroundTask):
   try:
    print('')
    if mode == self.ui.MODE_APP and app:
-    installCommand(None, None, None, app.package)
+    installCommand(appPackage=app.package)
    elif mode == self.ui.MODE_APK and apkFilename:
     with open(apkFilename, 'rb') as f:
-     installCommand(None, None, f)
+     installCommand(apkFile=f)
    else:
     installCommand()
   except Exception:

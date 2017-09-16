@@ -57,19 +57,15 @@ class HttpHandler(BaseHTTPRequestHandler):
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
- def __init__(self, repo, certFile, fakeHost, host='127.0.0.1', port=4443):
+ def __init__(self, certFile, fakeHost, host='127.0.0.1', port=4443):
   HTTPServer.__init__(self, (host, port), HttpHandler)
   self.host = host
   self.port = port
   self.url = 'https://' + host + '/'
   self.fakeUrl = 'https://' + fakeHost + '/'
-  self.appstore = appstore.AppStore(repo)
   self.apk = None
   self.result = None
   self.socket = ssl.wrap_socket(self.socket, certfile=certFile)
-
- def listApps(self):
-  return self.appstore.apps
 
  def startup(self):
   """Start the local server"""
@@ -77,11 +73,8 @@ class LocalMarketServer(HTTPServer):
   thread.daemon = True
   thread.start()
 
- def setApk(self, apkName, apkData):
+ def setApk(self, apkData):
   self.apk = apkData
-
- def setApp(self, package):
-  self.setApk(None, self.appstore.apps[package].release.asset)
 
  def getXpd(self):
   """Return the xpd contents"""
@@ -110,48 +103,18 @@ class LocalMarketServer(HTTPServer):
   handler.output(spk.constants.mimeType, spk.dump(self.apk), 'app%s' % spk.constants.extension)
 
 
-class RemoteMarketServer(object):
+class RemoteAppStore(object):
  """A wrapper for a remote api"""
 
- def __init__(self, host, port=443):
-  self.host = host
-  self.port = port
+ def __init__(self, host):
   self.base = 'https://' + host
-  self.taskStartUrl = ''
-  self.task = None
 
  def listApps(self):
   apps = (appstore.App(None, dict) for dict in json.loads(http.get(self.base + '/api/apps').data))
   return OrderedDict((app.package, app) for app in apps)
 
- def startup(self):
-  pass
-
- def setApk(self, apkName, apkData):
-  """Uploads the apk (if any)"""
-  url = json.loads(http.get(self.base + '/ajax/upload').data)['url']
-  blobKey = json.loads(http.postFile(url, apkName, apkData).data)['key']
-  self.taskStartUrl = '/blob/' + blobKey
-
- def setApp(self, package):
-  self.taskStartUrl = '/app/' + package
-
- def getXpd(self):
-  """Create a new task and download the xpd"""
-  self.task = str(json.loads(http.get(self.base + '/ajax/task/start' + self.taskStartUrl).data)['id'])
-  return http.get(self.base + '/camera/xpd/' + self.task).raw_data
-
- def getResult(self):
-  """Return the task result"""
-  if not self.task:
-   raise Exception('Task was not started')
-  result = json.loads(http.get(self.base + '/ajax/task/get/' + self.task).data)
-  if not result['completed']:
-   raise Exception('Task was not completed')
-  return result['response']
-
- def shutdown(self):
-  pass
+ def sendStats(self, result):
+  http.post(self.base + '/api/stats', json.dumps(result).encode('latin1'))
 
 
 class ServerContext(object):

@@ -60,7 +60,7 @@ class App(object):
    for dict in yaml.safe_load_all(http.get(release['url']).data):
     if 'version' in dict and 'url' in dict:
      return dict
-  elif release.get('type') == 'static' and 'version' in release and 'url' in release:
+  elif 'version' in release and 'url' in release:
    return release
 
  def _findGithubAsset(self, assets, contentType='application/vnd.android.package-archive'):
