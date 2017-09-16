@@ -7,7 +7,10 @@
   <li><a href="{{ uri_for('apps') }}">Apps</a>: Install an app on your camera</li>
  </ul>
 
+ <h1>Important Information</h1>
+ <p>This browser-based installer is deprecated and not compatible with the newest camera firmware updates. It is recommended to use <a href="https://github.com/{{ projectRepo[0] }}/{{ projectRepo[1] }}/releases/latest">pmca-gui</a> instead.</p>
+
  <h1>Caution!</h1>
- <p>This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsability.</strong></p>
+ <p>This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. <strong>We won't take any responsibility.</strong></p>
  <p>However, we're just interacting with the isolated Android subsystem. Apps you install this way can be uninstalled in the applications manager. In the worst case, a factory reset of the camera clears all data on the Android partitions.</p>
 {% endblock %}

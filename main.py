@@ -153,8 +153,11 @@ class BaseHandler(webapp2.RequestHandler):
    raise TypeError
   self.output('application/json', json.dumps(data, default=jsonRepr))
 
- def template(self, name, data = {}):
+ def template(self, name, data = None):
   """Renders a jinja2 template"""
+  if not data:
+   data = {}
+  data['projectRepo'] = (config.githubProjectUser, config.githubProjectRepo)
   self.response.write(jinjaEnv.get_template(name).render(data))
 
  def output(self, mimeType, data, filename = None):

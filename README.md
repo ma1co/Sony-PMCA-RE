@@ -1,13 +1,25 @@
 # Reverse engineering Sony PlayMemories Camera Apps #
 The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). We reverse engineered the installation process. This allows you to install custom Android apps on your camera.
 
-## How to use it? ###
-There are two ways to install apps on your camera. Be sure it is connected over USB and set to MTP or mass storage mode.
+## How to use ##
+The list of available apps can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). If you are using Internet Explorer or Safari, apps can be installed directly from your browser. Other browsers and recent camera firmware updates are not compatible with this method anymore. It is recommended to use the native installers (pmca-gui and pmca-console) instead.
+
+**pmca-gui is the recommended way to install apps.** Binaries for Windows and OS X are available in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest). Download and open the program, connect your camera via USB, go to the *Install* tab, select an app from the list and click *Install*.
+
+The list of compatible cameras can be found [here](https://github.com/ma1co/OpenMemories-Framework/blob/master/docs/Cameras.md).
+
+Further information can be found in the sections below.
 
 ### Browser plugin ###
-**Go to [sony-pmca.appspot.com](https://sony-pmca.appspot.com/) to try it out!** You can upload your own apps and install them to your camera using the official Sony browser plugin. Since other browser vendors are disabling NPAPI plugins, please try it using **Internet Explorer**.
+The browser-based installer can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). This site uses the official Sony browser plugin to communicate with the camera directly from a browser window. Since other browser vendors are disabling NPAPI plugins, this method only works in Internet Explorer and Safari. Additionally, camera firmware updates released in June 2017 and later explicitly whitelist the URL of the official app store. Updated cameras refuse to install apps from our site. It is thus recommended to use the native installer instead.
 
-### Local installer ###
+Meanwhile, the site is still used to keep track of the installation counters for the apps in the app list.
+
+### Native installer ###
+The native installer directly communicates with cameras over USB (MTP and mass storage connections are supported; for OS X see the notes below). All camera firmware versions are supported.
+
+This installer can also be used by developers to install .apk files from their computer.
+
 Download the [latest release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) (Windows or OS X) or clone this repository.
 
 #### Graphical user interface ####
