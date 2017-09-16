@@ -2,17 +2,13 @@
 
 os: osx
 language: generic
+osx_image: xcode9
 
 before_install:
- # Update brew
- - brew update
- - brew --version
-
  # Install python
- - brew install pyenv || brew upgrade pyenv
  - eval "$(pyenv init -)"
- - env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.5.2
- - pyenv local 3.5.2
+ - env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.5.3
+ - pyenv local 3.5.3
 
  # Install libusb
  - brew install libusb || brew upgrade libusb
@@ -23,7 +19,7 @@ install:
 
  # Log versions
  - python --version
- - pip list
+ - pip list --format=legacy
 
 script:
  # Run pyinstaller
