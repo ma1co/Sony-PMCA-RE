@@ -1,7 +1,11 @@
 """Methods for reading and writing xpd files"""
 
-from Crypto.Hash import HMAC, SHA256
 import sys
+
+try:
+ from Cryptodome.Hash import HMAC, SHA256
+except ImportError:
+ from Crypto.Hash import HMAC, SHA256
 
 try:
  from configparser import ConfigParser

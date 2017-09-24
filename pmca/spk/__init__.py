@@ -1,9 +1,15 @@
 """Methods for reading and writing spk files"""
 
-from Crypto.Cipher import AES
-from Crypto.PublicKey import RSA
-from Crypto.Util.number import bytes_to_long, long_to_bytes
 import sys
+
+try:
+ from Cryptodome.Cipher import AES
+ from Cryptodome.PublicKey import RSA
+ from Cryptodome.Util.number import bytes_to_long, long_to_bytes
+except ImportError:
+ from Crypto.Cipher import AES
+ from Crypto.PublicKey import RSA
+ from Crypto.Util.number import bytes_to_long, long_to_bytes
 
 if sys.version_info >= (3,):
  long = int
