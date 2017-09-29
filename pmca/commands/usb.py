@@ -105,7 +105,7 @@ class UsbDriverList:
  def listDevices(self, vendor):
   for driver in self._drivers:
    for dev in driver.listDevices(vendor):
-    yield (driver.classType, driver.openDevice(dev))
+    yield dev, driver.classType, driver.openDevice(dev)
 
 
 def importDriver(driverName=None):
@@ -136,31 +136,43 @@ def importDriver(driverName=None):
  return UsbDriverList(*drivers)
 
 
-def listDevices(driverList):
+def listDevices(driverList, quiet=False):
  """List all Sony usb devices"""
- print('Looking for Sony devices')
- for type, drv in driverList.listDevices(SONY_ID_VENDOR):
+ if not quiet:
+  print('Looking for Sony devices')
+ for dev, type, drv in driverList.listDevices(SONY_ID_VENDOR):
   if type == USB_CLASS_MSC:
-   print('\nQuerying mass storage device')
+   if not quiet:
+    print('\nQuerying mass storage device')
    # Get device info
    info = MscDevice(drv).getDeviceInfo()
 
    if isSonyMscCamera(info):
-    print('%s %s is a camera in mass storage mode' % (info.manufacturer, info.model))
-    yield SonyMscCamera(drv)
+    if isSonyUpdaterCamera(dev):
+     if not quiet:
+      print('%s %s is a camera in updater mode' % (info.manufacturer, info.model))
+     yield SonyMscUpdaterCamera(drv)
+    else:
+     if not quiet:
+      print('%s %s is a camera in mass storage mode' % (info.manufacturer, info.model))
+     yield SonyMscCamera(drv)
 
   elif type == USB_CLASS_PTP:
-   print('\nQuerying MTP device')
+   if not quiet:
+    print('\nQuerying MTP device')
    # Get device info
    info = MtpDevice(drv).getDeviceInfo()
 
    if isSonyMtpCamera(info):
-    print('%s %s is a camera in MTP mode' % (info.manufacturer, info.model))
+    if not quiet:
+     print('%s %s is a camera in MTP mode' % (info.manufacturer, info.model))
     yield SonyMtpCamera(drv)
    elif isSonyMtpAppInstaller(info):
-    print('%s %s is a camera in app install mode' % (info.manufacturer, info.model))
+    if not quiet:
+     print('%s %s is a camera in app install mode' % (info.manufacturer, info.model))
     yield SonyMtpAppInstaller(drv)
-  print('')
+  if not quiet:
+   print('')
 
 
 def getDevice(driver):
@@ -215,7 +227,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None,
    for i in range(10):
     time.sleep(.5)
     try:
-     devices = list(listDevices(driver))
+     devices = list(listDevices(driver, True))
      if len(devices) == 1 and isinstance(devices[0], SonyMtpAppInstaller):
       device = devices[0]
       break
@@ -246,33 +258,55 @@ def firmwareUpdateCommand(file, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
-    print('Error: Cannot use camera in app install mode. Please restart the device.')
-    return
+   firmwareUpdateCommandInternal(driver, device, file, offset, size)
 
-   dev = SonyUpdaterCamera(device)
 
-   print('Initializing firmware update')
-   dev.init()
-   file.seek(offset)
-   dev.checkGuard(file, size)
-   print('Updating from version %s to version %s' % dev.getFirmwareVersion())
+def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=None):
+ if isinstance(device, SonyMtpAppInstaller):
+  print('Error: Cannot use camera in app install mode. Please restart the device.')
+  return
 
+ dev = SonyUpdaterCamera(device)
+
+ print('Initializing firmware update')
+ dev.init()
+ file.seek(offset)
+ dev.checkGuard(file, size)
+ print('Updating from version %s to version %s' % dev.getFirmwareVersion())
+
+ if not isinstance(device, SonyMscUpdaterCamera):
+  print('Switching to updater mode')
+  dev.switchMode()
+  print('Please follow the instructions on the camera screen')
+
+  device = None
+  print('')
+  print('Waiting for camera to switch...')
+  for i in range(60):
+   time.sleep(.5)
    try:
-    dev.switchMode()
-    print('Switching to updater mode')
-    print('Please press Ok to reset the camera, then run this command again to install the firmware')
+    devices = list(listDevices(driver, True))
+    if len(devices) == 1 and isinstance(devices[0], SonyMscUpdaterCamera):
+     device = devices[0]
+     break
+   except:
+    pass
+  else:
+   print('Operation timed out. Please run this command again when your camera has connected.')
 
-   except SonyUpdaterSequenceError:
-    def progress(written, total):
-     p = int(written * 20 / total) * 5
-     if p != progress.percent:
-      print('%d%%' % p)
-      progress.percent = p
-    progress.percent = -1
+  if device:
+   firmwareUpdateCommandInternal(None, device, file, offset, size, complete)
 
-    print('Writing firmware')
-    file.seek(offset)
-    dev.writeFirmware(file, size, progress)
-    dev.complete()
-    print('Done')
+ else:
+  def progress(written, total):
+   p = int(written * 20 / total) * 5
+   if p != progress.percent:
+    print('%d%%' % p)
+    progress.percent = p
+  progress.percent = -1
+
+  print('Writing firmware')
+  file.seek(offset)
+  dev.writeFirmware(file, size, progress, complete)
+  dev.complete()
+  print('Done')

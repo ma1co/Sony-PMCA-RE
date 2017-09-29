@@ -3,7 +3,6 @@
 import binascii
 from collections import namedtuple
 from io import BytesIO
-import time
 
 from . import *
 from ..util import *
@@ -18,6 +17,7 @@ SslSendDataMessage = namedtuple('SslSendDataMessage', 'connectionId, data')
 SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
+SONY_ID_PRODUCT_UPDATER = 0x03e2
 SONY_MANUFACTURER = 'Sony Corporation'
 SONY_MANUFACTURER_SHORT = 'Sony'
 SONY_MSC_MODELS = ['DSC', 'Camcorder']
@@ -26,6 +26,9 @@ SONY_MSC_MODELS = ['DSC', 'Camcorder']
 def isSonyMscCamera(info):
  """Pass a mass storage device info tuple. Guesses if the device is a camera in mass storage mode."""
  return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model in SONY_MSC_MODELS
+
+def isSonyUpdaterCamera(dev):
+ return dev.idVendor == SONY_ID_VENDOR and dev.idProduct == SONY_ID_PRODUCT_UPDATER
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
@@ -53,13 +56,9 @@ class SonyMscCamera(MscDevice):
 
  MSC_SENSE_DeviceBusy = (0x9, 0x81, 0x81)
 
- WAIT_BEFORE_WRITE = .03
- WAIT_BEFORE_READ = .07
-
  def sendSonyExtCommand(self, cmd, data, bufferSize):
   command = dump8(self.MSC_OC_ExtCmd) + dump32le(cmd) + 7*b'\0'
 
-  time.sleep(self.WAIT_BEFORE_WRITE)
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
    response = self.driver.sendWriteCommand(command, data)
@@ -68,12 +67,15 @@ class SonyMscCamera(MscDevice):
   if bufferSize == 0:
    return b''
 
-  time.sleep(self.WAIT_BEFORE_READ)
   response = self.MSC_SENSE_DeviceBusy
   while response == self.MSC_SENSE_DeviceBusy:
    response, data = self.driver.sendReadCommand(command, bufferSize)
   self._checkResponse(response)
   return data
+
+
+class SonyMscUpdaterCamera(SonyMscCamera):
+ pass
 
 
 class SonyMtpCamera(MtpDevice):
@@ -284,10 +286,11 @@ class SonyUpdaterCamera(object):
    raise Exception('Response error: 0x%x' % responseHeader.responseId)
   return response[self.PacketHeader.size:self.PacketHeader.size+responseHeader.bodySize]
 
- def _sendWriteCommands(self, command, file, size, progress=None):
+ def _sendWriteCommands(self, command, file, size, progress=None, complete=None):
   i = 0
   written = 0
   windowSize = 0
+  completeCalled = False
   while True:
    i += 1
    data = file.read(min(windowSize, size-written))
@@ -296,6 +299,9 @@ class SonyUpdaterCamera(object):
    windowSize, status = self._parseWriteResponse(self._sendCommand(command, writeParam + data))
    if progress:
     progress(written, size)
+   if complete and written == size and not completeCalled:
+    complete()
+    completeCalled = True
    if status == [self.STAT_OK]:
     break
    elif status != [self.STAT_BUSY]:
@@ -337,8 +343,8 @@ class SonyUpdaterCamera(object):
   if status != [self.STAT_OK] and status != [self.STAT_BUSY]:
    raise Exception('Updater mode switch failed')
 
- def writeFirmware(self, file, size, progress=None):
-  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size, progress)
+ def writeFirmware(self, file, size, progress=None, complete=None):
+  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size, progress, complete)
 
  def complete(self):
   self._sendCommand(self.CMD_COMPLETE, bufferSize=0)
