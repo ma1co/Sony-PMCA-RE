@@ -12,6 +12,11 @@ libraries:
 - name: webapp2
   version: latest
 
+skip_files:
+- ^build$
+- ^dist$
+- ^updatershell$
+
 handlers:
 - url: /(robots\.txt)
   static_files: \1

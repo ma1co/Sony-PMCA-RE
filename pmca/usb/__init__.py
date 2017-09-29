@@ -6,10 +6,18 @@ from ..util import *
 MscDeviceInfo = namedtuple('MscDeviceInfo', 'manufacturer, model')
 MtpDeviceInfo = namedtuple('MtpDeviceInfo', 'manufacturer, model, serialNumber, operationsSupported, vendorExtension')
 
+class MscException(Exception):
+ pass
+
+class MscInvalidCommandException(MscException):
+ pass
+
 
 class MscDevice(object):
  """Manages communication with a USB mass storage device"""
  MSC_OC_INQUIRY = 0x12
+
+ MSC_SENSE_InvalidCommandOperationCode = (0x5, 0x20, 0x0)
 
  def __init__(self, driver):
   self.driver = driver
@@ -17,7 +25,11 @@ class MscDevice(object):
 
  def _checkResponse(self, sense):
   if sense != MSC_SENSE_OK:
-   raise Exception('Mass storage error: Sense 0x%x 0x%x 0x%x' % sense)
+   msg = 'Mass storage error: Sense 0x%x 0x%x 0x%x' % sense
+   if sense == self.MSC_SENSE_InvalidCommandOperationCode:
+    raise MscInvalidCommandException(msg)
+   else:
+    raise MscException(msg)
 
  def reset(self):
   self.driver.reset()

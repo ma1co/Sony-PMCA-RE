@@ -1,4 +1,5 @@
 from __future__ import print_function
+import io
 import json
 import os
 import sys
@@ -14,6 +15,7 @@ from .. import firmware
 from .. import installer
 from ..marketserver.server import *
 from ..usb import *
+from ..usb import usbshell
 from ..usb.driver import *
 from ..usb.sony import *
 
@@ -252,6 +254,28 @@ def appSelectionCommand():
   return pkg
 
 
+def getFdats():
+ fdatDir = scriptRoot + '/updatershell/fdat/'
+ for dir in os.listdir(fdatDir):
+  if os.path.isdir(fdatDir + dir):
+   payloadFile = fdatDir + dir + '.dat'
+   if os.path.isfile(payloadFile):
+    for model in os.listdir(fdatDir + dir):
+     hdrFile = fdatDir + dir + '/' + model
+     if os.path.isfile(hdrFile) and hdrFile.endswith('.hdr'):
+      yield model[:-4], (hdrFile, payloadFile)
+
+
+def getFdat(device):
+ fdats = dict(getFdats())
+ if device.endswith('V') and device not in fdats:
+  device = device[:-1]
+ if device in fdats:
+  hdrFile, payloadFile = fdats[device]
+  with open(hdrFile, 'rb') as hdr, open(payloadFile, 'rb') as payload:
+   return hdr.read() + payload.read()
+
+
 def firmwareUpdateCommand(file, driverName=None):
  offset, size = firmware.readDat(file)
 
@@ -259,6 +283,31 @@ def firmwareUpdateCommand(file, driverName=None):
   device = getDevice(driver)
   if device:
    firmwareUpdateCommandInternal(driver, device, file, offset, size)
+
+
+def updaterShellCommand(model=None, fdatFile=None, driverName=None):
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if fdatFile:
+    fdat = fdatFile.read()
+   else:
+    if not model:
+     print('Getting device info')
+     model = SonyExtCmdCamera(device).getCameraInfo().modelName
+     print('Using firmware for model %s' % model)
+     print('')
+
+    fdat = getFdat(model)
+    if not fdat:
+     print('Unknown device: %s' % model)
+     return
+
+   def complete():
+    print('Starting updater shell...')
+    print('')
+    usbshell.usbshell_loop(device)
+   firmwareUpdateCommandInternal(driver, device, io.BytesIO(fdat), 0, len(fdat), complete)
 
 
 def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=None):
@@ -272,7 +321,9 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
  dev.init()
  file.seek(offset)
  dev.checkGuard(file, size)
- print('Updating from version %s to version %s' % dev.getFirmwareVersion())
+ versions = dev.getFirmwareVersion()
+ if versions[1] != '9.99':
+  print('Updating from version %s to version %s' % versions)
 
  if not isinstance(device, SonyMscUpdaterCamera):
   print('Switching to updater mode')

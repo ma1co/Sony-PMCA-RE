@@ -38,6 +38,11 @@ def main():
  firmware = subparsers.add_parser('firmware', description='Update the firmware')
  firmware.add_argument('-f', dest='datFile', type=argparse.FileType('rb'), required=True, help='the firmware file')
  firmware.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ updaterShell = subparsers.add_parser('updatershell', description='Launch firmware updater debug shell')
+ updaterShell.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ updaterShellMode = updaterShell.add_mutually_exclusive_group()
+ updaterShellMode.add_argument('-f', dest='fdatFile', type=argparse.FileType('rb'), help='firmware file')
+ updaterShellMode.add_argument('-m', dest='model', help='model name')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -58,6 +63,8 @@ def main():
   args.outFile.write(spk.parse(args.inFile.read()))
  elif args.command == 'firmware':
   firmwareUpdateCommand(args.datFile, args.driver)
+ elif args.command == 'updatershell':
+  updaterShellCommand(args.model, args.fdatFile, args.driver)
  else:
   parser.print_usage()
 
