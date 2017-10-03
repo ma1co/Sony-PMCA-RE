@@ -9,7 +9,10 @@ MtpDeviceInfo = namedtuple('MtpDeviceInfo', 'manufacturer, model, serialNumber, 
 class MscException(Exception):
  pass
 
-class MscInvalidCommandException(MscException):
+class MtpException(Exception):
+ pass
+
+class InvalidCommandException(Exception):
  pass
 
 
@@ -27,7 +30,7 @@ class MscDevice(object):
   if sense != MSC_SENSE_OK:
    msg = 'Mass storage error: Sense 0x%x 0x%x 0x%x' % sense
    if sense == self.MSC_SENSE_InvalidCommandOperationCode:
-    raise MscInvalidCommandException(msg)
+    raise InvalidCommandException(msg)
    else:
     raise MscException(msg)
 
@@ -57,6 +60,7 @@ class MtpDevice(object):
  PTP_OC_CloseSession = 0x1003
  PTP_RC_OK = 0x2001
  PTP_RC_SessionNotOpen = 0x2003
+ PTP_RC_ParameterNotSupported = 0x2006
  PTP_RC_DeviceBusy = 0x2019
  PTP_RC_SessionAlreadyOpened = 0x201E
 
@@ -67,7 +71,11 @@ class MtpDevice(object):
 
  def _checkResponse(self, code, acceptedCodes=[]):
   if code not in [self.PTP_RC_OK] + acceptedCodes:
-   raise Exception('Response code not OK: 0x%x' % code)
+   msg = 'MTP error 0x%x' % code
+   if code == self.PTP_RC_ParameterNotSupported:
+    raise InvalidCommandException(msg)
+   else:
+    raise MtpException(msg)
 
  def _parseString(self, data, offset):
   length = parse8(data[offset:offset+1])

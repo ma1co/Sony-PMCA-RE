@@ -1,13 +1,15 @@
 """Methods to communicate with Sony MTP devices"""
 
 import binascii
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
+from datetime import datetime, timedelta
 from io import BytesIO
 
 from . import *
 from ..util import *
 
 CameraInfo = namedtuple('CameraInfo', 'plist, modelName, modelCode, serial')
+LensInfo = namedtuple('LensInfo', 'type, model, region, version')
 
 ResponseMessage = namedtuple('ResponseMessage', 'data')
 RequestMessage = namedtuple('RequestMessage', 'data')
@@ -121,6 +123,10 @@ class SonyExtCmdCamera(object):
  SONY_CMD_KikiLogSender_InitKikiLog = (2, 1)
  SONY_CMD_KikiLogSender_ReadKikiLog = (2, 2)
 
+ # GpsAssist
+ SONY_CMD_GpsAssist_InitGps = (3, 1)
+ SONY_CMD_GpsAssist_WriteGps = (3, 2)
+
  # ExtBackupCommunicator (libInfraExtBackupCommunicator.so)
  SONY_CMD_ExtBackupCommunicator_GetSupportedCommandIds = (4, 1)
  SONY_CMD_ExtBackupCommunicator_NotifyBackupType = (4, 2)
@@ -140,17 +146,105 @@ class SonyExtCmdCamera(object):
  SONY_CMD_LensCommunicator_GetSupportedCommandIds = (6, 1)
  SONY_CMD_LensCommunicator_GetMountedLensInfo = (6, 2)
 
- BUFFER_SIZE = 8192
+ # NetworkServiceInfo (libInfraNetworkServiceInfo.so)
+ SONY_CMD_NetworkServiceInfo_GetSupportedCommandIds = (7, 1)
+ SONY_CMD_NetworkServiceInfo_SetLiveStreamingServiceInfo = (7, 2)
+ SONY_CMD_NetworkServiceInfo_GetLiveStreamingServiceInfo = (7, 3)
+ SONY_CMD_NetworkServiceInfo_SetLiveStreamingSNSInfo = (7, 4)
+ SONY_CMD_NetworkServiceInfo_GetLiveStreamingSNSInfo = (7, 5)
+ SONY_CMD_NetworkServiceInfo_SetWifiAPInfo = (7, 6)
+ SONY_CMD_NetworkServiceInfo_GetWifiAPInfo = (7, 7)
+ SONY_CMD_NetworkServiceInfo_GetLiveStreamingLastError = (7, 8)
+ SONY_CMD_NetworkServiceInfo_SetMultiWifiAPInfo = (7, 9)
+ SONY_CMD_NetworkServiceInfo_GetMultiWifiAPInfo = (7, 10)
+
+ ExtCmdHeader = Struct('ExtCmdHeader', [
+  ('dataSize', Struct.INT32),
+  ('cmd', Struct.INT16),
+  ('direction', Struct.INT16),
+  ('', 8),
+ ])
+
+ InitGpsRequest = Struct('InitGpsRequest', [
+  ('firstDate', Struct.INT32),
+  ('lastDate', Struct.INT32),
+  ('one', Struct.INT32),
+  ('crc32', Struct.INT32),
+  ('size', Struct.INT32),
+ ])
+
+ InitGpsResponse = Struct('InitGpsResponse', [
+  ('status', Struct.INT16),
+  ('firstDate', Struct.INT32),
+  ('lastDate', Struct.INT32),
+ ])
+
+ WriteGpsHeader = Struct('WriteGpsHeader', [
+  ('sequence', Struct.INT32),
+  ('remaining', Struct.INT32),
+  ('dataSize', Struct.INT32),
+ ])
+
+ MountedLensInfo = Struct('MountedLensInfo', [
+  ('type', Struct.INT32),
+  ('versionMinor', Struct.INT8),
+  ('versionMajor', Struct.INT8),
+  ('model', Struct.STR % 4),
+  ('region', Struct.STR % 4),
+ ])
+
+ LiveStreamingServiceInfo1 = Struct('LiveStreamingServiceInfo1', [
+  ('service', Struct.INT32),
+  ('enabled', Struct.INT8),
+  ('macId', Struct.STR % 41),
+  ('macSecret', Struct.STR % 41),
+  ('macIssueTime', Struct.STR % 8),
+  ('unknown', Struct.INT32),
+ ])
+
+ LiveStreamingServiceInfo2 = Struct('LiveStreamingServiceInfo2', [
+  ('shortURL', Struct.STR % 101),
+  ('videoFormat', Struct.INT32),
+ ])
+
+ LiveStreamingServiceInfo3 = Struct('LiveStreamingServiceInfo3', [
+  ('enableRecordMode', Struct.INT8),
+  ('videoTitle', Struct.STR % 401),
+  ('videoDescription', Struct.STR % 401),
+  ('videoTag', Struct.STR % 401),
+ ])
+
+ LiveStreamingSNSInfo = Struct('LiveStreamingSNSInfo', [
+  ('twitterEnabled', Struct.INT8),
+  ('twitterConsumerKey', Struct.STR % 1025),
+  ('twitterConsumerSecret', Struct.STR % 1025),
+  ('twitterAccessToken1', Struct.STR % 1025),
+  ('twitterAccessTokenSecret', Struct.STR % 1025),
+  ('twitterMessage', Struct.STR % 401),
+  ('facebookEnabled', Struct.INT8),
+  ('facebookAccessToken', Struct.STR % 1025),
+  ('facebookMessage', Struct.STR % 401),
+ ])
+
+ APInfo = Struct('APInfo', [
+  ('keyType', Struct.INT8),
+  ('sid', Struct.STR % 33),
+  ('', 1),
+  ('key', Struct.STR % 65),
+ ])
 
  def __init__(self, dev):
   self.dev = dev
 
- def _sendCommand(self, cmd, bufferSize=BUFFER_SIZE):
-  data = self.dev.sendSonyExtCommand(cmd[0], 4*b'\0' + dump32le(cmd[1]) + (self.BUFFER_SIZE-8)*b'\0', bufferSize)
-  if bufferSize == 0:
+ def _sendCommand(self, cmd, data=b'', writeBufferSize=0x2000, readBufferSize=0x2000):
+  data = self.dev.sendSonyExtCommand(cmd[0], (self.ExtCmdHeader.pack(
+   dataSize = len(data),
+   cmd = cmd[1],
+   direction = 0,
+  ) + data).ljust(writeBufferSize, b'\0'), readBufferSize)
+  if readBufferSize == 0:
    return b''
-  size = parse32le(data[:4])
-  return data[16:16+size]
+  return data[self.ExtCmdHeader.size:self.ExtCmdHeader.size+self.ExtCmdHeader.unpack(data).dataSize]
 
  def getCameraInfo(self):
   """Gets information about the camera"""
@@ -164,8 +258,8 @@ class SonyExtCmdCamera(object):
   serial = binascii.hexlify(data.read(4)).decode('latin1')
   return CameraInfo(plistData, modelName, modelCode, serial)
 
- def getKikiLog(self):
-  """Reads the first part of /tmp/kikilog.dat"""
+ def getUsageLog(self):
+  """Reads the usage log"""
   self._sendCommand(self.SONY_CMD_KikiLogSender_InitKikiLog)
   kikilog = b''
   remaining = 1
@@ -175,15 +269,92 @@ class SonyExtCmdCamera(object):
    remaining = parse32le(data.read(4))
    size = parse32le(data.read(4))
    kikilog += data.read(size)
-  return kikilog[24:]
+  return kikilog
+
+ def _convertGpsTimestamp(self, ts):
+  return datetime(1980, 1, 6) + timedelta(hours = ts & 0xffffff)
+
+ def getGpsData(self):
+  """Returns the start and end date of the APGS data"""
+  data = self._sendCommand(self.SONY_CMD_GpsAssist_InitGps, self.InitGpsRequest.pack(
+   firstDate = 0,
+   lastDate = 0,
+   one = 1,
+   crc32 = 0,
+   size = 0x43800,# 30 days * 4 dates/day * 32 frames/date * (4 bytes header + 64 bytes data + 4 bytes xor checksum)/frame
+  ), 0x10000, 0x200)
+  info = self.InitGpsResponse.unpack(data)
+  return self._convertGpsTimestamp(info.firstDate), self._convertGpsTimestamp(info.lastDate) + timedelta(hours=6)
+
+ def writeGpsData(self, file):
+  """Writes an assistme.dat file to the camera"""
+  sequence = 0
+  remaining = 0x43800
+  while remaining > 0:
+   sequence += 1
+   data = file.read(0x10000 - 16 - self.WriteGpsHeader.size)
+   remaining -= len(data)
+   response = self._sendCommand(self.SONY_CMD_GpsAssist_WriteGps, self.WriteGpsHeader.pack(
+    sequence = sequence,
+    remaining = remaining,
+    dataSize = len(data),
+   ) + data, 0x10000, 0x200)
+   if (remaining == 0 and response != b'\x01\0') or (remaining > 0 and response != b'\0\0'):
+    raise Exception('Invalid response: %s' % response)
 
  def switchToAppInstaller(self):
   """Tells the camera to switch to app installation mode"""
-  self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode, bufferSize=0)
+  self._sendCommand(self.SONY_CMD_ScalarExtCmdPlugIn_NotifyScalarDlmode, readBufferSize=0)
 
  def powerOff(self):
   """Forces the camera to turn off"""
-  self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff, bufferSize=0)
+  self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff, readBufferSize=0)
+
+ def getLensInfo(self):
+  """Returns information about the mounted lens"""
+  info = self.MountedLensInfo.unpack(self._sendCommand(self.SONY_CMD_LensCommunicator_GetMountedLensInfo))
+  return LensInfo(
+   type = info.type,
+   model = parse32be(info.model[0:2] + info.model[3:4] + info.model[2:3]),
+   region = parse32be(info.region),
+   version = '%d.%02d' % (info.versionMajor, info.versionMinor),
+  )
+
+ def getLiveStreamingServiceInfo(self):
+  """Returns the live streaming ustream configuration"""
+  data = BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetLiveStreamingServiceInfo))
+  data.read(4)
+  for i in range(parse32le(data.read(4))):
+   info1 = self.LiveStreamingServiceInfo1.unpack(data.read(self.LiveStreamingServiceInfo1.size))
+   channels = [parse32le(data.read(4)) for j in range(parse32le(data.read(4)))]
+   info2 = self.LiveStreamingServiceInfo2.unpack(data.read(self.LiveStreamingServiceInfo2.size))
+   supportedFormats = [parse32le(data.read(4)) for j in range(parse32le(data.read(4)))]
+   info3 = self.LiveStreamingServiceInfo3.unpack(data.read(self.LiveStreamingServiceInfo3.size))
+   yield OrderedDict(e for d in [
+    info1._asdict(),
+    {'channels': channels},
+    info2._asdict(),
+    {'supportedFormats': supportedFormats},
+    info3._asdict(),
+   ] for e in d.items())
+
+ def getLiveStreamingSocialInfo(self):
+  """Returns the live streaming social media configuration"""
+  return self.LiveStreamingSNSInfo.unpack(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetLiveStreamingSNSInfo))
+
+ def _parseAPs(self, data):
+  for i in range(parse32le(data.read(4))):
+   yield self.APInfo.unpack(data.read(self.APInfo.size))
+
+ def getWifiAPInfo(self):
+  """Returns the live streaming access point configuration"""
+  for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetWifiAPInfo))):
+   yield ap
+
+ def getMultiWifiAPInfo(self):
+  """Returns the live streaming multi access point configuration"""
+  for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetMultiWifiAPInfo))):
+   yield ap
 
 
 class SonyUpdaterSequenceError(Exception):

@@ -60,7 +60,7 @@ def usbshell_loop(dev):
   try:
    if req(b'TEST') == USB_RESULT_SUCCESS:
     break
-  except MscInvalidCommandException:
+  except InvalidCommandException:
    pass
   time.sleep(.5)
  else:
