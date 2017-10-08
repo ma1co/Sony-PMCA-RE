@@ -43,6 +43,9 @@ def main():
  updaterShellMode = updaterShell.add_mutually_exclusive_group()
  updaterShellMode.add_argument('-f', dest='fdatFile', type=argparse.FileType('rb'), help='firmware file')
  updaterShellMode.add_argument('-m', dest='model', help='model name')
+ gps = subparsers.add_parser('gps', description='Update GPS assist data')
+ gps.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ gps.add_argument('-f', dest='file', type=argparse.FileType('rb'), help='assistme.dat file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -65,6 +68,8 @@ def main():
   firmwareUpdateCommand(args.datFile, args.driver)
  elif args.command == 'updatershell':
   updaterShellCommand(args.model, args.fdatFile, args.driver)
+ elif args.command == 'gps':
+  gpsUpdateCommand(args.file, args.driver)
  else:
   parser.print_usage()
 

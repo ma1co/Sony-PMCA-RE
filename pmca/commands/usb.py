@@ -18,6 +18,7 @@ from ..usb import *
 from ..usb import usbshell
 from ..usb.driver import *
 from ..usb.sony import *
+from ..util import http
 
 scriptRoot = getattr(sys, '_MEIPASS', os.path.dirname(__file__) + '/../..')
 
@@ -373,3 +374,20 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
   dev.writeFirmware(file, size, progress, complete)
   dev.complete()
   print('Done')
+
+
+def gpsUpdateCommand(file=None, driverName=None):
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    print('Error: Cannot use camera in app install mode. Please restart the device.')
+    return
+
+   if not file:
+    print('Downloading GPS data')
+    file = io.BytesIO(http.get('https://control.d-imaging.sony.co.jp/GPS/assistme.dat').raw_data)
+
+   print('Writing GPS data')
+   SonyExtCmdCamera(device).writeGpsData(file)
+   print('Done')
