@@ -203,7 +203,8 @@ def infoCommand(driverName=None):
      ('Firmware version', info['deviceinfo']['fwversion']),
     ]
    else:
-    info = SonyExtCmdCamera(device).getCameraInfo()
+    dev = SonyExtCmdCamera(device)
+    info = dev.getCameraInfo()
     updater = SonyUpdaterCamera(device)
     updater.init()
     firmwareOld, firmwareNew = updater.getFirmwareVersion()
@@ -213,6 +214,17 @@ def infoCommand(driverName=None):
      ('Serial number', info.serial),
      ('Firmware version', firmwareOld),
     ]
+    try:
+     lensInfo = dev.getLensInfo()
+     if lensInfo.model != 0:
+      props.append(('Lens', 'Model 0x%x (Firmware %s)' % (lensInfo.model, lensInfo.version)))
+    except InvalidCommandException:
+     pass
+    try:
+     gpsInfo = dev.getGpsData()
+     props.append(('GPS Data', '%s - %s' % gpsInfo))
+    except InvalidCommandException:
+     pass
    for k, v in props:
     print('%-20s%s' % (k + ': ', v))
 
