@@ -179,7 +179,7 @@ class SonyExtCmdCamera(object):
   ('lastDate', Struct.INT32),
  ])
 
- WriteGpsHeader = Struct('WriteGpsHeader', [
+ DataTransferHeader = Struct('DataTransferHeader', [
   ('sequence', Struct.INT32),
   ('remaining', Struct.INT32),
   ('dataSize', Struct.INT32),
@@ -262,13 +262,12 @@ class SonyExtCmdCamera(object):
   """Reads the usage log"""
   self._sendCommand(self.SONY_CMD_KikiLogSender_InitKikiLog)
   kikilog = b''
-  remaining = 1
-  while remaining:
-   data = BytesIO(self._sendCommand(self.SONY_CMD_KikiLogSender_ReadKikiLog))
-   data.read(4)
-   remaining = parse32le(data.read(4))
-   size = parse32le(data.read(4))
-   kikilog += data.read(size)
+  while True:
+   data = self._sendCommand(self.SONY_CMD_KikiLogSender_ReadKikiLog)
+   header = self.DataTransferHeader.unpack(data)
+   kikilog += data[self.DataTransferHeader.size:self.DataTransferHeader.size+header.dataSize]
+   if header.remaining == 0:
+    break
   return kikilog
 
  def _convertGpsTimestamp(self, ts):
@@ -292,9 +291,9 @@ class SonyExtCmdCamera(object):
   remaining = 0x43800
   while remaining > 0:
    sequence += 1
-   data = file.read(0x10000 - 16 - self.WriteGpsHeader.size)
+   data = file.read(0x10000 - self.ExtCmdHeader.size - self.DataTransferHeader.size)
    remaining -= len(data)
-   response = self._sendCommand(self.SONY_CMD_GpsAssist_WriteGps, self.WriteGpsHeader.pack(
+   response = self._sendCommand(self.SONY_CMD_GpsAssist_WriteGps, self.DataTransferHeader.pack(
     sequence = sequence,
     remaining = remaining,
     dataSize = len(data),
@@ -317,7 +316,7 @@ class SonyExtCmdCamera(object):
    type = info.type,
    model = parse32be(info.model[0:2] + info.model[3:4] + info.model[2:3]),
    region = parse32be(info.region),
-   version = '%d.%02d' % (info.versionMajor, info.versionMinor),
+   version = '%x.%02x' % (info.versionMajor, info.versionMinor),
   )
 
  def getLiveStreamingServiceInfo(self):
