@@ -316,7 +316,7 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None):
      print('Unknown device: %s' % model)
      return
 
-   def complete():
+   def complete(device):
     print('Starting updater shell...')
     print('')
     usbshell.usbshell_loop(device)

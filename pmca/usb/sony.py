@@ -470,7 +470,7 @@ class SonyUpdaterCamera(object):
    if progress:
     progress(written, size)
    if complete and written == size and not completeCalled:
-    complete()
+    complete(self.dev)
     completeCalled = True
    if status == [self.STAT_OK]:
     break
