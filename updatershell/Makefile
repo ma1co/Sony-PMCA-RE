@@ -26,6 +26,7 @@ main: $(MAIN)
 clean:
 	rm -rf $(BUILD)/*
 	rm -rf $(FDAT)/*
+	$(MAKE) -C $(PLATFORMDIR)/stlport/build/lib -f gcc.mak clean
 
 include $(PLATFORMDIR)/build.mk
 
