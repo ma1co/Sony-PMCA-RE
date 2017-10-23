@@ -5,8 +5,10 @@
 #include <unistd.h>
 #include <vector>
 
+#include "api/backup.hpp"
 #include "api/bootloader.hpp"
 #include "api/properties.hpp"
+#include "api/tweaks.hpp"
 #include "api/usbcmd.hpp"
 #include "usbshell.hpp"
 #include "usbtransfer.hpp"
@@ -21,6 +23,7 @@ using namespace std;
 #define USB_FEATURE_SHELL 0x23
 #define USB_RESULT_SUCCESS 0
 #define USB_RESULT_ERROR -1
+#define USB_RESULT_ERROR_PROTECTION -2
 
 struct list_entry {
     int id;
@@ -33,6 +36,19 @@ static list_entry property_list[] = {
     {*(int *) "SERN", &prop_serial_number()},
     {*(int *) "BKRG", &prop_backup_region()},
     {*(int *) "FIRM", &prop_firmware_version()},
+};
+
+static list_entry tweak_list[] = {
+    {*(int *) "RECL", &tweak_rec_limit()},
+    {*(int *) "RL4K", &tweak_rec_limit_4k()},
+    {*(int *) "LANG", &tweak_language()},
+    {*(int *) "NTSC", &tweak_pal_ntsc_selector()},
+    {*(int *) "PROT", &tweak_protection()},
+};
+
+struct usb_tweak_request {
+    int id;
+    int enable;
 };
 
 struct usb_list_response {
@@ -80,6 +96,47 @@ void usbshell_loop()
                 strncpy(prop_response.value, ((Property *) it->value)->get_string_value().c_str(), sizeof(prop_response.value));
                 transfer->write(&prop_response, sizeof(prop_response));
             }
+        } else if (request.cmd == *(int *) "TLST") {
+            vector<list_entry> tweaks;
+            for (int i = 0; i < (int) (sizeof(tweak_list) / sizeof(tweak_list[0])); i++) {
+                if (((Tweak *) tweak_list[i].value)->is_available())
+                    tweaks.push_back(tweak_list[i]);
+            }
+
+            response.result = tweaks.size();
+            transfer->write(&response, sizeof(response));
+
+            for (vector<list_entry>::iterator it = tweaks.begin(); it != tweaks.end(); it++) {
+                transfer->read(NULL, 0);
+                usb_list_response tweak_response;
+                tweak_response.id = it->id;
+                tweak_response.status = ((Tweak *) it->value)->is_enabled();
+                strncpy(tweak_response.value, ((Tweak *) it->value)->get_string_value().c_str(), sizeof(tweak_response.value));
+                transfer->write(&tweak_response, sizeof(tweak_response));
+            }
+        } else if (request.cmd == *(int *) "TSET") {
+            usb_tweak_request *args = (usb_tweak_request *) request.data;
+            Tweak *tweak = NULL;
+            for (int i = 0; i < (int) (sizeof(tweak_list) / sizeof(tweak_list[0])); i++) {
+                if (tweak_list[i].id == args->id) {
+                    tweak = (Tweak *) tweak_list[i].value;
+                    break;
+                }
+            }
+
+            if (tweak && tweak->is_available()) {
+                try {
+                    tweak->set_enabled(args->enable);
+                    response.result = USB_RESULT_SUCCESS;
+                } catch (const backup_protected_error &) {
+                    response.result = USB_RESULT_ERROR_PROTECTION;
+                } catch (...) {
+                    response.result = USB_RESULT_ERROR;
+                }
+            } else {
+                response.result = USB_RESULT_ERROR;
+            }
+            transfer->write(&response, sizeof(response));
         } else if (request.cmd == *(int *) "SHEL") {
             int fd_stdin, fd_stdout;
             const char *args[] = { "sh", "-i", NULL };

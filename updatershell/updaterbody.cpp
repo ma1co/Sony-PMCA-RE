@@ -3,6 +3,11 @@
 #include "updaterbody.hpp"
 #include "usbshell.hpp"
 
+extern "C"
+{
+    #include "drivers/backup.h"
+}
+
 using namespace Updater;
 using namespace UpdaterAPI;
 
@@ -18,10 +23,13 @@ void ReleaseBody(UpdaterBody *body)
 
 bool UpdaterBodyImpl::Execute(RingBuffer *buffer, CallbackInterface *interface)
 {
-    mount("/dev/nflasha2", "/setting", "vfat", MS_RDONLY, "");
+    mount("/dev/nflasha2", "/setting", "vfat", MS_NOATIME | MS_SYNCHRONOUS, "posix_attr,shortname=mixed");
 
     try {
         usbshell_loop();
+#ifdef DRIVER_backup
+        Backup_sync_all();
+#endif
     } catch (...) {
         // ignore
     }

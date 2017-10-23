@@ -10,6 +10,8 @@ from ...util import *
 
 USB_FEATURE_SHELL = 0x23
 USB_RESULT_SUCCESS = 0
+USB_RESULT_ERROR = -1
+USB_RESULT_ERROR_PROTECTION = -2
 
 UsbShellRequest = Struct('UsbShellRequest', [
  ('cmd', Struct.STR % 4),
@@ -18,6 +20,11 @@ UsbShellRequest = Struct('UsbShellRequest', [
 
 UsbShellResponse = Struct('UsbShellResponse', [
  ('result', Struct.INT32),
+])
+
+UsbTweakRequest = Struct('UsbTweakRequest', [
+ ('id', Struct.STR % 4),
+ ('enable', Struct.INT32),
 ])
 
 UsbListResponse = Struct('UsbListResponse', [
@@ -44,13 +51,14 @@ def _openOutputFile(fn):
 def usbshell_loop(dev):
  transfer = UsbSequenceTransfer(dev, USB_FEATURE_SHELL)
 
- def req(cmd, data=b''):
+ def req(cmd, data=b'', quiet=False):
   r = UsbShellResponse.unpack(transfer.exec(UsbShellRequest.pack(
    cmd = cmd,
    data = _toCString(data, 0xfff8),
   ), UsbShellResponse.size))
   if r.result & 0x80000000:
-   print('Error')
+   if not quiet:
+    print('Error')
    return r.result - 0x100000000
   else:
    return r.result
@@ -81,6 +89,7 @@ def usbshell_loop(dev):
    for a, b in [
     ('help', 'Print this help message'),
     ('info', 'Print device info'),
+    ('tweak', 'Tweak device settings'),
     ('shell', 'Start an interactive shell'),
     ('shell <COMMAND>', 'Execute the specified command'),
     ('pull <FILE>', 'Copy the specified file from the device to the computer'),
@@ -101,6 +110,52 @@ def usbshell_loop(dev):
     prop = UsbListResponse.unpack(transfer.exec(b'', UsbListResponse.size))
     if prop.id in keys:
      print('%-20s%s' % (keys[prop.id] + ': ', prop.value.rstrip(b'\0').decode('latin1')))
+
+  elif cmd == 'tweak':
+   keys = {
+    b'RECL': 'Disable video recording limit',
+    b'RL4K': 'Disable 4K video recording limit',
+    b'LANG': 'Unlock all languages',
+    b'NTSC': 'Enable PAL / NTSC selector & warning',
+    b'PROT': 'Unlock protected settings',
+   }
+   while True:
+    tweaks = []
+    for i in range(req(b'TLST')):
+     tweak = UsbListResponse.unpack(transfer.exec(b'', UsbListResponse.size))
+     if tweak.id in keys:
+      tweaks.append(tweak)
+
+    if not tweaks:
+     print('No tweaks available')
+     break
+
+    for i, tweak in enumerate(tweaks):
+     print('%d: [%s] %s' % (i+1, ('X' if tweak.status else ' '), keys[tweak.id]))
+     value = tweak.value.rstrip(b'\0').decode('latin1')
+     if value != '':
+      print('       %s' % value)
+     print()
+
+    try:
+     while True:
+      try:
+       i = int(input('Enter number of tweak to toggle (0 to finish): '))
+       if 0 <= i <= len(tweaks):
+        break
+      except ValueError:
+       pass
+    except KeyboardInterrupt:
+     print()
+     break
+
+    if i == 0:
+     break
+    else:
+     tweak = tweaks[i - 1]
+     res = req(b'TSET', UsbTweakRequest.pack(id=tweak.id, enable=not tweak.status), True)
+     print({USB_RESULT_SUCCESS: 'Success', USB_RESULT_ERROR_PROTECTION: 'Error: Protection enabled'}.get(res, 'Error'))
+     print()
 
   elif cmd == 'shell':
    if req(b'SHEL') == USB_RESULT_SUCCESS:
