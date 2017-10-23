@@ -16,6 +16,11 @@ void ReleaseBody(UpdaterBody *body)
 
 bool UpdaterBodyImpl::Execute(RingBuffer *buffer, CallbackInterface *interface)
 {
-    usbshell_loop();
+    try {
+        usbshell_loop();
+    } catch (...) {
+        // ignore
+    }
+
     return true;
 }
