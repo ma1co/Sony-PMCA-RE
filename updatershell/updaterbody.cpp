@@ -1,3 +1,5 @@
+#include <sys/mount.h>
+
 #include "updaterbody.hpp"
 #include "usbshell.hpp"
 
@@ -16,11 +18,14 @@ void ReleaseBody(UpdaterBody *body)
 
 bool UpdaterBodyImpl::Execute(RingBuffer *buffer, CallbackInterface *interface)
 {
+    mount("/dev/nflasha2", "/setting", "vfat", MS_RDONLY, "");
+
     try {
         usbshell_loop();
     } catch (...) {
         // ignore
     }
 
+    umount("/setting");
     return true;
 }

@@ -20,11 +20,10 @@ UsbShellResponse = Struct('UsbShellResponse', [
  ('result', Struct.INT32),
 ])
 
-DeviceInfo = Struct('DeviceInfo', [
- ('model', Struct.STR % 16),
- ('product', Struct.STR % 5),
- ('serial', Struct.STR % 4),
- ('firmware', Struct.INT16),
+UsbListResponse = Struct('UsbListResponse', [
+ ('id', Struct.STR % 4),
+ ('status', Struct.INT32),
+ ('value', Struct.STR % 0xfff4),
 ])
 
 
@@ -91,15 +90,17 @@ def usbshell_loop(dev):
     print('%-16s %s' % (a, b))
 
   elif cmd == 'info':
-   if req(b'INFO') == USB_RESULT_SUCCESS:
-    info = DeviceInfo.unpack(transfer.exec(b'', DeviceInfo.size))
-    for k, v in [
-     ('Model', info.model.rstrip(b'\0').decode('latin1')),
-     ('Product code', binascii.hexlify(info.product).decode('latin1')),
-     ('Serial number', binascii.hexlify(info.serial).decode('latin1')),
-     ('Firmware version', '%x.%02x' % ((info.firmware >> 8) & 0xff, info.firmware & 0xff)),
-    ]:
-     print('%-20s%s' % (k + ': ', v))
+   keys = {
+    b'MODL': 'Model',
+    b'PROD': 'Product code',
+    b'SERN': 'Serial number',
+    b'BKRG': 'Backup region',
+    b'FIRM': 'Firmware version',
+   }
+   for i in range(req(b'PROP')):
+    prop = UsbListResponse.unpack(transfer.exec(b'', UsbListResponse.size))
+    if prop.id in keys:
+     print('%-20s%s' % (keys[prop.id] + ': ', prop.value.rstrip(b'\0').decode('latin1')))
 
   elif cmd == 'shell':
    if req(b'SHEL') == USB_RESULT_SUCCESS:

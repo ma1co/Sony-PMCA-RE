@@ -1,3 +1,4 @@
+#include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
 #include <string>
@@ -5,13 +6,13 @@
 #include <vector>
 
 #include "api/bootloader.hpp"
+#include "api/properties.hpp"
 #include "api/usbcmd.hpp"
 #include "usbshell.hpp"
 #include "usbtransfer.hpp"
 
 extern "C"
 {
-    #include "deviceinfo.h"
     #include "process.h"
 }
 
@@ -20,6 +21,25 @@ using namespace std;
 #define USB_FEATURE_SHELL 0x23
 #define USB_RESULT_SUCCESS 0
 #define USB_RESULT_ERROR -1
+
+struct list_entry {
+    int id;
+    void *value;
+};
+
+static list_entry property_list[] = {
+    {*(int *) "MODL", &prop_model_name()},
+    {*(int *) "PROD", &prop_model_code()},
+    {*(int *) "SERN", &prop_serial_number()},
+    {*(int *) "BKRG", &prop_backup_region()},
+    {*(int *) "FIRM", &prop_firmware_version()},
+};
+
+struct usb_list_response {
+    int id;
+    int status;
+    char value[0xfff4];
+};
 
 struct usb_shell_request {
     int cmd;
@@ -43,15 +63,22 @@ void usbshell_loop()
         if (request.cmd == *(int *) "TEST") {
             response.result = USB_RESULT_SUCCESS;
             transfer->write(&response, sizeof(response));
-        } else if (request.cmd == *(int *) "INFO") {
-            device_info info;
-            int err = get_device_info(&info);
-            response.result = !err ? USB_RESULT_SUCCESS : err;
+        } else if (request.cmd == *(int *) "PROP") {
+            vector<list_entry> props;
+            for (int i = 0; i < (int) (sizeof(property_list) / sizeof(property_list[0])); i++) {
+                if (((Property *) property_list[i].value)->is_available())
+                    props.push_back(property_list[i]);
+            }
+
+            response.result = props.size();
             transfer->write(&response, sizeof(response));
 
-            if (!err) {
+            for (vector<list_entry>::iterator it = props.begin(); it != props.end(); it++) {
                 transfer->read(NULL, 0);
-                transfer->write(&info, sizeof(info));
+                usb_list_response prop_response;
+                prop_response.id = it->id;
+                strncpy(prop_response.value, ((Property *) it->value)->get_string_value().c_str(), sizeof(prop_response.value));
+                transfer->write(&prop_response, sizeof(prop_response));
             }
         } else if (request.cmd == *(int *) "SHEL") {
             int fd_stdin, fd_stdout;

@@ -5,7 +5,7 @@ FDAT = fdat
 BUILDDIR = $(BUILD)/gen$(GEN)
 PLATFORMDIR = platform
 
-CSOURCES = deviceinfo process
+CSOURCES = process
 CPPSOURCES = updaterbody usbshell usbtransfer
 MAIN = $(BUILD)/libupdaterbody_gen$(GEN).so
 
