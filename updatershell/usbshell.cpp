@@ -2,14 +2,15 @@
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
+#include "api/bootloader.hpp"
 #include "api/usbcmd.hpp"
 #include "usbshell.hpp"
 #include "usbtransfer.hpp"
 
 extern "C"
 {
-    #include "api/bootloader.h"
     #include "deviceinfo.h"
     #include "process.h"
 }
@@ -79,17 +80,23 @@ void usbshell_loop()
                 usb_transfer_read_fd(transfer, fd);
         } else if (request.cmd == *(int *) "BLDR") {
             int fd = open(BOOTLOADER_DEV, O_RDONLY);
-            size_t num_blocks = bootloader_get_num_blocks();
-            response.result = num_blocks;
+            vector<bootloader_block> blocks;
+            try {
+                blocks = bootloader_get_blocks(fd);
+                response.result = blocks.size();
+            } catch (const bootloader_error &) {
+                response.result = USB_RESULT_ERROR;
+            }
             transfer->write(&response, sizeof(response));
 
-            bootloader_block blocks[num_blocks];
-            bootloader_get_blocks(fd, blocks);
-            for (size_t i = 0; i < num_blocks; i++) {
-                size_t l = bootloader_get_block_size(blocks + i);
-                char block_buf[l];
-                bootloader_read_block(fd, blocks + i, block_buf);
-                usb_transfer_read_buffer(transfer, block_buf, l);
+            for (vector<bootloader_block>::iterator it = blocks.begin(); it != blocks.end(); it++) {
+                vector<char> data;
+                try {
+                    data = bootloader_read_block(fd, *it);
+                } catch (const bootloader_error &) {
+                    // ignore
+                }
+                usb_transfer_read_buffer(transfer, &data[0], data.size());
             }
             close(fd);
         } else if (request.cmd == *(int *) "EXIT") {
