@@ -1,15 +1,25 @@
 # Reverse engineering Sony PlayMemories Camera Apps #
-The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). We reverse engineered the installation process. This allows you to install custom Android apps on your camera.
+The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). The tools provided in this repository allow you to install custom Android apps on your camera.
 
-## How to use ##
+Additional effort has been made to analyze the firmware update process. Using the obtained knowledge, we can execute custom code on almost all Sony Cybershot and Alpha cameras released between 2007 and 2016.
+
+## Installing Android apps ##
+The list of cameras featuring the Android subsystem can be found [here](https://github.com/ma1co/OpenMemories-Framework/blob/master/docs/Cameras.md).
+
 The list of available apps can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). If you are using Internet Explorer or Safari, apps can be installed directly from your browser. Other browsers and recent camera firmware updates are not compatible with this method anymore. It is recommended to use the native installers (pmca-gui and pmca-console) instead.
 
 **pmca-gui is the recommended way to install apps.** Binaries for Windows and OS X are available in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest). Download and open the program, connect your camera via USB, go to the *Install* tab, select an app from the list and click *Install*.
 
-The list of compatible cameras can be found [here](https://github.com/ma1co/OpenMemories-Framework/blob/master/docs/Cameras.md).
-
 Further information can be found in the sections below.
 
+## Tweaking camera settings ##
+If your camera supports Android apps, we suggest using [OpenMemories: Tweak](https://github.com/ma1co/OpenMemories-Tweak). Otherwise, the tweaks can be applied using a method based on the firmware update process: In pmca-gui, go to the *Tweaks* tab and click the *Start tweaking* button. Follow the directions on your camera screen to reboot to firmware update mode. You can now use the checkboxes to configure your camera's settings. Click *Done* to reboot back to normal mode.
+
+This process will only change settings on your camera. The firmware itself remains untouched. The firmware update process is only used to execute custom code.
+
+The list of supported camera models can be found [here](https://github.com/ma1co/fwtool.py/blob/master/devices.yml). Many more models should be compatible, however. If your camera is not listed but you think it should be, please open an issue.
+
+## Further information ##
 ### Browser plugin ###
 The browser-based installer can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). This site uses the official Sony browser plugin to communicate with the camera directly from a browser window. Since other browser vendors are disabling NPAPI plugins, this method only works in Internet Explorer and Safari. Additionally, camera firmware updates released in June 2017 and later explicitly whitelist the URL of the official app store. Updated cameras refuse to install apps from our site. It is thus recommended to use the native installer instead.
 
