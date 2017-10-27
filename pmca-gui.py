@@ -6,6 +6,7 @@ import traceback
 
 from pmca.commands.usb import *
 from pmca.ui import *
+from pmca.usb.usbshell import *
 
 if getattr(sys, 'frozen', False):
  from frozenversion import version
@@ -102,6 +103,71 @@ class FirmwareUpdateTask(BackgroundTask):
   self.ui.fwUpdateButton.config(state=NORMAL)
 
 
+class StartUpdaterShellTask(BackgroundTask):
+ """Task to run updaterShellCommand() and open UpdaterShellDialog"""
+ def doBefore(self):
+  self.ui.startButton.config(state=DISABLED)
+
+ def do(self, arg):
+  try:
+   print('')
+   updaterShellCommand(complete=self.launchShell)
+  except Exception:
+   traceback.print_exc()
+
+ def launchShell(self, dev):
+  shell = UsbShell(dev)
+  shell.waitReady()
+
+  endFlag = threading.Event()
+  root = self.ui.master
+  root.run(lambda: root.after(0, lambda: UpdaterShellDialog(root, shell, endFlag)))
+  endFlag.wait()
+
+  shell.exit()
+
+ def doAfter(self, result):
+  self.ui.startButton.config(state=NORMAL)
+
+
+class TweakStatusTask(BackgroundTask):
+ """Task to run UsbShell.getTweakStatus()"""
+ def doBefore(self):
+  self.ui.setState(DISABLED)
+
+ def do(self, arg):
+  try:
+   return list(self.ui.shell.getTweakStatus())
+  except Exception:
+   traceback.print_exc()
+
+ def doAfter(self, result):
+  self.ui.setState(NORMAL)
+  self.ui.setTweakStatus(result)
+
+
+class TweakSetTask(BackgroundTask):
+ """Task to run UsbShell.setTweakEnabled()"""
+ def __init__(self, ui, id, var):
+  BackgroundTask.__init__(self, ui)
+  self.id = id
+  self.var = var
+
+ def doBefore(self):
+  self.ui.setState(DISABLED)
+  return self.var.get()
+
+ def do(self, arg):
+  try:
+   self.ui.shell.setTweakEnabled(self.id, arg)
+  except Exception:
+   traceback.print_exc()
+
+ def doAfter(self, result):
+  self.ui.setState(NORMAL)
+  self.ui.updateStatus()
+
+
 class InstallerUi(UiRoot):
  """Main window"""
  def __init__(self, title):
@@ -116,6 +182,7 @@ class InstallerUi(UiRoot):
 
   tabs.add(InfoFrame(self, padding=10), text='Camera info')
   tabs.add(InstallerFrame(self, padding=10), text='Install app')
+  tabs.add(UpdaterShellFrame(self, padding=10), text='Tweaks')
   tabs.add(FirmwareFrame(self, padding=10), text='Update firmware')
 
   self.logText = ScrollingText(self)
@@ -150,8 +217,7 @@ class InstallerFrame(UiFrame):
  def __init__(self, parent, **kwargs):
   UiFrame.__init__(self, parent, **kwargs)
 
-  self.modeVar = IntVar()
-  self.modeVar.set(self.MODE_APP)
+  self.modeVar = IntVar(value=self.MODE_APP)
 
   appFrame = Labelframe(self, padding=5)
   appFrame['labelwidget'] = Radiobutton(appFrame, text='Select an app from the app list', variable=self.modeVar, value=self.MODE_APP)
@@ -228,6 +294,54 @@ class FirmwareFrame(UiFrame):
 
  def getSelectedDat(self):
   return self.datFile.get()
+
+
+class UpdaterShellFrame(UiFrame):
+ def __init__(self, parent, **kwargs):
+  UiFrame.__init__(self, parent, **kwargs)
+
+  self.startButton = Button(self, text='Start tweaking (updater mode)', command=StartUpdaterShellTask(self).run, padding=5)
+  self.startButton.pack(fill=X)
+
+
+class UpdaterShellDialog(UiDialog):
+ def __init__(self, parent, shell, endFlag=None):
+  self.shell = shell
+  self.endFlag = endFlag
+  UiDialog.__init__(self, parent, "Updater mode tweaks")
+
+ def body(self, top):
+  tweakFrame = Labelframe(top, padding=5)
+  tweakFrame['labelwidget'] = Label(tweakFrame, text='Tweaks')
+  tweakFrame.pack(fill=X)
+
+  self.boxFrame = Frame(tweakFrame)
+  self.boxFrame.pack(fill=BOTH, expand=True)
+
+  self.doneButton = Button(top, text='Done', command=self.cancel, padding=5)
+  self.doneButton.pack(fill=X)
+
+  self.updateStatus()
+
+ def updateStatus(self):
+  TweakStatusTask(self).run()
+
+ def setTweakStatus(self, tweaks):
+  for child in self.boxFrame.winfo_children():
+   child.destroy()
+  for id, desc, status, value in tweaks:
+   var = IntVar(value=status)
+   c = Checkbutton(self.boxFrame, text=desc + '\n' + value, variable=var, command=TweakSetTask(self, id, var).run)
+   c.pack(fill=X)
+
+ def setState(self, state):
+  for widget in self.boxFrame.winfo_children() + [self.doneButton]:
+   widget.config(state=state)
+
+ def cancel(self, event=None):
+  UiDialog.cancel(self, event)
+  if self.endFlag:
+   self.endFlag.set()
 
 
 def main():

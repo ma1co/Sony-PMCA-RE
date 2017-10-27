@@ -298,7 +298,7 @@ def firmwareUpdateCommand(file, driverName=None):
    firmwareUpdateCommandInternal(driver, device, file, offset, size)
 
 
-def updaterShellCommand(model=None, fdatFile=None, driverName=None):
+def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
@@ -316,10 +316,11 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None):
      print('Unknown device: %s' % model)
      return
 
-   def complete(device):
-    print('Starting updater shell...')
-    print('')
-    usbshell.usbshell_loop(device)
+   if not complete:
+    def complete(device):
+     print('Starting updater shell...')
+     print('')
+     usbshell.usbshell_loop(device)
    firmwareUpdateCommandInternal(driver, device, io.BytesIO(fdat), 0, len(fdat), complete)
 
 
@@ -341,11 +342,11 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
  if not isinstance(device, SonyMscUpdaterCamera):
   print('Switching to updater mode')
   dev.switchMode()
-  print('Please follow the instructions on the camera screen')
 
   device = None
   print('')
   print('Waiting for camera to switch...')
+  print('Please follow the instructions on the camera screen.')
   for i in range(60):
    time.sleep(.5)
    try:

@@ -13,11 +13,13 @@ if sys.version_info >= (3,):
  from tkinter import *
  from tkinter.ttk import *
  from tkinter.filedialog import askopenfilename
+ from tkinter.simpledialog import Dialog
 else:
  # Python 2
  from Tkinter import *
  from ttk import *
  from tkFileDialog import askopenfilename
+ from tkSimpleDialog import Dialog
 
 class UiRoot(Tk):
  def __init__(self):
@@ -39,12 +41,16 @@ class UiRoot(Tk):
 
 
 class UiFrame(Frame):
- def __init__(self, parent, **kwargs):
-  Frame.__init__(self, parent, **kwargs)
-  self._parent = parent
-
  def run(self, func):
-  self._parent.run(func)
+  self.master.run(func)
+
+
+class UiDialog(Dialog):
+ def run(self, func):
+  self.master.run(func)
+
+ def buttonbox(self):
+  pass
 
 
 class BackgroundTask(object):
