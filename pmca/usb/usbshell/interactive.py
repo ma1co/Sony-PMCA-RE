@@ -1,7 +1,12 @@
+import contextlib
 import signal
 import socket
 import sys
 import threading
+
+if sys.version_info < (3,):
+ # Python 2
+ ConnectionError = OSError
 
 from .transfer import *
 
@@ -22,7 +27,7 @@ def usb_transfer_interactive_shell(transfer, stdin=True, stdout=True, port=5005)
 
 
 def usb_start_socket_server(transfer, addr, port, readyFlag=None):
- with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+ with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
   abortFlag = threading.Event()
 
   def sigHandler(sig, frame):
@@ -55,7 +60,7 @@ def usb_start_socket_server(transfer, addr, port, readyFlag=None):
 def console_loop(addr, port, readyFlag=None, stdin=True, stdout=True):
  if readyFlag:
   readyFlag.wait()
- with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+ with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
   sock.connect((addr, port))
   stopped = threading.Event()
   if stdin:
@@ -71,10 +76,10 @@ def console_loop(addr, port, readyFlag=None, stdin=True, stdout=True):
 
 
 def stdin_loop(sock, stoppedFlag):
- while not stoppedFlag.is_set():
+ while not stoppedFlag.isSet():
   try:
    sock.send(sys.stdin.readline().encode('latin1', 'replace'))
-  except (ConnectionAbortedError, ConnectionResetError):
+  except ConnectionError:
    break
 
 
@@ -83,8 +88,8 @@ def stdout_loop(sock):
   try:
    d = sock.recv(4096)
    if d == b'':
-    raise ConnectionAbortedError()
+    raise ConnectionError()
    sys.stdout.write(d.decode('latin1', 'replace'))
    sys.stdout.flush()
-  except (ConnectionAbortedError, ConnectionResetError):
+  except ConnectionError:
    break

@@ -1,6 +1,11 @@
 import select
 import signal
+import sys
 import threading
+
+if sys.version_info < (3,):
+ # Python 2
+ ConnectionError = OSError
 
 from ...util import *
 
@@ -14,7 +19,7 @@ class UsbSequenceTransfer(object):
   self._cmd = cmd
   self._sequence = 0
 
- def exec(self, data, bufferSize):
+ def send(self, data, bufferSize):
   d = self._dev.sendSonyExtCommand(self._cmd, UsbSequenceTransferHeader.pack(
    sequence = self._sequence
   ) + data, UsbSequenceTransferHeader.size + bufferSize)
@@ -45,51 +50,51 @@ UsbSocketHeader = Struct('UsbSocketHeader', [
 USB_SOCKET_BUFFER_SIZE = 0xfff4
 
 
-class ClosedConnection(object):
- def __init__(self):
-  self._closed = True
-
 def usb_transfer_socket(transfer, conn):
+ closed = threading.Event()
  if not conn:
-  conn = ClosedConnection()
+  closed.set()
 
  def sigHandler(sig, frame):
-  if not conn._closed:
+  if not closed.isSet():
    print("Aborting...")
    conn.close()
+   closed.set()
  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
  rxBuf = b''
  txBuf = b''
  while True:
-  ready = select.select([conn], [conn], [], 0) if not conn._closed else ([], [], [])
+  ready = select.select([conn], [conn], [], 0) if not closed.isSet() else ([], [], [])
 
   # Write to socket
-  if not conn._closed and rxBuf != b'' and ready[1]:
+  if not closed.isSet() and rxBuf != b'' and ready[1]:
    try:
     n = conn.send(rxBuf)
     rxBuf = rxBuf[n:]
-   except (ConnectionAbortedError, ConnectionResetError):
+   except ConnectionError:
     conn.close()
-  if conn._closed:
+    closed.set()
+  if closed.isSet():
    rxBuf = b''
 
   # Read from socket
-  if not conn._closed and txBuf == b'' and ready[0]:
+  if not closed.isSet() and txBuf == b'' and ready[0]:
    try:
     txBuf = conn.recv(USB_SOCKET_BUFFER_SIZE)
     if txBuf == b'':
-     raise ConnectionAbortedError()
-   except (ConnectionAbortedError, ConnectionResetError):
+     raise ConnectionError()
+   except ConnectionError:
     conn.close()
+    closed.set()
 
   # Send & receive headers
   masterHeader = UsbSocketHeader.tuple(
-   status = USB_STATUS_EOF if conn._closed else 0,
+   status = USB_STATUS_EOF if closed.isSet() else 0,
    rxSize = USB_SOCKET_BUFFER_SIZE if rxBuf == b'' else 0,
    txSize = len(txBuf),
   )
-  slaveHeader = UsbSocketHeader.unpack(transfer.exec(UsbSocketHeader.pack(**masterHeader._asdict()), UsbSocketHeader.size))
+  slaveHeader = UsbSocketHeader.unpack(transfer.send(UsbSocketHeader.pack(**masterHeader._asdict()), UsbSocketHeader.size))
 
   # Calculate transfer size
   rxSize = min(masterHeader.rxSize, slaveHeader.txSize)
@@ -100,11 +105,12 @@ def usb_transfer_socket(transfer, conn):
    break
 
   # Close socket if requested
-  if not conn._closed and rxBuf == b'' and slaveHeader.status == USB_STATUS_EOF:
+  if not closed.isSet() and rxBuf == b'' and slaveHeader.status == USB_STATUS_EOF:
    conn.close()
+   closed.set()
 
   # Send & receive data
-  data = transfer.exec(txBuf[:txSize], rxSize)
+  data = transfer.send(txBuf[:txSize], rxSize)
   txBuf = txBuf[txSize:]
   if rxSize > 0:
    rxBuf = data
@@ -123,7 +129,7 @@ def usb_transfer_read(transfer, f):
 
  while True:
   status = UsbStatusMsg.tuple(status = USB_STATUS_CANCEL if abortFlag.isSet() else 0)
-  msg = UsbDataMsg.unpack(transfer.exec(UsbStatusMsg.pack(**status._asdict()), UsbDataMsg.size))
+  msg = UsbDataMsg.unpack(transfer.send(UsbStatusMsg.pack(**status._asdict()), UsbDataMsg.size))
   f.write(msg.data[:msg.size])
   if msg.size == 0 or status.status == USB_STATUS_CANCEL:
    break
@@ -142,7 +148,7 @@ def usb_transfer_write(transfer, f):
 
  while True:
   data = f.read(0xfff8) if not flag.isSet() else b''
-  status = UsbStatusMsg.unpack(transfer.exec(UsbDataMsg.pack(
+  status = UsbStatusMsg.unpack(transfer.send(UsbDataMsg.pack(
    size = len(data),
    data = data.ljust(0xfff8, b'\0'),
   ), UsbStatusMsg.size))

@@ -1,6 +1,11 @@
 import os
 import posixpath
+import sys
 import time
+
+if sys.version_info < (3,):
+ # Python 2
+ input = raw_input
 
 from .interactive import *
 from .transfer import *
@@ -45,7 +50,7 @@ class UsbShell:
   return open(fn, 'wb')
 
  def _req(self, cmd, data=b'', quiet=False):
-  r = self.UsbShellResponse.unpack(self.transfer.exec(self.UsbShellRequest.pack(
+  r = self.UsbShellResponse.unpack(self.transfer.send(self.UsbShellRequest.pack(
    cmd = cmd,
    data = data.ljust(0xfff8, b'\0'),
   ), self.UsbShellResponse.size))
@@ -76,7 +81,7 @@ class UsbShell:
    b'FIRM': 'Firmware version',
   }
   for i in range(self._req(b'PROP')):
-   prop = self.UsbListResponse.unpack(self.transfer.exec(b'', self.UsbListResponse.size))
+   prop = self.UsbListResponse.unpack(self.transfer.send(b'', self.UsbListResponse.size))
    if prop.id in keys:
     yield prop.id, keys[prop.id], prop.value.rstrip(b'\0').decode('latin1')
 
@@ -89,7 +94,7 @@ class UsbShell:
    b'PROT': 'Unlock protected settings',
   }
   for i in range(self._req(b'TLST')):
-   tweak = self.UsbListResponse.unpack(self.transfer.exec(b'', self.UsbListResponse.size))
+   tweak = self.UsbListResponse.unpack(self.transfer.send(b'', self.UsbListResponse.size))
    if tweak.id in keys:
     value = tweak.value.rstrip(b'\0').decode('latin1')
     if value == '':
@@ -194,7 +199,7 @@ def usbshell_tweak_loop(shell):
   for i, (id, desc, status, value) in enumerate(tweaks):
    print('%d: [%s] %s' % (i + 1, ('X' if status else ' '), desc))
    print('       %s' % value)
-   print()
+   print('')
 
   try:
    while True:
@@ -205,7 +210,7 @@ def usbshell_tweak_loop(shell):
     except ValueError:
      pass
   except KeyboardInterrupt:
-   print()
+   print('')
    break
 
   if i == 0:
@@ -213,4 +218,4 @@ def usbshell_tweak_loop(shell):
   else:
    id, desc, status, value = tweaks[i - 1]
    shell.setTweakEnabled(id, not status)
-   print()
+   print('')
