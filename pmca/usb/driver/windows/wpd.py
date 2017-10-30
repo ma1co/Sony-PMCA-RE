@@ -11,6 +11,17 @@ from .. import *
 
 # Create and import the python comtypes wrapper for the needed DLLs
 comtypes.client._generate.__verbose__ = False
+_oldImport = comtypes.client._generate._my_import
+def _newImport(fullname):
+ try:
+  import importlib
+  importlib.invalidate_caches()
+ except:
+  # Python 2
+  pass
+ _oldImport(fullname)
+comtypes.client._generate._my_import = _newImport
+
 GetModule('PortableDeviceApi.dll')
 GetModule('PortableDeviceTypes.dll')
 from comtypes.gen.PortableDeviceApiLib import *
