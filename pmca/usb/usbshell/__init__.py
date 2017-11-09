@@ -66,7 +66,7 @@ class UsbShell:
    try:
     if self._req(b'TEST') == self.USB_RESULT_SUCCESS:
      break
-   except InvalidCommandException:
+   except (InvalidCommandException, UnknownMscException):
     pass
    time.sleep(.5)
   else:

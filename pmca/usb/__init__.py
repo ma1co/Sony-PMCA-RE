@@ -9,6 +9,9 @@ MtpDeviceInfo = namedtuple('MtpDeviceInfo', 'manufacturer, model, serialNumber, 
 class MscException(Exception):
  pass
 
+class UnknownMscException(MscException):
+ pass
+
 class MtpException(Exception):
  pass
 
@@ -31,6 +34,8 @@ class MscDevice(object):
    msg = 'Mass storage error: Sense 0x%x 0x%x 0x%x' % sense
    if sense == self.MSC_SENSE_InvalidCommandOperationCode:
     raise InvalidCommandException(msg)
+   elif sense == MSC_SENSE_ERROR_UNKNOWN:
+    raise UnknownMscException(msg)
    else:
     raise MscException(msg)
 

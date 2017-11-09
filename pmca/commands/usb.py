@@ -219,12 +219,12 @@ def infoCommand(driverName=None):
      lensInfo = dev.getLensInfo()
      if lensInfo.model != 0:
       props.append(('Lens', 'Model 0x%x (Firmware %s)' % (lensInfo.model, lensInfo.version)))
-    except InvalidCommandException:
+    except (InvalidCommandException, UnknownMscException):
      pass
     try:
      gpsInfo = dev.getGpsData()
      props.append(('GPS Data', '%s - %s' % gpsInfo))
-    except InvalidCommandException:
+    except (InvalidCommandException, UnknownMscException):
      pass
    for k, v in props:
     print('%-20s%s' % (k + ': ', v))
