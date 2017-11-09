@@ -329,10 +329,13 @@ class UpdaterShellDialog(UiDialog):
  def setTweakStatus(self, tweaks):
   for child in self.boxFrame.winfo_children():
    child.destroy()
-  for id, desc, status, value in tweaks:
-   var = IntVar(value=status)
-   c = Checkbutton(self.boxFrame, text=desc + '\n' + value, variable=var, command=TweakSetTask(self, id, var).run)
-   c.pack(fill=X)
+  if tweaks:
+   for id, desc, status, value in tweaks:
+    var = IntVar(value=status)
+    c = Checkbutton(self.boxFrame, text=desc + '\n' + value, variable=var, command=TweakSetTask(self, id, var).run)
+    c.pack(fill=X)
+  else:
+   Label(self.boxFrame, text='No tweaks available').pack(fill=X)
 
  def setState(self, state):
   for widget in self.boxFrame.winfo_children() + [self.doneButton]:
