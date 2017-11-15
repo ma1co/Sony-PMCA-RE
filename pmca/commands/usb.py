@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+import struct
 
 if sys.version_info < (3,):
  # Python 2
@@ -392,3 +393,183 @@ def gpsUpdateCommand(file=None, driverName=None):
    print('Writing GPS data')
    SonyExtCmdCamera(device).writeGpsData(file)
    print('Done')
+
+
+def streamingCommand(write=None, file=None, driverName=None):
+ """Read/Write Streaming information for the camera connected via usb"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    print('Error: Cannot configure camera in app install mode. Please restart the device.')
+   else:
+    dev = SonyExtCmdCamera(device)
+
+    if write:
+     incoming = json.load(write)
+
+     # assemble Social (first 9 items in file)
+     mydict = {}
+     for key in incoming[:9]:
+      if key[0] in ['twitterEnabled', 'facebookEnabled']:
+       mydict[key[0]] = key[1] # Integer
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
+
+     data = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
+      twitterEnabled = mydict['twitterEnabled'],
+      twitterConsumerKey = mydict['twitterConsumerKey'].ljust(1025, b'\x00'),
+      twitterConsumerSecret = mydict['twitterConsumerSecret'].ljust(1025, b'\x00'),
+      twitterAccessToken1 = mydict['twitterAccessToken1'].ljust(1025, b'\x00'),
+      twitterAccessTokenSecret = mydict['twitterAccessTokenSecret'].ljust(1025, b'\x00'),
+      twitterMessage = mydict['twitterMessage'].ljust(401, b'\x00'),
+      facebookEnabled = mydict['facebookEnabled'],
+      facebookAccessToken = mydict['facebookAccessToken'].ljust(1025, b'\x00'),
+      facebookMessage = mydict['facebookMessage'].ljust(401, b'\x00'),
+     )
+     dev.setLiveStreamingSocialInfo(data)
+
+     # assemble Streaming, file may contain multiple sets (of 14 items)
+     data = b'\x01\x00\x00\x00'
+     data += struct.pack('<i', int((len(incoming)-9)/14))
+     mydict = {}
+     count = 1
+     for key in incoming[9:]:
+      if key[0] in ['service', 'enabled', 'videoFormat', 'videoFormat', 'unknown', \
+        'enableRecordMode', 'channels', 'supportedFormats']:
+       mydict[key[0]] = key[1]
+      elif key[0] == 'macIssueTime':
+       mydict[key[0]] = binascii.a2b_hex(key[1])
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
+
+      if count == 14:
+       # reassemble Structs
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo1.pack(
+        service = mydict['service'],
+        enabled = mydict['enabled'],
+        macId = mydict['macId'].ljust(41, b'\x00'),
+        macSecret = mydict['macSecret'].ljust(41, b'\x00'),
+        macIssueTime = mydict['macIssueTime'],
+        unknown = 0, # mydict['unknown'],
+       )
+
+       data += struct.pack('<i', len(mydict['channels']))
+       for j in range(len(mydict['channels'])):
+        data += struct.pack('<i', mydict['channels'][j])
+
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo2.pack(
+        shortURL = mydict['shortURL'].ljust(101, b'\x00'),
+        videoFormat = mydict['videoFormat'],
+       )
+
+       data += struct.pack('<i', len(mydict['supportedFormats']))
+       for j in range(len(mydict['supportedFormats'])):
+        data += struct.pack('<i', mydict['supportedFormats'][j])
+
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo3.pack(
+        enableRecordMode = mydict['enableRecordMode'],
+        videoTitle = mydict['videoTitle'].ljust(401, b'\x00'),
+        videoDescription = mydict['videoDescription'].ljust(401, b'\x00'),
+        videoTag = mydict['videoTag'].ljust(401, b'\x00'),
+       )
+       count = 1
+      else:
+       count += 1
+
+     dev.setLiveStreamingServiceInfo(data)
+     return
+
+    # Read settings from camera (do this first so we know channels/supportedFormats)
+    settings = dev.getLiveStreamingServiceInfo()
+    social = dev.getLiveStreamingSocialInfo()
+
+    data = []
+    # Social settings
+    for key in (social._asdict()).items():
+     if key[0] in ['twitterEnabled', 'facebookEnabled']:
+      data.append([key[0], key[1]])
+     else:
+      data.append([key[0], key[1].decode('ascii').split('\x00')[0]])
+
+    # Streaming settings, file may contain muliple sets of data
+    try:
+     for key in next(settings).items():
+      if key[0] in ['service', 'enabled', 'videoFormat', 'enableRecordMode', \
+        'unknown', 'channels', 'supportedFormats']:
+       data.append([key[0], key[1]])
+      elif key[0] == 'macIssueTime':
+       data.append([key[0], binascii.b2a_hex(key[1]).decode('ascii')])
+      else:
+       data.append([key[0], key[1].decode('ascii').split('\x00')[0]])
+    except StopIteration:
+     pass
+
+    if file:
+     file.write(json.dumps(data, indent=4))
+    else:
+     for k, v in data:
+      print('%-20s%s' % (k + ': ', v))
+
+
+def wifiCommand(write=None, file=None, multi=False, driverName=None):
+ """Read/Write WiFi information for the camera connected via usb"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    print('Error: Cannot configure camera in app install mode. Please restart the device.')
+   else:
+    dev = SonyExtCmdCamera(device)
+
+    if write:
+     incoming = json.load(write)
+     data = struct.pack('<i', int(len(incoming)/3))
+
+     mydict = {}
+     count = 1
+     for key in incoming:
+      if key[0] == 'keyType':
+       mydict[key[0]] = key[1] # Integer
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
+
+      if count == 3:
+       # reassemble Struct
+       apinfo = SonyExtCmdCamera.APInfo.pack(
+        keyType = mydict['keyType'],
+        sid = mydict['sid'].ljust(33, b'\x00'),
+        key = mydict['key'].ljust(65, b'\x00'),
+       )
+       data += apinfo
+       count = 1
+      else:
+       count += 1
+
+     if multi:
+      dev.setMultiWifiAPInfo(data)
+     else:
+      dev.setWifiAPInfo(data)
+     return
+
+    # Read settings from camera
+    if multi:
+     settings = dev.getMultiWifiAPInfo()
+    else:
+     settings = dev.getWifiAPInfo()
+
+    data = []
+    try:
+     for key in next(settings)._asdict().items():
+      if key[0] == 'keyType':
+       data.append([key[0], key[1]]) # Integer
+      else:
+       data.append([key[0],key[1].decode('ascii').split('\x00')[0]])
+    except StopIteration:
+     pass
+
+    if file:
+     file.write(json.dumps(data, indent=4))
+    else:
+     for k, v in data:
+      print('%-20s%s' % (k + ': ', v))

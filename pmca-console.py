@@ -46,6 +46,15 @@ def main():
  gps = subparsers.add_parser('gps', description='Update GPS assist data')
  gps.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  gps.add_argument('-f', dest='file', type=argparse.FileType('rb'), help='assistme.dat file')
+ stream = subparsers.add_parser('stream', description='Update Streaming configuration')
+ stream.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ stream.add_argument('-f', dest='file', type=argparse.FileType('w'), help='store current settings to file')
+ stream.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program camera settings from file')
+ wifi = subparsers.add_parser('wifi', description='Update WiFi configuration')
+ wifi.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ wifi.add_argument('-m', dest='multi', action='store_true', help='Read/Write "Multi-WiFi" settings')
+ wifi.add_argument('-f', dest='file', type=argparse.FileType('w'), help='store current settings to file')
+ wifi.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program camera settings from file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -70,6 +79,10 @@ def main():
   updaterShellCommand(args.model, args.fdatFile, args.driver)
  elif args.command == 'gps':
   gpsUpdateCommand(args.file, args.driver)
+ elif args.command == 'stream':
+  streamingCommand(args.write, args.file, args.driver)
+ elif args.command == 'wifi':
+  wifiCommand(args.write, args.file, args.multi, args.driver)
  else:
   parser.print_usage()
 
