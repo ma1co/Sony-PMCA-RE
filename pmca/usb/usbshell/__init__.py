@@ -41,6 +41,16 @@ class UsbShell:
   ('value', Struct.STR % 0xfff4),
  ])
 
+ UsbBackupReadRequest = Struct('UsbBackupReadRequest', [
+  ('id', Struct.INT32),
+ ])
+
+ UsbBackupWriteRequest = Struct('UsbBackupWriteRequest', [
+  ('id', Struct.INT32),
+  ('size', Struct.INT32),
+  ('data', Struct.STR % 0xfff4),
+ ])
+
  def __init__(self, dev):
   self.transfer = UsbSequenceTransfer(dev, self.USB_FEATURE_SHELL)
 
@@ -114,6 +124,16 @@ class UsbShell:
   self._req(b'EXEC', command.encode('latin1'))
   usb_transfer_interactive_shell(self.transfer, stdin=False)
 
+ def pushFile(self, localPath, path):
+  with open(localPath, 'rb') as f:
+   try:
+    self._req(b'PUSH', path.encode('latin1'))
+   except UsbShellException:
+    path = posixpath.join(path, os.path.basename(localPath))
+    self._req(b'PUSH', path.encode('latin1'))
+   print('Writing to %s...' % path)
+   usb_transfer_write(self.transfer, f)
+
  def pullFile(self, path, localPath='.'):
   if os.path.isdir(localPath):
    localPath = os.path.join(localPath, posixpath.basename(path))
@@ -129,6 +149,15 @@ class UsbShell:
    with self._openOutputFile(os.path.join(localPath, 'boot%d' % (i + 1))) as f:
     print('Writing to %s...' % f.name)
     usb_transfer_read(self.transfer, f)
+
+ def readBackup(self, id):
+  size = self._req(b'BKRD', self.UsbBackupReadRequest.pack(id=id))
+  return self.transfer.send(b'', size)
+
+ def writeBackup(self, id, data):
+  self._req(b'BKWR', self.UsbBackupWriteRequest.pack(id=id, size=len(data), data=data.ljust(0xfff4, b'\0')), {
+   self.USB_RESULT_ERROR_PROTECTION: 'Protection enabled',
+  })
 
  def exit(self):
   self._req(b'EXIT')
@@ -164,8 +193,11 @@ def usbshell_loop(dev):
      ('tweak', 'Tweak device settings'),
      ('shell', 'Start an interactive shell'),
      ('shell <COMMAND>', 'Execute the specified command'),
+     ('push <LOCAL> <REMOTE>', 'Copy the specified file from the computer to the device'),
      ('pull <REMOTE> [<LOCAL>]', 'Copy the specified file from the device to the computer'),
      ('bootloader [<OUTDIR>]', 'Dump the boot loader'),
+     ('bk r <ID>', 'Read backup property'),
+     ('bk w <ID> <DATA>', 'Write backup property'),
      ('exit', 'Exit'),
     ]:
      print('%-24s %s' % (a, b))
@@ -185,11 +217,35 @@ def usbshell_loop(dev):
     else:
      shell.startInteractiveShell()
 
+   elif cmd == 'push':
+    shell.pushFile(*parser.consumeArgs(2))
+
    elif cmd == 'pull':
     shell.pullFile(*parser.consumeArgs(1, 1, ['.']))
 
    elif cmd == 'bootloader':
     shell.dumpBootloader(*parser.consumeArgs(0, 1, ['.']))
+
+   elif cmd == 'bk':
+    subcmd = parser.consumeRequiredArg()
+    id = int(parser.consumeRequiredArg(), 16)
+
+    if subcmd == 'r':
+     parser.consumeArgs()
+     value = shell.readBackup(id)
+     print(' '.join('%02x' % ord(value[i:i+1]) for i in range(len(value))))
+
+    elif subcmd == 'w':
+     value = []
+     if not parser.available():
+      raise ValueError('Not enough arguments provided')
+     while parser.available():
+      value.append(int(parser.consumeRequiredArg(), 16))
+     shell.writeBackup(id, bytes(bytearray(value)))
+     print('Success')
+
+    else:
+     raise Exception('Unknown subcommand')
 
    elif cmd == 'exit':
     parser.consumeArgs()

@@ -57,6 +57,16 @@ struct usb_list_response {
     char value[0xfff4];
 };
 
+struct usb_backup_read_request {
+    int id;
+};
+
+struct usb_backup_write_request {
+    int id;
+    int size;
+    char data[0xfff4];
+};
+
 struct usb_shell_request {
     int cmd;
     char data[0xfff8];
@@ -162,6 +172,13 @@ void usbshell_loop()
 
             if (fd >= 0)
                 usb_transfer_read_fd(transfer, fd);
+        } else if (request.cmd == *(int *) "PUSH") {
+            int fd = open(request.data, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+            response.result = fd >= 0 ? USB_RESULT_SUCCESS : fd;
+            transfer->write(&response, sizeof(response));
+
+            if (fd >= 0)
+                usb_transfer_write_fd(transfer, fd);
         } else if (request.cmd == *(int *) "BLDR") {
             int fd = open(BOOTLOADER_DEV, O_RDONLY);
             vector<bootloader_block> blocks;
@@ -183,6 +200,34 @@ void usbshell_loop()
                 usb_transfer_read_buffer(transfer, &data[0], data.size());
             }
             close(fd);
+#ifdef API_backup
+        } else if (request.cmd == *(int *) "BKRD") {
+            usb_backup_read_request *args = (usb_backup_read_request *) request.data;
+            BaseBackupProperty prop(args->id);
+            try {
+                vector<char> data = prop.read();
+                response.result = data.size();
+                transfer->write(&response, sizeof(response));
+                transfer->read(NULL, 0);
+                transfer->write(&data[0], data.size());
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
+                transfer->write(&response, sizeof(response));
+            }
+        } else if (request.cmd == *(int *) "BKWR") {
+            usb_backup_write_request *args = (usb_backup_write_request *) request.data;
+            BaseBackupProperty prop(args->id);
+            vector<char> data(args->data, args->data + args->size);
+            try {
+                prop.write(data);
+                response.result = USB_RESULT_SUCCESS;
+            } catch (const backup_protected_error &) {
+                response.result = USB_RESULT_ERROR_PROTECTION;
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
+            }
+            transfer->write(&response, sizeof(response));
+#endif
         } else if (request.cmd == *(int *) "EXIT") {
             response.result = USB_RESULT_SUCCESS;
             transfer->write(&response, sizeof(response));
