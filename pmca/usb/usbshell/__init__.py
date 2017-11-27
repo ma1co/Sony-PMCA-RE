@@ -8,13 +8,16 @@ if sys.version_info < (3,):
  input = raw_input
 
 from .interactive import *
+from .parser import *
 from .transfer import *
 from .. import *
 from ...util import *
 
+class UsbShellException(Exception):
+ pass
+
 class UsbShell:
  USB_FEATURE_SHELL = 0x23
- USB_RESULT_SUCCESS = 0
  USB_RESULT_ERROR = -1
  USB_RESULT_ERROR_PROTECTION = -2
 
@@ -49,23 +52,20 @@ class UsbShell:
    fn += ('-%d' % i)
   return open(fn, 'wb')
 
- def _req(self, cmd, data=b'', quiet=False):
+ def _req(self, cmd, data=b'', errorStrings={}):
   r = self.UsbShellResponse.unpack(self.transfer.send(self.UsbShellRequest.pack(
    cmd = cmd,
    data = data.ljust(0xfff8, b'\0'),
   ), self.UsbShellResponse.size))
   if r.result & 0x80000000:
-   if not quiet:
-    print('Error')
-   return r.result - 0x100000000
-  else:
-   return r.result
+   raise UsbShellException(errorStrings.get(r.result - 0x100000000, 'Unknown error'))
+  return r.result
 
  def waitReady(self):
   for i in range(10):
    try:
-    if self._req(b'TEST') == self.USB_RESULT_SUCCESS:
-     break
+    self._req(b'TEST')
+    break
    except (InvalidCommandException, UnknownMscException):
     pass
    time.sleep(.5)
@@ -102,30 +102,31 @@ class UsbShell:
     yield tweak.id, keys[tweak.id], tweak.status, value
 
  def setTweakEnabled(self, id, enabled):
-  errors = {
-   self.USB_RESULT_SUCCESS: 'Success',
-   self.USB_RESULT_ERROR_PROTECTION: 'Error: Protection enabled. Please disable protection first.'
-  }
-  res = self._req(b'TSET', self.UsbTweakRequest.pack(id=id, enable=enabled), True)
-  print(errors.get(res, 'Error'))
+  self._req(b'TSET', self.UsbTweakRequest.pack(id=id, enable=enabled), {
+   self.USB_RESULT_ERROR_PROTECTION: 'Protection enabled. Please disable protection first.',
+  })
 
  def startInteractiveShell(self):
-  if self._req(b'SHEL') == self.USB_RESULT_SUCCESS:
-   usb_transfer_interactive_shell(self.transfer)
+  self._req(b'SHEL')
+  usb_transfer_interactive_shell(self.transfer)
 
  def execCommand(self, command):
-  if self._req(b'EXEC', command.encode('latin1')) == self.USB_RESULT_SUCCESS:
-   usb_transfer_interactive_shell(self.transfer, stdin=False)
+  self._req(b'EXEC', command.encode('latin1'))
+  usb_transfer_interactive_shell(self.transfer, stdin=False)
 
- def pullFile(self, path):
-  if self._req(b'PULL', path.encode('latin1')) == self.USB_RESULT_SUCCESS:
-   with self._openOutputFile(posixpath.basename(path)) as f:
-    print('Writing to %s...' % f.name)
-    usb_transfer_read(self.transfer, f)
+ def pullFile(self, path, localPath='.'):
+  if os.path.isdir(localPath):
+   localPath = os.path.join(localPath, posixpath.basename(path))
+  with self._openOutputFile(localPath) as f:
+   self._req(b'PULL', path.encode('latin1'))
+   print('Writing to %s...' % f.name)
+   usb_transfer_read(self.transfer, f)
 
- def dumpBootloader(self):
+ def dumpBootloader(self, localPath='.'):
+  if not os.path.isdir(localPath):
+   raise Exception('%s is not a directory' % localPath)
   for i in range(self._req(b'BLDR')):
-   with self._openOutputFile('boot%d' % (i + 1)) as f:
+   with self._openOutputFile(os.path.join(localPath, 'boot%d' % (i + 1))) as f:
     print('Writing to %s...' % f.name)
     usb_transfer_read(self.transfer, f)
 
@@ -148,45 +149,58 @@ def usbshell_loop(dev):
    print('')
    continue
 
-  if cmd == 'help':
-   print('List of supported commands:')
-   for a, b in [
-    ('help', 'Print this help message'),
-    ('info', 'Print device info'),
-    ('tweak', 'Tweak device settings'),
-    ('shell', 'Start an interactive shell'),
-    ('shell <COMMAND>', 'Execute the specified command'),
-    ('pull <FILE>', 'Copy the specified file from the device to the computer'),
-    ('bootloader', 'Dump the boot loader'),
-    ('exit', 'Exit'),
-   ]:
-    print('%-16s %s' % (a, b))
+  try:
+   parser = ArgParser(cmd)
+   if not parser.available():
+    continue
+   cmd = parser.consumeRequiredArg()
 
-  elif cmd == 'info':
-   for id, desc, value in shell.getProperties():
-    print('%-20s%s' % (desc + ': ', value))
+   if cmd == 'help':
+    parser.consumeArgs()
+    print('List of supported commands:')
+    for a, b in [
+     ('help', 'Print this help message'),
+     ('info', 'Print device info'),
+     ('tweak', 'Tweak device settings'),
+     ('shell', 'Start an interactive shell'),
+     ('shell <COMMAND>', 'Execute the specified command'),
+     ('pull <REMOTE> [<LOCAL>]', 'Copy the specified file from the device to the computer'),
+     ('bootloader [<OUTDIR>]', 'Dump the boot loader'),
+     ('exit', 'Exit'),
+    ]:
+     print('%-24s %s' % (a, b))
 
-  elif cmd == 'tweak':
-   usbshell_tweak_loop(shell)
+   elif cmd == 'info':
+    parser.consumeArgs()
+    for id, desc, value in shell.getProperties():
+     print('%-20s%s' % (desc + ': ', value))
 
-  elif cmd == 'shell':
-   shell.startInteractiveShell()
+   elif cmd == 'tweak':
+    parser.consumeArgs()
+    usbshell_tweak_loop(shell)
 
-  elif cmd.startswith('shell '):
-   shell.execCommand(cmd[len('shell '):].strip())
+   elif cmd == 'shell':
+    if parser.available():
+     shell.execCommand(parser.getResidue())
+    else:
+     shell.startInteractiveShell()
 
-  elif cmd.startswith('pull '):
-   shell.pullFile(cmd[len('pull '):].strip())
+   elif cmd == 'pull':
+    shell.pullFile(*parser.consumeArgs(1, 1, ['.']))
 
-  elif cmd == 'bootloader':
-   shell.dumpBootloader()
+   elif cmd == 'bootloader':
+    shell.dumpBootloader(*parser.consumeArgs(0, 1, ['.']))
 
-  elif cmd == 'exit':
-   shell.exit()
-   break
+   elif cmd == 'exit':
+    parser.consumeArgs()
+    shell.exit()
+    break
 
-  elif cmd != '':
-   print('Error: Unknown command')
+   else:
+    raise Exception('Unknown command')
+
+  except Exception as e:
+   print('Error: %s' % e)
 
 
 def usbshell_tweak_loop(shell):
@@ -216,6 +230,10 @@ def usbshell_tweak_loop(shell):
   if i == 0:
    break
   else:
-   id, desc, status, value = tweaks[i - 1]
-   shell.setTweakEnabled(id, not status)
+   try:
+    id, desc, status, value = tweaks[i - 1]
+    shell.setTweakEnabled(id, not status)
+    print('Success')
+   except Exception as e:
+    print('Error: %s' % e)
    print('')
