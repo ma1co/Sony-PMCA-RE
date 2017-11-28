@@ -337,9 +337,17 @@ class SonyExtCmdCamera(object):
     info3._asdict(),
    ] for e in d.items())
 
+ def setLiveStreamingServiceInfo(self, data):
+  """Sets the live streaming ustream configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetLiveStreamingServiceInfo, data)
+
  def getLiveStreamingSocialInfo(self):
   """Returns the live streaming social media configuration"""
   return self.LiveStreamingSNSInfo.unpack(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetLiveStreamingSNSInfo))
+
+ def setLiveStreamingSocialInfo(self, data):
+  """Sets the live streaming social media configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetLiveStreamingSNSInfo, data)
 
  def _parseAPs(self, data):
   for i in range(parse32le(data.read(4))):
@@ -350,10 +358,18 @@ class SonyExtCmdCamera(object):
   for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetWifiAPInfo))):
    yield ap
 
+ def setWifiAPInfo(self, data):
+  """Sets the live streaming access point configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetWifiAPInfo, data)
+
  def getMultiWifiAPInfo(self):
   """Returns the live streaming multi access point configuration"""
   for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetMultiWifiAPInfo))):
    yield ap
+
+ def setMultiWifiAPInfo(self, data):
+  """Sets the live streaming multi access point configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetMultiWifiAPInfo, data)
 
 
 class SonyUpdaterSequenceError(Exception):
