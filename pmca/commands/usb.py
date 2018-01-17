@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import struct
+import zipfile
 
 if sys.version_info < (3,):
  # Python 2
@@ -376,6 +377,30 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
   dev.writeFirmware(file, size, progress, complete)
   dev.complete()
   print('Done')
+
+
+def guessFirmwareCommand(file, driverName=None):
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   dev = SonyUpdaterCamera(device)
+   with zipfile.ZipFile(file) as zip:
+    infos = zip.infolist()
+    print('Trying %d firmware images' % len(infos))
+    for info in infos:
+     data = zip.read(info)
+     try:
+      dev.init()
+      dev.checkGuard(io.BytesIO(data), len(data))
+      break
+     except Exception as e:
+      if 'Invalid model' not in str(e):
+       print(e)
+       break
+    else:
+     print('Fail: No matching file found')
+     return
+    print('Success: Found matching file: %s' % info.filename)
 
 
 def gpsUpdateCommand(file=None, driverName=None):
