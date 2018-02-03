@@ -1,5 +1,6 @@
-"""Uses the SONYDeviceType04 kext to communicate with mass storage cameras"""
-# The kext is included in the PMCADownloader plugin
+"""Uses Sony kexts to communicate with mass storage cameras"""
+# The SONYDeviceType01 kext is included in the DriverLoader application
+# The SONYDeviceType04 kext is included in the PMCADownloader plugin
 
 from ctypes import *
 from ctypes.util import *
@@ -57,8 +58,10 @@ cf.CFNumberGetValue.restype = c_void_p
 cf.CFRelease.argtypes = [c_void_p]
 cf.CFRelease.restype = None
 
-# kext: SONYDeviceType04
-kextName = b'com_sony_driver_dsccamDeviceInfo00'
+kextNames = {
+ 'SONYDeviceType01': b'com_sony_driver_dsccamFirmwareUpdaterType00',
+ 'SONYDeviceType04': b'com_sony_driver_dsccamDeviceInfo00',
+}
 kextOpenUserClient = 0
 kextCloseUserClient = 1
 kextSendMemoryBlock = 6
@@ -123,13 +126,14 @@ def _listDevices(vendor):
   if not service:
    break
   device = _getParent(service, b'IOUSBDevice')
-  driver = _getParent(service, kextName)
-  if device and driver and device.value not in devices:
-   devices.add(device.value)
-   vid = _getProperty(device, b'idVendor')
-   pid = _getProperty(device, b'idProduct')
-   if vid == vendor:
-    yield UsbDevice(driver, vid, pid)
+  for kextName in kextNames.values():
+   driver = _getParent(service, kextName)
+   if device and driver and device.value not in devices:
+    devices.add(device.value)
+    vid = _getProperty(device, b'idVendor')
+    pid = _getProperty(device, b'idProduct')
+    if vid == vendor:
+     yield UsbDevice(driver, vid, pid)
  iokit.IOObjectRelease(itr)
 
 

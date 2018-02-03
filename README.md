@@ -70,7 +70,7 @@ Run `pmca-console` in the command line for more options. Usage:
 On Windows, the choice defaults to the default Windows USB drivers. If you want to use libusb on Windows, you'll have to install generic drivers for your camera using [Zadig](http://zadig.akeo.ie/) (select *libusb-win32*). You can then run `pmca-console install -d libusb`.
 
 #### OS X drivers ####
-On OS X, to communicate with cameras in mass storage mode, the Sony [PMCADownloader](https://sony-pmca.appspot.com/plugin/install) browser plugin has to be installed.
+On OS X, to communicate with cameras in mass storage mode, the [PMCADownloader](https://sony-pmca.appspot.com/plugin/install) browser plugin and/or the [DriverLoader](https://support.d-imaging.sony.co.jp/mac/driver/1013/en/) application have to be installed.
 
 ## Is it safe? ##
 This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. **We won't take any responsibility.**
