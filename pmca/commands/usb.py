@@ -283,7 +283,7 @@ def getFdats():
 
 def getFdat(device):
  fdats = dict(getFdats())
- if device.endswith('V') and device not in fdats:
+ while device != '' and not device[-1:].isdigit() and device not in fdats:
   device = device[:-1]
  if device in fdats:
   hdrFile, payloadFile = fdats[device]
