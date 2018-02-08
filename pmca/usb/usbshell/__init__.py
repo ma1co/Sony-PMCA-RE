@@ -159,6 +159,9 @@ class UsbShell:
    self.USB_RESULT_ERROR_PROTECTION: 'Protection enabled',
   })
 
+ def syncBackup(self):
+  self._req(b'BKSY')
+
  def exit(self):
   self._req(b'EXIT')
 
@@ -198,6 +201,7 @@ def usbshell_loop(dev):
      ('bootloader [<OUTDIR>]', 'Dump the boot loader'),
      ('bk r <ID>', 'Read backup property'),
      ('bk w <ID> <DATA>', 'Write backup property'),
+     ('bk s', 'Sync backup data to disk'),
      ('exit', 'Exit'),
     ]:
      print('%-24s %s' % (a, b))
@@ -228,14 +232,15 @@ def usbshell_loop(dev):
 
    elif cmd == 'bk':
     subcmd = parser.consumeRequiredArg()
-    id = int(parser.consumeRequiredArg(), 16)
 
     if subcmd == 'r':
+     id = int(parser.consumeRequiredArg(), 16)
      parser.consumeArgs()
      value = shell.readBackup(id)
      print(' '.join('%02x' % ord(value[i:i+1]) for i in range(len(value))))
 
     elif subcmd == 'w':
+     id = int(parser.consumeRequiredArg(), 16)
      value = []
      if not parser.available():
       raise ValueError('Not enough arguments provided')
@@ -244,11 +249,16 @@ def usbshell_loop(dev):
      shell.writeBackup(id, bytes(bytearray(value)))
      print('Success')
 
+    elif subcmd == 's':
+     parser.consumeArgs()
+     shell.syncBackup()
+
     else:
      raise Exception('Unknown subcommand')
 
    elif cmd == 'exit':
     parser.consumeArgs()
+    shell.syncBackup()
     shell.exit()
     break
 

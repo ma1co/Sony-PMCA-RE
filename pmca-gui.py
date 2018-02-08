@@ -124,6 +124,7 @@ class StartUpdaterShellTask(BackgroundTask):
   root.run(lambda: root.after(0, lambda: UpdaterShellDialog(root, shell, endFlag)))
   endFlag.wait()
 
+  shell.syncBackup()
   shell.exit()
 
  def doAfter(self, result):

@@ -15,6 +15,7 @@
 
 extern "C"
 {
+    #include "drivers/backup.h"
     #include "process.h"
 }
 
@@ -226,6 +227,10 @@ void usbshell_loop()
             } catch (...) {
                 response.result = USB_RESULT_ERROR;
             }
+            transfer->write(&response, sizeof(response));
+        } else if (request.cmd == *(int *) "BKSY") {
+            Backup_sync_all();
+            response.result = USB_RESULT_SUCCESS;
             transfer->write(&response, sizeof(response));
 #endif
         } else if (request.cmd == *(int *) "EXIT") {

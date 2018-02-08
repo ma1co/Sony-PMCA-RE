@@ -3,11 +3,6 @@
 #include "updaterbody.hpp"
 #include "usbshell.hpp"
 
-extern "C"
-{
-    #include "drivers/backup.h"
-}
-
 using namespace Updater;
 using namespace UpdaterAPI;
 
@@ -27,9 +22,6 @@ bool UpdaterBodyImpl::Execute(RingBuffer *buffer, CallbackInterface *interface)
 
     try {
         usbshell_loop();
-#ifdef DRIVER_backup
-        Backup_sync_all();
-#endif
     } catch (...) {
         // ignore
     }
