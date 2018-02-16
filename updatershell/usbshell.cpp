@@ -44,6 +44,7 @@ static list_entry tweak_list[] = {
     {*(int *) "RL4K", &tweak_rec_limit_4k()},
     {*(int *) "LANG", &tweak_language()},
     {*(int *) "NTSC", &tweak_pal_ntsc_selector()},
+    {*(int *) "UAPP", &tweak_usb_app_installer()},
     {*(int *) "PROT", &tweak_protection()},
 };
 
