@@ -383,6 +383,11 @@ def guessFirmwareCommand(file, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
+   print('Getting device info')
+   model = SonyExtCmdCamera(device).getCameraInfo().modelName
+   print('Model name: %s' % model)
+   print('')
+
    dev = SonyUpdaterCamera(device)
    with zipfile.ZipFile(file) as zip:
     infos = zip.infolist()
