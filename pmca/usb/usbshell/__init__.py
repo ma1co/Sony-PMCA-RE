@@ -258,7 +258,10 @@ def usbshell_loop(dev):
 
    elif cmd == 'exit':
     parser.consumeArgs()
-    shell.syncBackup()
+    try:
+     shell.syncBackup()
+    except:
+     print('Cannot sync backup')
     shell.exit()
     break
 
