@@ -1,6 +1,9 @@
-[![Dowload](https://img.shields.io/github/downloads/ma1co/Sony-PMCA-RE/latest/total.svg)](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) ![Travis](https://img.shields.io/travis/ma1co/Sony-PMCA-RE.svg) ![AppVeyor](https://img.shields.io/appveyor/ci/ma1co/Sony-PMCA-RE.svg)
-
 # Reverse engineering Sony PlayMemories Camera Apps #
+
+| Latest release | Travis CI | AppVeyor |
+|--------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|------------------------------------------------------------------------|
+| [![Dowload](https://img.shields.io/github/downloads/ma1co/Sony-PMCA-RE/latest/total.svg)](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) | ![Travis CI](https://img.shields.io/travis/ma1co/Sony-PMCA-RE.svg) | ![AppVeyor](https://img.shields.io/appveyor/ci/ma1co/Sony-PMCA-RE.svg) |
+
 The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). The tools provided in this repository allow you to install custom Android apps on your camera.
 
 Additional effort has been made to analyze the firmware update process. Using the obtained knowledge, we can execute custom code on almost all Sony Cybershot and Alpha cameras released between 2007 and 2016.
@@ -13,9 +16,9 @@ Additional effort has been made to analyze the firmware update process. Using th
 
 Download binaries for your system from the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
 
-#### Linux
+#### Debian / Ubuntu
 
-Install the last release of PMCA-GUI from the sources (here for Ubuntu 16.04):
+Install the last release of PMCA-gui from the sources, using pip and virtualenv:
 
 ```
 sudo apt install curl python-tk python-pip
