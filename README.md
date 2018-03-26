@@ -4,11 +4,48 @@ The latest Sony cameras include an Android subsystem used to run apps from the p
 Additional effort has been made to analyze the firmware update process. Using the obtained knowledge, we can execute custom code on almost all Sony Cybershot and Alpha cameras released between 2007 and 2016.
 
 ## Installing Android apps ##
+
+### Using PMCGA-gui (recommended)
+
+#### Windows and OS X
+
+Download binaries for your system from the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
+
+#### Linux
+
+Install the last release of PMCA-GUI from the sources (here for Ubuntu 16.04):
+
+```
+sudo apt install curl python-tk python-pip
+sudo pip install virtualenv
+curl -L https://github.com/ma1co/Sony-PMCA-RE/tarball/master | tar zx
+cd ma1co-Sony-PMCA-RE-*
+virtualenv pmca-venv
+source pmca-venv/bin/activate
+pip install -r requirements.txt
+python ./pmca-gui.py
+```
+
+#### Developpers
+
+Looking for the development version ? Use `git` instead `curl`:
+
+```
+git clone https://github.com/ma1co/Sony-PMCA-RE
+cd ma1co-Sony-PMCA-RE
+```
+
+### From you browser
+
+If you are using Internet Explorer or Safari, apps can be installed directly from your browser. Other browsers and recent camera firmware updates are not compatible with this method anymore. It is recommended to use the native installers (pmca-gui and pmca-console) instead.
+
+### Next steps
+
+Download and open the program, connect your camera via USB, go to the *Install* tab, select an app from the list and click *Install*.
+
 The list of cameras featuring the Android subsystem can be found [here](https://github.com/ma1co/OpenMemories-Framework/blob/master/docs/Cameras.md).
 
-The list of available apps can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). If you are using Internet Explorer or Safari, apps can be installed directly from your browser. Other browsers and recent camera firmware updates are not compatible with this method anymore. It is recommended to use the native installers (pmca-gui and pmca-console) instead.
-
-**pmca-gui is the recommended way to install apps.** Binaries for Windows and OS X are available in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest). Download and open the program, connect your camera via USB, go to the *Install* tab, select an app from the list and click *Install*.
+The list of available apps can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/).
 
 Further information can be found in the sections below.
 
