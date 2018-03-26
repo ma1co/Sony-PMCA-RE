@@ -1,3 +1,5 @@
+[![Dowload](https://img.shields.io/github/downloads/ma1co/Sony-PMCA-RE/latest/total.svg)](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) ![Travis](https://img.shields.io/travis/ma1co/Sony-PMCA-RE.svg) ![AppVeyor](https://img.shields.io/appveyor/ci/ma1co/Sony-PMCA-RE.svg)
+
 # Reverse engineering Sony PlayMemories Camera Apps #
 The latest Sony cameras include an Android subsystem used to run apps from the proprietary Sony PlayMemories Camera App Store (PMCA). The tools provided in this repository allow you to install custom Android apps on your camera.
 
