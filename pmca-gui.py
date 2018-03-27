@@ -3,7 +3,9 @@
 from __future__ import print_function
 import sys
 import traceback
+import webbrowser
 
+import config
 from pmca.commands.usb import *
 from pmca.ui import *
 from pmca.usb.usbshell import *
@@ -225,25 +227,31 @@ class InstallerFrame(UiFrame):
 
   appFrame = Labelframe(self, padding=5)
   appFrame['labelwidget'] = Radiobutton(appFrame, text='Select an app from the app list', variable=self.modeVar, value=self.MODE_APP)
+  appFrame.columnconfigure(0, weight=1)
   appFrame.pack(fill=X)
 
   self.appCombo = Combobox(appFrame, state='readonly')
   self.appCombo.bind('<<ComboboxSelected>>', lambda e: self.modeVar.set(self.MODE_APP))
-  self.appCombo.pack(side=LEFT, fill=X, expand=True)
+  self.appCombo.grid(row=0, column=0, sticky=W+E)
   self.setAppList([])
 
   self.appLoadButton = Button(appFrame, text='Refresh', command=AppLoadTask(self).run)
-  self.appLoadButton.pack()
+  self.appLoadButton.grid(row=0, column=1)
+
+  appListLink = Label(appFrame, text='Source', foreground='blue', cursor='hand2')
+  appListLink.bind('<Button-1>', lambda e: webbrowser.open_new('https://' + config.appengineServer + '/apps'))
+  appListLink.grid(columnspan=2, sticky=W)
 
   apkFrame = Labelframe(self, padding=5)
   apkFrame['labelwidget'] = Radiobutton(apkFrame, text='Select an apk', variable=self.modeVar, value=self.MODE_APK)
+  apkFrame.columnconfigure(0, weight=1)
   apkFrame.pack(fill=X)
 
   self.apkFile = Entry(apkFrame)
-  self.apkFile.pack(side=LEFT, fill=X, expand=True)
+  self.apkFile.grid(row=0, column=0, sticky=W+E)
 
   self.apkSelectButton = Button(apkFrame, text='Open apk...', command=self.openApk)
-  self.apkSelectButton.pack()
+  self.apkSelectButton.grid(row=0, column=1)
 
   self.installButton = Button(self, text='Install selected app', command=InstallTask(self).run, padding=5)
   self.installButton.pack(fill=X, pady=(5, 0))
