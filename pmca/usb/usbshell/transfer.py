@@ -118,7 +118,7 @@ def usb_transfer_socket(transfer, conn):
  signal.signal(signal.SIGINT, oldHandler)
 
 
-def usb_transfer_read(transfer, f):
+def usb_transfer_read(transfer, f, total=0, progress=None):
  abortFlag = threading.Event()
 
  def sigHandler(sig, frame):
@@ -127,17 +127,21 @@ def usb_transfer_read(transfer, f):
    abortFlag.set()
  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
+ written = 0
  while True:
   status = UsbStatusMsg.tuple(status = USB_STATUS_CANCEL if abortFlag.isSet() else 0)
   msg = UsbDataMsg.unpack(transfer.send(UsbStatusMsg.pack(**status._asdict()), UsbDataMsg.size))
   f.write(msg.data[:msg.size])
+  written += msg.size
+  if progress:
+   progress(written, total)
   if msg.size == 0 or status.status == USB_STATUS_CANCEL:
    break
 
  signal.signal(signal.SIGINT, oldHandler)
 
 
-def usb_transfer_write(transfer, f):
+def usb_transfer_write(transfer, f, total=0, progress=None):
  flag = threading.Event()
 
  def sigHandler(sig, frame):
@@ -146,12 +150,16 @@ def usb_transfer_write(transfer, f):
    flag.set()
  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
+ written = 0
  while True:
   data = f.read(0xfff8) if not flag.isSet() else b''
   status = UsbStatusMsg.unpack(transfer.send(UsbDataMsg.pack(
    size = len(data),
    data = data.ljust(0xfff8, b'\0'),
   ), UsbStatusMsg.size))
+  written += len(data)
+  if progress:
+   progress(written, total)
   if len(data) == 0 or status.status == USB_STATUS_CANCEL:
    break
 

@@ -78,6 +78,17 @@ struct usb_shell_response {
     int result;
 };
 
+static int get_file_size(const char *file)
+{
+    int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    int size = lseek(fd, 0, SEEK_END);
+    if (close(fd))
+        return -1;
+    return size;
+}
+
 void usbshell_loop()
 {
     UsbCmd *cmd = new UsbCmd(USB_FEATURE_SHELL);
@@ -168,8 +179,9 @@ void usbshell_loop()
             if (pid >= 0)
                 usb_transfer_socket(transfer, 0, fd_stdout);
         } else if (request.cmd == *(int *) "PULL") {
-            int fd = open(request.data, O_RDONLY);
-            response.result = fd >= 0 ? USB_RESULT_SUCCESS : fd;
+            int size = get_file_size(request.data);
+            int fd = size >= 0 ? open(request.data, O_RDONLY) : -1;
+            response.result = fd >= 0 ? size : USB_RESULT_ERROR;
             transfer->write(&response, sizeof(response));
 
             if (fd >= 0)
@@ -181,6 +193,9 @@ void usbshell_loop()
 
             if (fd >= 0)
                 usb_transfer_write_fd(transfer, fd);
+        } else if (request.cmd == *(int *) "STAT") {
+            response.result = get_file_size(request.data);
+            transfer->write(&response, sizeof(response));
         } else if (request.cmd == *(int *) "BLDR") {
             int fd = open(BOOTLOADER_DEV, O_RDONLY);
             vector<bootloader_block> blocks;

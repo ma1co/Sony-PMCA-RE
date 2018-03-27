@@ -124,6 +124,9 @@ class UsbShell:
   self._req(b'EXEC', command.encode('latin1'))
   usb_transfer_interactive_shell(self.transfer, stdin=False)
 
+ def getFileSize(self, path):
+  return self._req(b'STAT', path.encode('latin1'))
+
  def pushFile(self, localPath, path):
   with open(localPath, 'rb') as f:
    try:
@@ -132,15 +135,15 @@ class UsbShell:
     path = posixpath.join(path, os.path.basename(localPath))
     self._req(b'PUSH', path.encode('latin1'))
    print('Writing to %s...' % path)
-   usb_transfer_write(self.transfer, f)
+   usb_transfer_write(self.transfer, f, os.fstat(f.fileno()).st_size, ProgressPrinter().cb)
 
  def pullFile(self, path, localPath='.'):
   if os.path.isdir(localPath):
    localPath = os.path.join(localPath, posixpath.basename(path))
   with self._openOutputFile(localPath) as f:
-   self._req(b'PULL', path.encode('latin1'))
+   size = self._req(b'PULL', path.encode('latin1'))
    print('Writing to %s...' % f.name)
-   usb_transfer_read(self.transfer, f)
+   usb_transfer_read(self.transfer, f, size, ProgressPrinter().cb)
 
  def dumpBootloader(self, localPath='.'):
   if not os.path.isdir(localPath):
@@ -164,6 +167,17 @@ class UsbShell:
 
  def exit(self):
   self._req(b'EXIT')
+
+
+class ProgressPrinter:
+ def __init__(self):
+  self._percent = -1
+
+ def cb(self, written, total):
+  p = int(written * 20 / total) * 5 if total > 0 else 100
+  if p != self._percent:
+   print('%d%%' % p)
+   self._percent = p
 
 
 def usbshell_loop(dev):
