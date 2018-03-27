@@ -101,6 +101,7 @@ class UsbShell:
    b'RL4K': 'Disable 4K video recording limit',
    b'LANG': 'Unlock all languages',
    b'NTSC': 'Enable PAL / NTSC selector & warning',
+   b'UAPP': 'Enable USB app installer',
    b'PROT': 'Unlock protected settings',
   }
   for i in range(self._req(b'TLST')):
