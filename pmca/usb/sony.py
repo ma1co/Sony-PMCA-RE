@@ -309,6 +309,11 @@ class SonyExtCmdCamera(object):
   """Forces the camera to turn off"""
   self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_ForcePowerOff, readBufferSize=0)
 
+ def getMacAddress(self):
+  """Returns the camera's MAC address"""
+  addr = self._sendCommand(self.SONY_CMD_ExtBackupCommunicator_GetDeviceNetInfo)[2:8]
+  return ':'.join('%02X' % parse8(addr[i:i+1]) for i in range(len(addr)))
+
  def getLensInfo(self):
   """Returns information about the mounted lens"""
   info = self.MountedLensInfo.unpack(self._sendCommand(self.SONY_CMD_LensCommunicator_GetMountedLensInfo))
