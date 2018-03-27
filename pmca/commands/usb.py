@@ -12,6 +12,7 @@ if sys.version_info < (3,):
  input = raw_input
 
 import config
+from ..apk import *
 from .. import appstore
 from .. import firmware
 from .. import installer
@@ -58,14 +59,22 @@ def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
  """Installs an app on the specified device."""
  certFile = scriptRoot + '/certs/localtest.me.pem'
  with ServerContext(LocalMarketServer(certFile, config.officialServer)) as server:
+  apkData = None
   if apkFile:
-   server.setApk(apkFile.read())
+   apkData = apkFile.read()
   elif appPackage:
    print('Downloading apk')
    apps = listApps(True)
    if appPackage not in apps:
     raise Exception('Unknown app: %s' % appPackage)
-   server.setApk(apps[appPackage].release.asset)
+   apkData = apps[appPackage].release.asset
+
+  if apkData:
+   print('Analyzing apk')
+   print('')
+   checkApk(io.BytesIO(apkData))
+   print('')
+   server.setApk(apkData)
 
   print('Starting task')
   xpdData = server.getXpd()
@@ -91,6 +100,31 @@ def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
    json.dump(result, outFile, indent=2)
 
   return result
+
+
+def checkApk(apkFile):
+ try:
+  apk = ApkParser(apkFile)
+
+  props = [
+   ('Package', apk.getPackageName()),
+   ('Version', apk.getVersionName()),
+  ]
+  apk.getVersionCode()
+  for k, v in props:
+   print('%-9s%s' % (k + ': ', v))
+
+  sdk = apk.getMinSdkVersion()
+  if sdk > 10:
+   print('Warning: This app might not be compatible with the device (minSdkVersion = %d)' % sdk)
+
+  try:
+   apk.getCert()
+  except:
+   print('Warning: Cannot read apk certificate')
+
+ except:
+  print('Warning: Invalid apk file')
 
 
 class UsbDriverList:

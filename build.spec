@@ -2,7 +2,7 @@
 
 import os, shutil, subprocess, sys
 
-excludes = ['bz2', 'cffi', 'Crypto', 'doctest', 'ftplib', 'lzma', 'numpy', 'pickle', 'plistlib', 'py_compile', 'tarfile', 'tracemalloc']
+excludes = ['apkutils.cert', 'bz2', 'cffi', 'Crypto', 'doctest', 'ftplib', 'lzma', 'numpy', 'pickle', 'plistlib', 'py_compile', 'tarfile', 'tracemalloc']
 if sys.platform != 'win32':
  excludes.append('pmca.usb.driver.windows')
 if sys.platform != 'darwin':
