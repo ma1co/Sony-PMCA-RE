@@ -89,7 +89,7 @@ static int get_file_size(const char *file)
     return size;
 }
 
-void usbshell_loop()
+void usbshell_loop(AndroidDataBackup *android_data)
 {
     UsbCmd *cmd = new UsbCmd(USB_FEATURE_SHELL);
     UsbTransfer *transfer = new UsbSequenceTransfer(cmd);
@@ -247,6 +247,22 @@ void usbshell_loop()
         } else if (request.cmd == *(int *) "BKSY") {
             Backup_sync_all();
             response.result = USB_RESULT_SUCCESS;
+            transfer->write(&response, sizeof(response));
+#endif
+#ifdef API_android_data_backup
+        } else if (request.cmd == *(int *) "ADIR" && android_data && android_data->is_available()) {
+            string dir = android_data->get_dir();
+            response.result = dir.size();
+            transfer->write(&response, sizeof(response));
+            transfer->read(NULL, 0);
+            transfer->write(dir.data(), dir.size());
+        } else if (request.cmd == *(int *) "ACOM" && android_data && android_data->is_available()) {
+            try {
+                 android_data->commit();
+                 response.result = USB_RESULT_SUCCESS;
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
+            }
             transfer->write(&response, sizeof(response));
 #endif
         } else if (request.cmd == *(int *) "EXIT") {

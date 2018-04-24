@@ -1,3 +1,4 @@
+import io
 import os
 import posixpath
 import sys
@@ -7,6 +8,7 @@ if sys.version_info < (3,):
  # Python 2
  input = raw_input
 
+from .android import *
 from .interactive import *
 from .parser import *
 from .transfer import *
@@ -125,6 +127,16 @@ class UsbShell:
   self._req(b'EXEC', command.encode('latin1'))
   usb_transfer_interactive_shell(self.transfer, stdin=False)
 
+ def readFile(self, path):
+  self._req(b'PULL', path.encode('latin1'))
+  f = io.BytesIO()
+  usb_transfer_read(self.transfer, f)
+  return f.getvalue()
+
+ def writeFile(self, path, data):
+  self._req(b'PUSH', path.encode('latin1'))
+  usb_transfer_write(self.transfer, io.BytesIO(data))
+
  def getFileSize(self, path):
   return self._req(b'STAT', path.encode('latin1'))
 
@@ -165,6 +177,13 @@ class UsbShell:
 
  def syncBackup(self):
   self._req(b'BKSY')
+
+ def getAndroidDataDir(self):
+  size = self._req(b'ADIR')
+  return self.transfer.send(b'', size).decode('latin1')
+
+ def commitAndroidData(self):
+  self._req(b'ACOM')
 
  def exit(self):
   self._req(b'EXIT')
@@ -217,6 +236,7 @@ def usbshell_loop(dev):
      ('bk r <ID>', 'Read backup property'),
      ('bk w <ID> <DATA>', 'Write backup property'),
      ('bk s', 'Sync backup data to disk'),
+     ('install <APKFILE>', 'Install the specified android app'),
      ('exit', 'Exit'),
     ]:
      print('%-24s %s' % (a, b))
@@ -270,6 +290,10 @@ def usbshell_loop(dev):
 
     else:
      raise Exception('Unknown subcommand')
+
+   elif cmd == 'install':
+    with open(parser.consumeArgs(1)[0], 'rb') as f:
+     installApk(shell, f)
 
    elif cmd == 'exit':
     parser.consumeArgs()
