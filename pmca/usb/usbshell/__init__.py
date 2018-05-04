@@ -53,6 +53,10 @@ class UsbShell:
   ('data', Struct.STR % 0xfff4),
  ])
 
+ UsbAndroidUnmountRequest = Struct('UsbAndroidUnmountRequest', [
+  ('commitBackup', Struct.INT32),
+ ])
+
  def __init__(self, dev):
   self.transfer = UsbSequenceTransfer(dev, self.USB_FEATURE_SHELL)
 
@@ -178,12 +182,12 @@ class UsbShell:
  def syncBackup(self):
   self._req(b'BKSY')
 
- def getAndroidDataDir(self):
-  size = self._req(b'ADIR')
+ def mountAndroidData(self):
+  size = self._req(b'AMNT')
   return self.transfer.send(b'', size).decode('latin1')
 
- def commitAndroidData(self):
-  self._req(b'ACOM')
+ def unmountAndroidData(self, commitBackup):
+  self._req(b'AUMT', self.UsbAndroidUnmountRequest.pack(commitBackup=commitBackup))
 
  def exit(self):
   self._req(b'EXIT')

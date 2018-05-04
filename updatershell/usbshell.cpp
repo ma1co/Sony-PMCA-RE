@@ -2,9 +2,11 @@
 #include <fcntl.h>
 #include <stdexcept>
 #include <string>
+#include <sys/mount.h>
 #include <unistd.h>
 #include <vector>
 
+#include "api/android_data_backup.hpp"
 #include "api/backup.hpp"
 #include "api/bootloader.hpp"
 #include "api/properties.hpp"
@@ -16,6 +18,7 @@
 extern "C"
 {
     #include "drivers/backup.h"
+    #include "mount.h"
     #include "process.h"
 }
 
@@ -25,6 +28,8 @@ using namespace std;
 #define USB_RESULT_SUCCESS 0
 #define USB_RESULT_ERROR -1
 #define USB_RESULT_ERROR_PROTECTION -2
+
+const char *android_data_mount_dir = "/mnt";
 
 struct list_entry {
     int id;
@@ -69,6 +74,10 @@ struct usb_backup_write_request {
     char data[0xfff4];
 };
 
+struct usb_android_unmount_request {
+    int commit_backup;
+};
+
 struct usb_shell_request {
     int cmd;
     char data[0xfff8];
@@ -89,7 +98,7 @@ static int get_file_size(const char *file)
     return size;
 }
 
-void usbshell_loop(AndroidDataBackup *android_data)
+void usbshell_loop()
 {
     UsbCmd *cmd = new UsbCmd(USB_FEATURE_SHELL);
     UsbTransfer *transfer = new UsbSequenceTransfer(cmd);
@@ -187,7 +196,7 @@ void usbshell_loop(AndroidDataBackup *android_data)
             if (fd >= 0)
                 usb_transfer_read_fd(transfer, fd);
         } else if (request.cmd == *(int *) "PUSH") {
-            int fd = open(request.data, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+            int fd = open(request.data, O_WRONLY | O_SYNC | O_CREAT | O_TRUNC, 0755);
             response.result = fd >= 0 ? USB_RESULT_SUCCESS : fd;
             transfer->write(&response, sizeof(response));
 
@@ -250,16 +259,24 @@ void usbshell_loop(AndroidDataBackup *android_data)
             transfer->write(&response, sizeof(response));
 #endif
 #ifdef API_android_data_backup
-        } else if (request.cmd == *(int *) "ADIR" && android_data && android_data->is_available()) {
-            string dir = android_data->get_dir();
-            response.result = dir.size();
-            transfer->write(&response, sizeof(response));
-            transfer->read(NULL, 0);
-            transfer->write(dir.data(), dir.size());
-        } else if (request.cmd == *(int *) "ACOM" && android_data && android_data->is_available()) {
+        } else if (request.cmd == *(int *) "AMNT") {
             try {
-                 android_data->commit();
-                 response.result = USB_RESULT_SUCCESS;
+                mount_vfat(ANDROID_DATA_DEV, android_data_mount_dir);
+                android_data_backup_mount(android_data_mount_dir);
+                response.result = strlen(android_data_mount_dir);
+                transfer->write(&response, sizeof(response));
+                transfer->read(NULL, 0);
+                transfer->write(android_data_mount_dir, strlen(android_data_mount_dir));
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
+                transfer->write(&response, sizeof(response));
+            }
+        } else if (request.cmd == *(int *) "AUMT") {
+            try {
+                usb_android_unmount_request *args = (usb_android_unmount_request *) request.data;
+                android_data_backup_unmount(android_data_mount_dir, args->commit_backup);
+                umount(android_data_mount_dir);
+                response.result = USB_RESULT_SUCCESS;
             } catch (...) {
                 response.result = USB_RESULT_ERROR;
             }

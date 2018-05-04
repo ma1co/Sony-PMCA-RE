@@ -6,13 +6,16 @@ from ...apk import *
 def installApk(shell, apkFile):
  apk = ApkParser(apkFile)
 
+ # Mount android data partition
+ dataDir = shell.mountAndroidData()
+ commitBackup = False
+
  # Patch packages.xml
- dataDir = shell.getAndroidDataDir()
  xmlFile = dataDir + '/system/packages.xml'
  xmlData = patchXml(shell.readFile(xmlFile), apk.getPackageName(), apk.getCert())
  if xmlData:
   shell.writeFile(xmlFile, xmlData)
-  shell.commitAndroidData()
+  commitBackup = True
 
  # Write apk
  from . import UsbShellException
@@ -26,6 +29,9 @@ def installApk(shell, apkFile):
   i += 1
  apkFile.seek(0)
  shell.writeFile(path, apkFile.read())
+
+ # Unmount android data partition
+ shell.unmountAndroidData(commitBackup)
 
 def patchXml(xmlData, packageName, certKey):
  xml = minidom.parseString(xmlData)
