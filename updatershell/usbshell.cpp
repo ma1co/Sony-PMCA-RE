@@ -205,6 +205,17 @@ void usbshell_loop()
         } else if (request.cmd == *(int *) "STAT") {
             response.result = get_file_size(request.data);
             transfer->write(&response, sizeof(response));
+        } else if (request.cmd == *(int *) "BROM") {
+            vector<char> rom;
+            try {
+                rom = bootloader_read_rom();
+                response.result = rom.size();
+            } catch (const bootloader_error &) {
+                response.result = USB_RESULT_ERROR;
+            }
+            transfer->write(&response, sizeof(response));
+            if (response.result != USB_RESULT_ERROR)
+                usb_transfer_read_buffer(transfer, &rom[0], rom.size());
         } else if (request.cmd == *(int *) "BLDR") {
             int fd = open(BOOTLOADER_DEV, O_RDONLY);
             vector<bootloader_block> blocks;

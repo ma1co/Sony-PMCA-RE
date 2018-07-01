@@ -170,6 +170,13 @@ class UsbShell:
     print('Writing to %s...' % f.name)
     usb_transfer_read(self.transfer, f)
 
+ def dumpBootRom(self, localPath='.'):
+  if os.path.isdir(localPath):
+   localPath = os.path.join(localPath, 'bootrom')
+  size = self._req(b'BROM')
+  with self._openOutputFile(localPath) as f:
+   usb_transfer_read(self.transfer, f, size)
+
  def readBackup(self, id):
   size = self._req(b'BKRD', self.UsbBackupReadRequest.pack(id=id))
   return self.transfer.send(b'', size)
@@ -268,6 +275,9 @@ def usbshell_loop(dev):
 
    elif cmd == 'bootloader':
     shell.dumpBootloader(*parser.consumeArgs(0, 1, ['.']))
+
+   elif cmd == 'bootrom':
+    shell.dumpBootRom(*parser.consumeArgs(0, 1, ['.']))
 
    elif cmd == 'bk':
     subcmd = parser.consumeRequiredArg()
