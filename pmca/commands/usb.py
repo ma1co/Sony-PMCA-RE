@@ -166,9 +166,9 @@ def importDriver(driverName=None):
 
  # Fallback to libusb
  if MscContext is None:
-  from ..usb.driver.libusb import MscContext
+  from ..usb.driver.generic.libusb import MscContext
  if MtpContext is None:
-  from ..usb.driver.libusb import MtpContext
+  from ..usb.driver.generic.libusb import MtpContext
 
  drivers = [MscContext(), MtpContext()]
  print('Using drivers %s' % ', '.join(d.name for d in drivers))

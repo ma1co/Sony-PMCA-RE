@@ -1,10 +1,8 @@
-"""A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
+from .. import *
+from ....util import *
 
-import sys
-import usb.core, usb.util
-
-from . import *
-from ...util import *
+class GenericUsbException(Exception):
+ pass
 
 PtpHeader = Struct('PtpHeader', [
  ('size', Struct.INT32),
@@ -31,81 +29,34 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
 ])
 
 
-class _UsbContext(object):
- def __init__(self, name, classType, driverClass):
-  self.name = 'libusb-%s' % name
-  self.classType = classType
-  self._driverClass = driverClass
-
- def __enter__(self):
-  return self
-
- def __exit__(self, *ex):
-  pass
-
- def listDevices(self, vendor):
-  return _listDevices(vendor, self.classType)
-
- def openDevice(self, device):
-  return self._driverClass(device.handle)
-
-
-class MscContext(_UsbContext):
- def __init__(self):
-  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, _MscDriver)
-
-class MtpContext(_UsbContext):
- def __init__(self):
-  super(MtpContext, self).__init__('MTP', USB_CLASS_PTP, _MtpDriver)
-
-
-def _listDevices(vendor, classType):
- """Lists all detected USB devices"""
- for dev in usb.core.find(find_all=True, idVendor=vendor):
-  interface = next((interface for config in dev for interface in config), None)
-  if interface and interface.bInterfaceClass == classType:
-   yield UsbDevice(dev, dev.idVendor, dev.idProduct)
-
-
 class _UsbDriver(object):
- """Bulk reading and writing to USB devices"""
  USB_ENDPOINT_TYPE_BULK = 2
  USB_ENDPOINT_MASK = 1
  USB_ENDPOINT_OUT = 0
  USB_ENDPOINT_IN = 1
 
- def __init__(self, device):
-  self.dev = device
+ def __init__(self, backend):
+  self.backend = backend
   self.epIn = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_IN)
   self.epOut = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT)
 
- def __del__(self):
-  usb.util.dispose_resources(self.dev)
-
  def _findEndpoint(self, type, direction):
-  interface = self.dev.get_active_configuration()[(0, 0)]
-  for ep in interface:
+  for ep in self.backend.getEndpoints():
    if ep.bmAttributes == type and ep.bEndpointAddress & self.USB_ENDPOINT_MASK == direction:
     return ep.bEndpointAddress
   raise Exception('No endpoint found')
 
  def reset(self):
-  try:
-   if self.dev.is_kernel_driver_active(0):
-    self.dev.detach_kernel_driver(0)
-  except NotImplementedError:
-   pass
-  if sys.platform == 'darwin':
-   self.dev.reset()
+  self.backend.reset()
 
  def read(self, length):
-  return self.dev.read(self.epIn, length).tostring()
+  return self.backend.read(self.epIn, length)
 
  def write(self, data):
-  return self.dev.write(self.epOut, data)
+  self.backend.write(self.epOut, data)
 
 
-class _MscDriver(_UsbDriver):
+class MscDriver(_UsbDriver):
  """Communicate with a USB mass storage device"""
  MSC_OC_REQUEST_SENSE = 0x03
 
@@ -120,7 +71,7 @@ class _MscDriver(_UsbDriver):
    flags = direction,
    lun = lun,
    commandLength = len(command),
-   command = command.ljust(16, b'\0'),
+   command = command,
   ))
 
  def _readResponse(self, failOnError=False):
@@ -149,10 +100,10 @@ class _MscDriver(_UsbDriver):
   stalled = False
   try:
    self.write(data)
-  except usb.core.USBError:
+  except GenericUsbException:
    # Write stall
    stalled = True
-   self.dev.clear_halt(self.epOut)
+   self.backend.clear_halt(self.epOut)
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -166,10 +117,10 @@ class _MscDriver(_UsbDriver):
   data = None
   try:
    data = self.read(size)
-  except usb.core.USBError:
+  except GenericUsbException:
    # Read stall
    stalled = True
-   self.dev.clear_halt(self.epIn)
+   self.backend.clear_halt(self.epIn)
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -177,7 +128,7 @@ class _MscDriver(_UsbDriver):
   return sense, data
 
 
-class _MtpDriver(_UsbDriver):
+class MtpDriver(_UsbDriver):
  """Send and receive PTP/MTP packages to a device. Inspired by libptp2"""
  MAX_PKG_LEN = 512
  TYPE_COMMAND = 1
