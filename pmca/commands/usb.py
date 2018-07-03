@@ -161,6 +161,9 @@ def importDriver(driverName=None):
    from ..usb.driver.osx import MscContext
   else:
    print('No native drivers available')
+ elif driverName == 'qemu':
+  from ..usb.driver.generic.qemu import MscContext
+  from ..usb.driver.generic.qemu import MtpContext
  elif driverName != 'libusb':
   raise Exception('Unknown driver')
 
