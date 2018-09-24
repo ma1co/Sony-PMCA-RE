@@ -14,7 +14,7 @@ install:
 
  # Log versions
  - python --version
- - pip list --format=legacy
+ - pip list --format=columns
 
  # Download libusb
  - appveyor DownloadFile http://jaist.dl.sourceforge.net/project/libusb-win32/libusb-win32-releases/1.2.6.0/libusb-win32-bin-1.2.6.0.zip
