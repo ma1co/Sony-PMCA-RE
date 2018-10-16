@@ -1,8 +1,9 @@
 apkutils
 asn1crypto
 certifi
-comtypes==1.1.3-2
+comtypes
 pycryptodomex
 pyinstaller
 pyusb
+pywin32
 pyyaml
