@@ -1,6 +1,6 @@
 # Run `pyinstaller pmca-console.spec` to generate an executable
 
-input = 'pmca-console.py'
+input = 'pmca-console'
 output = 'pmca-console'
 console = True
 

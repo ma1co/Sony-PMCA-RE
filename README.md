@@ -10,6 +10,8 @@ The list of available apps can be found at [sony-pmca.appspot.com](https://sony-
 
 **pmca-gui is the recommended way to install apps.** Binaries for Windows and OS X are available in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest). Download and open the program, connect your camera via USB, go to the *Install* tab, select an app from the list and click *Install*.
 
+To install on Linux simply run ``` pip install git+https://github.com/ma1co/Sony-PMCA-RE.git@master ``` and **pmca-gui** and **pmca-console** will be avaiable in your shell.
+
 Further information can be found in the sections below.
 
 ## Tweaking camera settings ##
@@ -71,6 +73,9 @@ On Windows, the choice defaults to the default Windows USB drivers. If you want 
 
 #### OS X drivers ####
 On OS X, to communicate with cameras in mass storage mode, the [PMCADownloader](https://sony-pmca.appspot.com/plugin/install) browser plugin and/or the [DriverLoader](https://support.d-imaging.sony.co.jp/mac/driver/1013/en/) application have to be installed.
+
+#### Linux drivers ####
+Linux does not have any native Sony drivers so libusb-MSC or libusb-MTP will be used. No need to do anything special to communicate with the camera via app install or update mode.
 
 ## Is it safe? ##
 This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. **We won't take any responsibility.**

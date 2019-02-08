@@ -5,7 +5,7 @@ import sys
 import traceback
 import webbrowser
 
-import config
+from pmca.config import config
 from pmca.commands.usb import *
 from pmca.ui import *
 from pmca.usb.usbshell import *

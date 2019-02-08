@@ -11,7 +11,7 @@ if sys.version_info < (3,):
  # Python 2
  input = raw_input
 
-import config
+from ..config import config
 from ..apk import *
 from .. import appstore
 from .. import firmware
@@ -57,7 +57,7 @@ def listApps(enableCache=False):
 
 def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
  """Installs an app on the specified device."""
- certFile = scriptRoot + '/certs/localtest.me.pem'
+ certFile = scriptRoot + '/pmca/data/certs/localtest.me.pem'
  with ServerContext(LocalMarketServer(certFile, config.officialServer)) as server:
   apkData = None
   if apkFile:
@@ -307,7 +307,7 @@ def appSelectionCommand():
 
 
 def getFdats():
- fdatDir = scriptRoot + '/updatershell/fdat/'
+ fdatDir = scriptRoot + '/pmca/data/updatershell/fdat/'
  for dir in os.listdir(fdatDir):
   if os.path.isdir(fdatDir + dir):
    payloadFile = fdatDir + dir + '.dat'

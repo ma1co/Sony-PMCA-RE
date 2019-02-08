@@ -3,7 +3,6 @@ asn1crypto
 certifi
 comtypes; sys_platform == 'win32'
 pycryptodomex
-pyinstaller
 pyusb
 pywin32; sys_platform == 'win32'
 pyyaml
