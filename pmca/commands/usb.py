@@ -385,7 +385,7 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
   device = None
   print('')
   print('Waiting for camera to switch...')
-  print('Please follow the instructions on the camera screen.')
+  print('Please follow the instructions on the camera screen or press record button.')
   for i in range(60):
    time.sleep(.5)
    try:
