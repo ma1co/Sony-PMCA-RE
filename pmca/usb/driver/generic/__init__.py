@@ -1,3 +1,4 @@
+import abc
 from .. import *
 from ....util import *
 
@@ -29,7 +30,29 @@ MscCommandStatusWrapper = Struct('MscCommandStatusWrapper', [
 ])
 
 
-class _UsbDriver(object):
+class BaseUsbBackend(abc.ABC):
+ @abc.abstractmethod
+ def reset(self):
+  pass
+
+ @abc.abstractmethod
+ def clearHalt(self, ep):
+  pass
+
+ @abc.abstractmethod
+ def getEndpoints(self):
+  pass
+
+ @abc.abstractmethod
+ def read(self, ep, length):
+  pass
+
+ @abc.abstractmethod
+ def write(self, ep, data):
+  pass
+
+
+class _UsbDriver(BaseUsbDriver):
  USB_ENDPOINT_TYPE_BULK = 2
  USB_ENDPOINT_MASK = 1
  USB_ENDPOINT_OUT = 0
@@ -56,7 +79,7 @@ class _UsbDriver(object):
   self.backend.write(self.epOut, data)
 
 
-class MscDriver(_UsbDriver):
+class MscDriver(_UsbDriver, BaseMscDriver):
  """Communicate with a USB mass storage device"""
  MSC_OC_REQUEST_SENSE = 0x03
 
@@ -103,7 +126,7 @@ class MscDriver(_UsbDriver):
   except GenericUsbException:
    # Write stall
    stalled = True
-   self.backend.clear_halt(self.epOut)
+   self.backend.clearHalt(self.epOut)
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -120,7 +143,7 @@ class MscDriver(_UsbDriver):
   except GenericUsbException:
    # Read stall
    stalled = True
-   self.backend.clear_halt(self.epIn)
+   self.backend.clearHalt(self.epIn)
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -128,7 +151,7 @@ class MscDriver(_UsbDriver):
   return sense, data
 
 
-class MtpDriver(_UsbDriver):
+class MtpDriver(_UsbDriver, BaseMtpDriver):
  """Send and receive PTP/MTP packages to a device. Inspired by libptp2"""
  MAX_PKG_LEN = 512
  TYPE_COMMAND = 1

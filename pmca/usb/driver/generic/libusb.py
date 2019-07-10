@@ -6,17 +6,10 @@ import usb.util
 
 from . import *
 
-class _UsbContext(object):
+class _UsbContext(BaseUsbContext):
  def __init__(self, name, classType, driverClass):
-  self.name = 'libusb-%s' % name
-  self.classType = classType
+  super(_UsbContext, self).__init__('libusb-%s' % name, classType)
   self._driverClass = driverClass
-
- def __enter__(self):
-  return self
-
- def __exit__(self, *ex):
-  pass
 
  def listDevices(self, vendor):
   return _listDevices(vendor, self.classType)
@@ -39,10 +32,10 @@ def _listDevices(vendor, classType):
  for dev in usb.core.find(find_all=True, idVendor=vendor):
   interface = next((interface for config in dev for interface in config), None)
   if interface and interface.bInterfaceClass == classType:
-   yield UsbDevice(dev, dev.idVendor, dev.idProduct)
+   yield UsbDeviceHandle(dev, dev.idVendor, dev.idProduct)
 
 
-class UsbBackend(object):
+class UsbBackend(BaseUsbBackend):
  """Bulk reading and writing to USB devices"""
 
  def __init__(self, device):
@@ -63,7 +56,7 @@ class UsbBackend(object):
   if sys.platform == 'darwin':
    self.dev.reset()
 
- def clear_halt(self, ep):
+ def clearHalt(self, ep):
   self.dev.clear_halt(ep)
 
  def read(self, ep, length):

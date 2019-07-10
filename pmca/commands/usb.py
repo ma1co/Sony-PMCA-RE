@@ -81,7 +81,7 @@ def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
 
   print('Starting communication')
   # Point the camera to the web api
-  result = installer.install(dev, server.host, server.port, xpdData, printStatus)
+  result = installer.install(SonyAppInstallCamera(dev), server.host, server.port, xpdData, printStatus)
   if result.code != 0:
    raise Exception('Communication error %d: %s' % (result.code, result.message))
 
@@ -190,14 +190,14 @@ def listDevices(driverList, quiet=False):
    info = MscDevice(drv).getDeviceInfo()
 
    if isSonyMscCamera(info):
-    if isSonyUpdaterCamera(dev):
+    if isSonyMscUpdaterCamera(dev):
      if not quiet:
       print('%s %s is a camera in updater mode' % (info.manufacturer, info.model))
-     yield SonyMscUpdaterCamera(drv)
+     yield SonyMscUpdaterDevice(drv)
     else:
      if not quiet:
       print('%s %s is a camera in mass storage mode' % (info.manufacturer, info.model))
-     yield SonyMscCamera(drv)
+     yield SonyMscExtCmdDevice(drv)
 
   elif type == USB_CLASS_PTP:
    if not quiet:
@@ -208,11 +208,11 @@ def listDevices(driverList, quiet=False):
    if isSonyMtpCamera(info):
     if not quiet:
      print('%s %s is a camera in MTP mode' % (info.manufacturer, info.model))
-    yield SonyMtpCamera(drv)
-   elif isSonyMtpAppInstaller(info):
+    yield SonyMtpExtCmdDevice(drv)
+   elif isSonyMtpAppInstallCamera(info):
     if not quiet:
      print('%s %s is a camera in app install mode' % (info.manufacturer, info.model))
-    yield SonyMtpAppInstaller(drv)
+    yield SonyMtpAppInstallDevice(drv)
   if not quiet:
    print('')
 
@@ -233,7 +233,7 @@ def infoCommand(driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
+   if isinstance(device, SonyAppInstallDevice):
     info = installApp(device)
     print('')
     props = [
@@ -242,7 +242,7 @@ def infoCommand(driverName=None):
      ('Serial number', info['deviceinfo']['deviceid']),
      ('Firmware version', info['deviceinfo']['fwversion']),
     ]
-   else:
+   elif isinstance(device, SonyExtCmdDevice):
     dev = SonyExtCmdCamera(device)
     info = dev.getCameraInfo()
     updater = SonyUpdaterCamera(device)
@@ -265,6 +265,9 @@ def infoCommand(driverName=None):
      props.append(('GPS Data', '%s - %s' % gpsInfo))
     except (InvalidCommandException, UnknownMscException):
      pass
+   else:
+    print('Error: Cannot use camera in this mode.')
+    return
    for k, v in props:
     print('%-20s%s' % (k + ': ', v))
 
@@ -273,7 +276,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None,
  """Install the given apk on the camera"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
-  if device and not isinstance(device, SonyMtpAppInstaller):
+  if device and isinstance(device, SonyExtCmdDevice):
    switchToAppInstaller(device)
    device = None
 
@@ -282,7 +285,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None,
     time.sleep(.5)
     try:
      devices = list(listDevices(driver, True))
-     if len(devices) == 1 and isinstance(devices[0], SonyMtpAppInstaller):
+     if len(devices) == 1 and isinstance(devices[0], SonyAppInstallDevice):
       device = devices[0]
       break
     except:
@@ -290,8 +293,10 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None,
    else:
     print('Operation timed out. Please run this command again when your camera has connected.')
 
-  if device:
+  if device and isinstance(device, SonyAppInstallDevice):
    installApp(device, apkFile, appPackage, outFile, local)
+  elif device:
+   print('Error: Cannot use camera in this mode.')
 
 
 def appSelectionCommand():
@@ -345,6 +350,9 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
     fdat = fdatFile.read()
    else:
     if not model:
+     if not isinstance(device, SonyExtCmdDevice):
+      print('Error: Cannot determine camera model in this mode.')
+      return
      print('Getting device info')
      model = SonyExtCmdCamera(device).getCameraInfo().modelName
      print('Using firmware for model %s' % model)
@@ -364,8 +372,8 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
 
 
 def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=None):
- if isinstance(device, SonyMtpAppInstaller):
-  print('Error: Cannot use camera in app install mode. Please restart the device.')
+ if not isinstance(device, SonyUpdaterDevice) and not isinstance(device, SonyExtCmdDevice):
+  print('Error: Cannot use camera in this mode.')
   return
 
  dev = SonyUpdaterCamera(device)
@@ -378,7 +386,7 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
  if versions[1] != '9.99':
   print('Updating from version %s to version %s' % versions)
 
- if not isinstance(device, SonyMscUpdaterCamera):
+ if not isinstance(device, SonyUpdaterDevice):
   print('Switching to updater mode')
   dev.switchMode()
 
@@ -390,7 +398,7 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
    time.sleep(.5)
    try:
     devices = list(listDevices(driver, True))
-    if len(devices) == 1 and isinstance(devices[0], SonyMscUpdaterCamera):
+    if len(devices) == 1 and isinstance(devices[0], SonyUpdaterDevice):
      device = devices[0]
      break
    except:
@@ -420,6 +428,10 @@ def guessFirmwareCommand(file, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
+   if not isinstance(device, SonyExtCmdDevice):
+    print('Error: Cannot use camera in this mode.')
+    return
+
    print('Getting device info')
    model = SonyExtCmdCamera(device).getCameraInfo().modelName
    print('Model name: %s' % model)
@@ -449,8 +461,8 @@ def gpsUpdateCommand(file=None, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
-    print('Error: Cannot use camera in app install mode. Please restart the device.')
+   if not isinstance(device, SonyExtCmdDevice):
+    print('Error: Cannot use camera in this mode.')
     return
 
    if not file:
@@ -467,8 +479,8 @@ def streamingCommand(write=None, file=None, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
-    print('Error: Cannot configure camera in app install mode. Please restart the device.')
+   if not isinstance(device, SonyExtCmdDevice):
+    print('Error: Cannot use camera in this mode.')
    else:
     dev = SonyExtCmdCamera(device)
 
@@ -584,8 +596,8 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device:
-   if isinstance(device, SonyMtpAppInstaller):
-    print('Error: Cannot configure camera in app install mode. Please restart the device.')
+   if not isinstance(device, SonyExtCmdDevice):
+    print('Error: Cannot use camera in this mode.')
    else:
     dev = SonyExtCmdCamera(device)
 

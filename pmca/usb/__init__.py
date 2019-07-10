@@ -1,3 +1,4 @@
+import abc
 from collections import namedtuple
 
 from .driver import *
@@ -19,15 +20,20 @@ class InvalidCommandException(Exception):
  pass
 
 
-class MscDevice(object):
+class UsbDevice(object):
+ def __init__(self, driver):
+  self.driver = driver
+  self.reset()
+
+ def reset(self):
+  self.driver.reset()
+
+
+class MscDevice(UsbDevice):
  """Manages communication with a USB mass storage device"""
  MSC_OC_INQUIRY = 0x12
 
  MSC_SENSE_InvalidCommandOperationCode = (0x5, 0x20, 0x0)
-
- def __init__(self, driver):
-  self.driver = driver
-  self.reset()
 
  def _checkResponse(self, sense):
   if sense != MSC_SENSE_OK:
@@ -40,7 +46,7 @@ class MscDevice(object):
     raise MscException(msg)
 
  def reset(self):
-  self.driver.reset()
+  super(MscDevice, self).reset()
   self.driver.sendCommand(6 * b'\0')
 
  def _sendInquiryCommand(self, size):
@@ -58,7 +64,7 @@ class MscDevice(object):
   return MscDeviceInfo(vendor, product)
 
 
-class MtpDevice(object):
+class MtpDevice(UsbDevice):
  """Manages communication with a PTP/MTP device. Inspired by libptp2"""
  PTP_OC_GetDeviceInfo = 0x1001
  PTP_OC_OpenSession = 0x1002
@@ -70,8 +76,7 @@ class MtpDevice(object):
  PTP_RC_SessionAlreadyOpened = 0x201E
 
  def __init__(self, driver):
-  self.driver = driver
-  self.reset()
+  super(MtpDevice, self).__init__(driver)
   self.openSession()
 
  def _checkResponse(self, code, acceptedCodes=[]):
@@ -111,9 +116,6 @@ class MtpDevice(object):
   offset, serial = self._parseString(data, offset)
 
   return MtpDeviceInfo(manufacturer, model, serial, set(operationsSupported), vendorExtension)
-
- def reset(self):
-  self.driver.reset()
 
  def openSession(self, id=1):
   """Opens a new MTP session"""

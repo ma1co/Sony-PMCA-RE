@@ -1,5 +1,6 @@
 """Methods to communicate with Sony MTP devices"""
 
+import abc
 import binascii
 from collections import namedtuple, OrderedDict
 from datetime import datetime, timedelta
@@ -29,30 +30,46 @@ def isSonyMscCamera(info):
  """Pass a mass storage device info tuple. Guesses if the device is a camera in mass storage mode."""
  return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model in SONY_MSC_MODELS
 
-def isSonyUpdaterCamera(dev):
+def isSonyMscUpdaterCamera(dev):
  return dev.idVendor == SONY_ID_VENDOR and dev.idProduct == SONY_ID_PRODUCT_UPDATER
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
  operations = frozenset([
-  SonyMtpCamera.PTP_OC_SonyDiExtCmd_write,
-  SonyMtpCamera.PTP_OC_SonyDiExtCmd_read,
-  SonyMtpCamera.PTP_OC_SonyReqReconnect,
+  SonyMtpExtCmdDevice.PTP_OC_SonyDiExtCmd_write,
+  SonyMtpExtCmdDevice.PTP_OC_SonyDiExtCmd_read,
+  SonyMtpExtCmdDevice.PTP_OC_SonyReqReconnect,
  ])
  return info.manufacturer == SONY_MANUFACTURER and info.vendorExtension == '' and operations <= info.operationsSupported
 
-def isSonyMtpAppInstaller(info):
+def isSonyMtpAppInstallCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in app installation mode."""
  operations = frozenset([
-  SonyMtpAppInstaller.PTP_OC_GetProxyMessageInfo,
-  SonyMtpAppInstaller.PTP_OC_GetProxyMessage,
-  SonyMtpAppInstaller.PTP_OC_SendProxyMessageInfo,
-  SonyMtpAppInstaller.PTP_OC_SendProxyMessage,
+  SonyMtpAppInstallDevice.PTP_OC_GetProxyMessageInfo,
+  SonyMtpAppInstallDevice.PTP_OC_GetProxyMessage,
+  SonyMtpAppInstallDevice.PTP_OC_SendProxyMessageInfo,
+  SonyMtpAppInstallDevice.PTP_OC_SendProxyMessage,
  ])
  return info.manufacturer == SONY_MANUFACTURER and 'sony.net/SEN_PRXY_MSG:' in info.vendorExtension and operations <= info.operationsSupported
 
 
-class SonyMscCamera(MscDevice):
+class SonyUsbDevice(UsbDevice):
+ pass
+
+
+class SonyExtCmdDevice(SonyUsbDevice, abc.ABC):
+ @abc.abstractmethod
+ def sendSonyExtCommand(self, cmd, data, bufferSize):
+  pass
+
+
+class SonyUpdaterDevice(SonyUsbDevice, abc.ABC):
+ @abc.abstractmethod
+ def sendSonyExtCommand(self, cmd, data, bufferSize):
+  pass
+
+
+class _BaseSonyMscExtCmdDevice(MscDevice):
  """Methods to communicate a camera in mass storage mode"""
  MSC_OC_ExtCmd = 0x7a
 
@@ -76,11 +93,15 @@ class SonyMscCamera(MscDevice):
   return data
 
 
-class SonyMscUpdaterCamera(SonyMscCamera):
+class SonyMscExtCmdDevice(_BaseSonyMscExtCmdDevice, SonyExtCmdDevice):
  pass
 
 
-class SonyMtpCamera(MtpDevice):
+class SonyMscUpdaterDevice(_BaseSonyMscExtCmdDevice, SonyUpdaterDevice):
+ pass
+
+
+class SonyMtpExtCmdDevice(MtpDevice, SonyExtCmdDevice):
  """Methods to communicate a camera in MTP mode"""
 
  # Operation codes (defined in libInfraMtpServer.so)
@@ -545,9 +566,17 @@ class SonyUpdaterCamera(object):
   self._sendCommand(self.CMD_COMPLETE, bufferSize=0)
 
 
-class SonyMtpAppInstaller(MtpDevice):
- """Methods to communicate a camera in app installation mode"""
+class SonyAppInstallDevice(SonyUsbDevice, abc.ABC):
+ @abc.abstractmethod
+ def sendMessage(self, type, data):
+  pass
 
+ @abc.abstractmethod
+ def receiveMessage(self):
+  pass
+
+
+class SonyMtpAppInstallDevice(MtpDevice, SonyAppInstallDevice):
  # Operation codes (defined in libUsbAppDlSvr.so)
  PTP_OC_GetProxyMessageInfo = 0x9488
  PTP_OC_GetProxyMessage = 0x9489
@@ -559,6 +588,58 @@ class SonyMtpAppInstaller(MtpDevice):
  PTP_RC_SonyDeviceBusy = 0xa489
  PTP_RC_InternalError = 0xa806
  PTP_RC_TooMuchData = 0xa809
+
+ InfoMsgHeader = Struct('InfoMsgHeader', [
+  ('', 4),# read: 0x10000 / write: 0
+  ('magic', Struct.INT16),
+  ('', 2),# 0
+  ('dataSize', Struct.INT32),
+  ('', 2),# read: 0x3000 / write: 0
+  ('padding', 42),
+ ], Struct.LITTLE_ENDIAN)
+ InfoMsgHeaderMagic = 0xb481
+
+ MsgHeader = Struct('MsgHeader', [
+  ('type', Struct.INT16),
+ ], Struct.BIG_ENDIAN)
+
+ def _write(self, data):
+  info = self.InfoMsgHeader.pack(magic=self.InfoMsgHeaderMagic, dataSize=len(data))
+
+  response = self.PTP_RC_SonyDeviceBusy
+  while response == self.PTP_RC_SonyDeviceBusy:
+   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessageInfo, [], info)
+  self._checkResponse(response)
+
+  response = self.PTP_RC_SonyDeviceBusy
+  while response == self.PTP_RC_SonyDeviceBusy:
+   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessage, [], data)
+  self._checkResponse(response)
+
+ def _read(self):
+  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
+  self._checkResponse(response)
+  self.InfoMsgHeader.unpack(data)
+
+  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
+  self._checkResponse(response, [self.PTP_RC_NoData])
+  return data
+
+ def sendMessage(self, type, data):
+  self._write(self.MsgHeader.pack(type=type) + data)
+
+ def receiveMessage(self):
+  data = self._read()
+  if data == b'':
+   return None, None
+
+  type = self.MsgHeader.unpack(data).type
+  data = data[self.MsgHeader.size:]
+  return type, data
+
+
+class SonyAppInstallCamera(object):
+ """Methods to communicate a camera in app installation mode"""
 
  SONY_MSG_Common = 0
  SONY_MSG_Common_Start = 0x400
@@ -574,20 +655,6 @@ class SonyMtpAppInstaller(MtpDevice):
  SONY_MSG_Rest = 2
  SONY_MSG_Rest_In = 0
  SONY_MSG_Rest_Out = 2# anything != 0
-
- InfoMsgHeader = Struct('InfoMsgHeader', [
-  ('', 4),# read: 0x10000 / write: 0
-  ('magic', Struct.INT16),
-  ('', 2),# 0
-  ('dataSize', Struct.INT32),
-  ('', 2),# read: 0x3000 / write: 0
-  ('padding', 42),
- ], Struct.LITTLE_ENDIAN)
- InfoMsgHeaderMagic = 0xb481
-
- MsgHeader = Struct('MsgHeader', [
-  ('type', Struct.INT16),
- ], Struct.BIG_ENDIAN)
 
  CommonMsgHeader = Struct('CommonMsgHeader', [
   ('version', Struct.INT16),
@@ -631,36 +698,14 @@ class SonyMtpAppInstaller(MtpDevice):
   ('c', Struct.INT32),
  ], Struct.BIG_ENDIAN)
 
- def _write(self, data):
-  info = self.InfoMsgHeader.pack(magic=self.InfoMsgHeaderMagic, dataSize=len(data))
-
-  response = self.PTP_RC_SonyDeviceBusy
-  while response == self.PTP_RC_SonyDeviceBusy:
-   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessageInfo, [], info)
-  self._checkResponse(response)
-
-  response = self.PTP_RC_SonyDeviceBusy
-  while response == self.PTP_RC_SonyDeviceBusy:
-   response = self.driver.sendWriteCommand(self.PTP_OC_SendProxyMessage, [], data)
-  self._checkResponse(response)
-
- def _read(self):
-  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
-  self._checkResponse(response)
-  self.InfoMsgHeader.unpack(data)
-
-  response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
-  self._checkResponse(response, [self.PTP_RC_NoData])
-  return data
+ def __init__(self, dev):
+  self.dev = dev
 
  def receive(self):
   """Receives and parses the next message from the camera"""
-  data = self._read()
-  if data == b'':
+  type, data = self.dev.receiveMessage()
+  if type is None:
    return None
-
-  type = self.MsgHeader.unpack(data).type
-  data = data[self.MsgHeader.size:]
 
   if type == self.SONY_MSG_Common:
    header = self.CommonMsgHeader.unpack(data)
@@ -712,11 +757,8 @@ class SonyMtpAppInstaller(MtpDevice):
    raise Exception('Wrong response: %s' % str(msg))
   return msg
 
- def _sendMessage(self, type, data):
-  self._write(self.MsgHeader.pack(type=type) + data)
-
  def _sendCommonMessage(self, subType, data, type=SONY_MSG_Common):
-  self._sendMessage(type, self.CommonMsgHeader.pack(
+  self.dev.sendMessage(type, self.CommonMsgHeader.pack(
    version = self.CommonMsgVersion,
    type = subType,
    size = self.CommonMsgHeader.size + len(data)
@@ -726,7 +768,7 @@ class SonyMtpAppInstaller(MtpDevice):
   self._sendCommonMessage(subType, self.TcpMsgHeader.pack(socketFd=socketFd) + data, self.SONY_MSG_Tcp)
 
  def _sendRestMessage(self, subType, data):
-  self._sendMessage(self.SONY_MSG_Rest, self.RestMsgHeader.pack(type=subType, size=len(data)) + data)
+  self.dev.sendMessage(self.SONY_MSG_Rest, self.RestMsgHeader.pack(type=subType, size=len(data)) + data)
 
  def emptyBuffer(self):
   """Receives and discards all pending messages from the camera"""

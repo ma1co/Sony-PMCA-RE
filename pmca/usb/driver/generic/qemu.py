@@ -57,10 +57,9 @@ UsbEndpointDescriptor = Struct('UsbEndpointDescriptor', [
 
 sock = None
 
-class _UsbContext(object):
+class _UsbContext(BaseUsbContext):
  def __init__(self, name, classType, driverClass):
-  self.name = 'qemu-%s' % name
-  self.classType = classType
+  super(_UsbContext, self).__init__('qemu-%s' % name, classType)
   self._driverClass = driverClass
 
  def __enter__(self):
@@ -75,9 +74,6 @@ class _UsbContext(object):
     sock.close()
     sock = None
   return self
-
- def __exit__(self, *ex):
-  pass
 
  def listDevices(self, vendor):
   global sock
@@ -105,10 +101,10 @@ def _getDevice(dev, classType):
  interface, eps = interfaces[0]
  if interface.binterfaceClass == classType:
   desc = dev.getDeviceDescriptor()
-  return UsbDevice(dev, desc.idVendor, desc.idProduct)
+  return UsbDeviceHandle(dev, desc.idVendor, desc.idProduct)
 
 
-class UsbBackend(object):
+class UsbBackend(BaseUsbBackend):
  FLAG_SETUP = 1
  FLAG_RESET = 2
 
@@ -171,7 +167,7 @@ class UsbBackend(object):
    self._setAddress(1)
    self._setConfiguration(1)
 
- def clear_halt(self, ep):
+ def clearHalt(self, ep):
   self._setup(2, 1, 0, ep)
 
  def getDeviceDescriptor(self):

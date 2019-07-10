@@ -69,10 +69,9 @@ class PROPVARIANT(Structure):
  ]
 
 
-class MtpContext(object):
+class MtpContext(BaseUsbContext):
  def __init__(self):
-  self.name = 'Windows-MTP'
-  self.classType = USB_CLASS_PTP
+  super(MtpContext, self).__init__('Windows-MTP', USB_CLASS_PTP)
 
  def __enter__(self):
   comtypes.CoInitialize()
@@ -100,9 +99,9 @@ def _listDevices():
 
  for id in devices:
   idVendor, idProduct = parseDeviceId(id)
-  yield UsbDevice(id, idVendor, idProduct)
+  yield UsbDeviceHandle(id, idVendor, idProduct)
 
-class _MtpDriver(object):
+class _MtpDriver(BaseMtpDriver):
  """Send and receive MTP packages to a device."""
  def __init__(self, device):
   self.device = CreateObject(PortableDevice)
@@ -154,9 +153,6 @@ class _MtpDriver(object):
 
  def _getResponse(self, result):
   return result.GetUnsignedIntegerValue(cast(WPD_PROPERTY_MTP_EXT_RESPONSE_CODE, POINTER(tpka)))
-
- def reset(self):
-  pass
 
  def sendCommand(self, code, args):
   """Send a PTP/MTP command without data phase"""

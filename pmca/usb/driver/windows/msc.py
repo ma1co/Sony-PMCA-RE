@@ -101,16 +101,9 @@ DIGCF_PRESENT = 2
 DIGCF_DEVICEINTERFACE = 16
 
 
-class MscContext(object):
+class MscContext(BaseUsbContext):
  def __init__(self):
-  self.name = 'Windows-MSC'
-  self.classType = USB_CLASS_MSC
-
- def __enter__(self):
-  return self
-
- def __exit__(self, *ex):
-  pass
+  super(MscContext, self).__init__('Windows-MSC', USB_CLASS_MSC)
 
  def listDevices(self, vendor):
   return (dev for dev in _listDevices() if dev.idVendor == vendor)
@@ -181,11 +174,11 @@ def _listDevices():
     storageNumber = _getStorageNumber(disks[diskInst])
     if storageNumber and storageNumber in logicalDrives:
      idVendor, idProduct = parseDeviceId(usbPath)
-     yield UsbDevice(logicalDrives[storageNumber], idVendor, idProduct)
+     yield UsbDeviceHandle(logicalDrives[storageNumber], idVendor, idProduct)
      break# only return the first disk for every device
 
 
-class _MscDriver(object):
+class _MscDriver(BaseMscDriver):
  """Communicate with a USB mass storage device"""
  def __init__(self, device):
   self.device = device
@@ -211,9 +204,6 @@ class _MscDriver(object):
     raise Exception('Mass storage error')
    return sense
   return MSC_SENSE_OK
-
- def reset(self):
-  pass
 
  def sendCommand(self, command):
   return self._sendScsiCommand(command, SCSI_IOCTL_DATA_UNSPECIFIED, None)

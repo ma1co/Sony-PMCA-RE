@@ -80,16 +80,9 @@ class SCSI_COMMAND_DESC_MEMORYBLOCK(Structure):
  ]
 
 
-class MscContext(object):
+class MscContext(BaseUsbContext):
  def __init__(self):
-  self.name = 'OS-X-MSC'
-  self.classType = USB_CLASS_MSC
-
- def __enter__(self):
-  return self
-
- def __exit__(self, *ex):
-  pass
+  super(MscContext, self).__init__('OS-X-MSC', USB_CLASS_MSC)
 
  def listDevices(self, vendor):
   return _listDevices(vendor)
@@ -133,11 +126,11 @@ def _listDevices(vendor):
     vid = _getProperty(device, b'idVendor')
     pid = _getProperty(device, b'idProduct')
     if vid == vendor:
-     yield UsbDevice(driver, vid, pid)
+     yield UsbDeviceHandle(driver, vid, pid)
  iokit.IOObjectRelease(itr)
 
 
-class _MscDriver(object):
+class _MscDriver(BaseMscDriver):
  def __init__(self, device):
   self.dev = c_void_p()
   res = iokit.IOServiceOpen(device, iokit.mach_task_self(), 0, byref(self.dev))
@@ -150,9 +143,6 @@ class _MscDriver(object):
  def __del__(self):
   iokit.IOConnectCallScalarMethod(self.dev, kextCloseUserClient, 0, 0, 0, 0)
   iokit.IOServiceClose(self.dev)
-
- def reset(self):
-  pass
 
  def _send(self, cbd, direction, buffer):
   desc = SCSI_COMMAND_DESC_MEMORYBLOCK(
