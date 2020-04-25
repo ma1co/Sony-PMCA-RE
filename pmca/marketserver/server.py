@@ -65,7 +65,7 @@ class LocalMarketServer(HTTPServer):
   self.fakeUrl = 'https://' + fakeHost + '/'
   self.apk = None
   self.result = None
-  self.socket = ssl.wrap_socket(self.socket, certfile=certFile)
+  self.socket = ssl.wrap_socket(self.socket, server_side=True, ssl_version=ssl.PROTOCOL_TLSv1, certfile=certFile)
 
  def startup(self):
   """Start the local server"""
