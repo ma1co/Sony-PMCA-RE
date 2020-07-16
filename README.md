@@ -23,7 +23,7 @@ Install the last release of PMCA-gui from the sources, using pip and virtualenv:
 ```
 sudo apt install curl python-tk python-pip
 sudo pip install virtualenv
-curl -L https://github.com/ma1co/Sony-PMCA-RE/tarball/master | tar zx
+curl -L https://github.com/ma1co/Sony-PMCA-RE/tarball/master | tar zxv
 cd ma1co-Sony-PMCA-RE-*
 virtualenv pmca-venv
 source pmca-venv/bin/activate
