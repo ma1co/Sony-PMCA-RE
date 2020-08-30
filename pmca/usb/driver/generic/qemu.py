@@ -162,12 +162,13 @@ class UsbBackend(object):
   self._setup(0, 9, i)
 
  def reset(self):
-  self._req(0, flags=self.FLAG_RESET)
-  time.sleep(1)
-  self._req(0, flags=self.FLAG_RESET)
-  self.getDeviceDescriptor()
-  self._setAddress(1)
-  self._setConfiguration(1)
+  for i in range(2):
+   self._req(0, flags=self.FLAG_RESET)
+   time.sleep(1)
+   self._req(0, flags=self.FLAG_RESET)
+   self.getDeviceDescriptor()
+   self._setAddress(1)
+   self._setConfiguration(1)
 
  def clear_halt(self, ep):
   self._setup(2, 1, 0, ep)
