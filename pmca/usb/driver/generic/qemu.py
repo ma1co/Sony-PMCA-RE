@@ -163,6 +163,7 @@ class UsbBackend(object):
 
  def reset(self):
   for i in range(2):
+   time.sleep(1)
    self._req(0, flags=self.FLAG_RESET)
    time.sleep(1)
    self._req(0, flags=self.FLAG_RESET)
