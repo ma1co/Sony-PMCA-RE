@@ -22,7 +22,7 @@ before_install:
 
 install:
  # Install dependencies
- - pip install setuptools --upgrade
+ - pip install setuptools wheel --upgrade
  - pip install -r requirements.txt
 
  # Log versions
