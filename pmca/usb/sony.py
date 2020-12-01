@@ -237,6 +237,8 @@ class SonyExtCmdCamera(object):
   self.dev = dev
 
  def _sendCommand(self, cmd, data=b'', writeBufferSize=0x2000, readBufferSize=0x2000):
+  if not hasattr(self.dev, 'sendSonyExtCommand'):
+      raise Exception('_sendCommand: Devices does not have sendSonyExtCommand, please power cycle and reconnect device.')
   data = self.dev.sendSonyExtCommand(cmd[0], (self.ExtCmdHeader.pack(
    dataSize = len(data),
    cmd = cmd[1],

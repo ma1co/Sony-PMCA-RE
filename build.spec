@@ -18,9 +18,9 @@ suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx'}
 output += '-' + version + suffix.get(sys.platform, '')
 
 # Analyze files
-a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')])
+a = Analysis([input], excludes=excludes, datas=[('pmca/data/certs/*', 'pmca/data/certs')])
 a.datas = [d for d in a.datas if not (d[0].startswith('certifi') and not d[0].endswith('cacert.pem'))]
-a.datas += Tree('updatershell/fdat', 'updatershell/fdat')
+a.datas += Tree('pmca/data/updatershell/fdat', 'pmca/data/updatershell/fdat')
 
 # Generate executable
 pyz = PYZ(a.pure, a.zipped_data)
