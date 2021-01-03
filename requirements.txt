@@ -2,10 +2,10 @@ apkutils
 asn1crypto
 certifi
 comtypes; sys_platform == 'win32'
+cryptography==3.2.1
 pycparser==2.17 # https://github.com/eliben/pycparser/issues/291
 pycryptodomex
 pyinstaller
-pyopenssl==19.1.0
 pyusb
 pywin32; sys_platform == 'win32'
 pyyaml
