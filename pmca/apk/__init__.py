@@ -1,5 +1,6 @@
-from apkutils.axml.axmlparser import AXML
+from axmlparserpy.axmlprinter import AXMLPrinter
 from asn1crypto.cms import ContentInfo
+from xml.dom import minidom
 from zipfile import ZipFile
 
 class ApkParser:
@@ -7,7 +8,7 @@ class ApkParser:
   self._file = ZipFile(file)
 
  def getManifest(self):
-  return AXML(self._file.read('AndroidManifest.xml')).get_xml_obj()
+  return minidom.parseString(AXMLPrinter(self._file.read('AndroidManifest.xml')).getBuff())
 
  def getPackageName(self):
   return self.getManifest().documentElement.getAttribute('package')
