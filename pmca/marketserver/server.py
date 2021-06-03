@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from io import BytesIO
 import json
-import ssl
 from threading import Thread
+import tlslite
 
 try:
  from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -54,6 +54,11 @@ class HttpHandler(BaseHTTPRequestHandler):
   self.server.handleGet(self)
 
 
+class TLSConnection(tlslite.TLSConnection):
+ def recv_into(self, b):
+  return super(TLSConnection, self).recv_into(b) or 0
+
+
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
@@ -65,7 +70,18 @@ class LocalMarketServer(HTTPServer):
   self.fakeUrl = 'https://' + fakeHost + '/'
   self.apk = None
   self.result = None
-  self.socket = ssl.wrap_socket(self.socket, server_side=True, ssl_version=ssl.PROTOCOL_TLSv1, certfile=certFile)
+
+  with open(certFile) as f:
+   cert = f.read()
+  self.certChain = tlslite.X509CertChain()
+  self.certChain.parsePemList(cert)
+  self.privateKey = tlslite.parsePEMKey(cert, private=True)
+
+ def finish_request(self, sock, client_address):
+  sock = TLSConnection(sock)
+  sock.handshakeServer(certChain=self.certChain, privateKey=self.privateKey)
+  super(LocalMarketServer, self).finish_request(sock, client_address)
+  sock.close()
 
  def startup(self):
   """Start the local server"""
