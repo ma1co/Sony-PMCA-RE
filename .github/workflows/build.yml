@@ -1,0 +1,53 @@
+name: Build
+on: push
+jobs:
+  PyInstaller:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2016, macos-10.15]
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.6
+    - name: Install libusb (windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Invoke-WebRequest http://jaist.dl.sourceforge.net/project/libusb-win32/libusb-win32-releases/1.2.6.0/libusb-win32-bin-1.2.6.0.zip -OutFile libusb-win32-bin-1.2.6.0.zip
+        Expand-Archive libusb-win32-bin-1.2.6.0.zip .
+        Move-Item libusb-win32-bin-1.2.6.0\bin\x86\libusb0_x86.dll libusb0.dll
+        echo $env:GITHUB_WORKSPACE | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: Install libusb (macos)
+      if: runner.os == 'macOS'
+      run: |
+        brew install libusb
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Build
+      run: |
+        python -OO -m PyInstaller pmca-console.spec
+        python -OO -m PyInstaller pmca-gui.spec
+    - name: Test
+      run: |
+        dist/pmca-console* -h
+    - name: Upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ runner.os }} binaries
+        path: dist/*
+    - name: Release
+      if: ${{ startsWith(github.ref, 'refs/tags/') && runner.os != 'Windows' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        tag="${GITHUB_REF##*/}"
+        assets="$(find dist/* -exec echo -a {} \;)"
+        hub release create $assets -m "$tag" "$tag" || hub release edit $assets -m "" "$tag"
