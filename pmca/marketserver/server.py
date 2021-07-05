@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from io import BytesIO
 import json
 from threading import Thread
 import tlslite
@@ -15,24 +14,10 @@ from .. import appstore
 from ..util import http
 from .. import spk
 
-class BufferedWriter(BytesIO):
- def __init__(self, file):
-  BytesIO.__init__(self)
-  self.wrappedFile = file
-
- def flush(self):
-  self.wrappedFile.write(self.getvalue())
-  self.truncate(0)
-
- def close(self):
-  BytesIO.close(self)
-  self.wrappedFile.close()
-
 
 class HttpHandler(BaseHTTPRequestHandler):
- def setup(self):
-  BaseHTTPRequestHandler.setup(self)
-  self.wfile = BufferedWriter(self.wfile)# Responses have to be buffered and sent in one go
+ rbufsize = -1
+ wbufsize = -1
 
  def log_request(self, code='-', size='-'):
   pass
