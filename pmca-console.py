@@ -29,7 +29,7 @@ def main():
  installMode.add_argument('-a', dest='appPackage', help='the package name of an app from the app list')
  installMode.add_argument('-i', dest='appInteractive', action='store_true', help='select an app from the app list (interactive)')
  market = subparsers.add_parser('market', description='Download apps from the official Sony app store')
- market.add_argument('-t', dest='token', help='Specify an auth token')
+ market.add_argument('-t', dest='token', required=True, help='Specify an auth token')
  apk2spk = subparsers.add_parser('apk2spk', description='Convert apk to spk')
  apk2spk.add_argument('inFile', metavar='app.apk', type=argparse.FileType('rb'), help='the apk file to convert')
  apk2spk.add_argument('outFile', metavar='app' + spk.constants.extension, type=argparse.FileType('wb'), help='the output spk file')

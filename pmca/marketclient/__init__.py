@@ -22,19 +22,6 @@ def download(portalid, deviceid, appid):
  name, url = parseXpd(xpdData)
  return downloadSpk(url)
 
-def login(email, password):
- """Tries to authenticate the specified user
-
- Returns:
-  The portalid string in case of success or None otherwise
- """
- response = http.postForm(constants.loginUrl, data = {
-  'j_username': email,
-  'j_password': password,
-  'returnURL': constants.baseUrl + '/forward.php',
- })
- return response.cookies['portalid'] if 'portalid' in response.cookies else None
-
 def getDevices(portalid):
  """Fetches the list of devices for the current user"""
  data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=mycamera', cookies = {

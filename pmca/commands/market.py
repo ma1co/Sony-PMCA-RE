@@ -1,5 +1,4 @@
 from __future__ import print_function
-from getpass import getpass
 import os
 import re
 import sys
@@ -11,18 +10,7 @@ if sys.version_info < (3,):
 from .. import marketclient
 from .. import spk
 
-def marketCommand(token=None):
- if not token:
-  print('Please enter your Sony Entertainment Network credentials\n')
-  email = input('Email: ')
-  password = getpass('Password: ')
-  token = marketclient.login(email, password)
-  if token:
-   print('Login successful. Your auth token (use with the -t option):\n%s\n' % token)
-  else:
-   print('Login failed')
-   return
-
+def marketCommand(token):
  devices = marketclient.getDevices(token)
  print('%d devices found\n' % len(devices))
 
