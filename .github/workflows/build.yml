@@ -21,7 +21,7 @@ jobs:
       run: |
         Invoke-WebRequest http://jaist.dl.sourceforge.net/project/libusb-win32/libusb-win32-releases/1.2.6.0/libusb-win32-bin-1.2.6.0.zip -OutFile libusb-win32-bin-1.2.6.0.zip
         Expand-Archive libusb-win32-bin-1.2.6.0.zip .
-        Move-Item libusb-win32-bin-1.2.6.0\bin\x86\libusb0_x86.dll libusb0.dll
+        Move-Item libusb-win32-bin-1.2.6.0\bin\amd64\libusb0.dll .
         echo $env:GITHUB_WORKSPACE | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Install libusb (macos)
       if: runner.os == 'macOS'
