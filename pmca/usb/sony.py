@@ -500,7 +500,7 @@ class SonyUpdaterCamera(object):
    raise Exception('Response error: 0x%x' % responseHeader.responseId)
   return response[self.PacketHeader.size:self.PacketHeader.size+responseHeader.bodySize]
 
- def _sendWriteCommands(self, command, file, size, progress=None, complete=None):
+ def _sendWriteCommands(self, command, file, size, complete=None):
   i = 0
   written = 0
   windowSize = 0
@@ -511,8 +511,6 @@ class SonyUpdaterCamera(object):
    written += len(data)
    writeParam = self.WriteParam.pack(dataNumber=i, remainingSize=size-written)
    windowSize, status = self._parseWriteResponse(self._sendCommand(command, writeParam + data))
-   if progress:
-    progress(written, size)
    if complete and written == size and not completeCalled:
     complete(self.dev)
     completeCalled = True
@@ -559,8 +557,8 @@ class SonyUpdaterCamera(object):
   if status != [self.STAT_OK] and status != [self.STAT_BUSY]:
    raise Exception('Updater mode switch failed')
 
- def writeFirmware(self, file, size, progress=None, complete=None):
-  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size, progress, complete)
+ def writeFirmware(self, file, size, complete=None):
+  self._sendWriteCommands(self.CMD_WRITE_FIRM, file, size, complete)
 
  def complete(self):
   self._sendCommand(self.CMD_COMPLETE, bufferSize=0)

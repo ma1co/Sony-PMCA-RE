@@ -16,11 +16,12 @@ from ..apk import *
 from .. import appstore
 from .. import firmware
 from .. import installer
+from ..io import *
 from ..marketserver.server import *
 from ..usb import *
-from ..usb import usbshell
 from ..usb.driver import *
 from ..usb.sony import *
+from ..usb.usbshell import *
 from ..util import http
 
 scriptRoot = getattr(sys, '_MEIPASS', os.path.dirname(__file__) + '/../..')
@@ -367,7 +368,7 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
     def complete(device):
      print('Starting updater shell...')
      print('')
-     usbshell.usbshell_loop(device)
+     UpdaterShell(device).run()
    firmwareUpdateCommandInternal(driver, device, io.BytesIO(fdat), 0, len(fdat), complete)
 
 
@@ -410,16 +411,9 @@ def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=N
    firmwareUpdateCommandInternal(None, device, file, offset, size, complete)
 
  else:
-  def progress(written, total):
-   p = int(written * 20 / total) * 5
-   if p != progress.percent:
-    print('%d%%' % p)
-    progress.percent = p
-  progress.percent = -1
-
   print('Writing firmware')
   file.seek(offset)
-  dev.writeFirmware(file, size, progress, complete)
+  dev.writeFirmware(ProgressFile(file, size), size, complete)
   dev.complete()
   print('Done')
 

@@ -9,16 +9,18 @@ if sys.version_info < (3,):
  input = raw_input
 
 from .android import *
-from .interactive import *
-from .parser import *
 from .transfer import *
 from .. import *
+from ...io import *
+from ...shell import *
+from ...shell.interactive import *
+from ...shell.parser import *
 from ...util import *
 
 class UsbShellException(Exception):
  pass
 
-class UsbShell:
+class UpdaterShellBackend:
  USB_FEATURE_SHELL = 0x23
  USB_RESULT_ERROR = -1
  USB_RESULT_ERROR_PROTECTION = -2
@@ -59,14 +61,6 @@ class UsbShell:
 
  def __init__(self, dev):
   self.transfer = UsbSequenceTransfer(dev, self.USB_FEATURE_SHELL)
-
- def _openOutputFile(self, fn):
-  if os.path.exists(fn):
-   i = 1
-   while os.path.exists(fn + ('-%d' % i)):
-    i += 1
-   fn += ('-%d' % i)
-  return open(fn, 'wb')
 
  def _req(self, cmd, data=b'', errorStrings={}):
   r = self.UsbShellResponse.unpack(self.transfer.send(self.UsbShellRequest.pack(
@@ -125,57 +119,34 @@ class UsbShell:
 
  def startInteractiveShell(self):
   self._req(b'SHEL')
-  usb_transfer_interactive_shell(self.transfer)
+  return lambda conn: usb_transfer_socket(self.transfer, conn)
 
  def execCommand(self, command):
   self._req(b'EXEC', command.encode('latin1'))
-  usb_transfer_interactive_shell(self.transfer, stdin=False)
+  return lambda conn: usb_transfer_socket(self.transfer, conn)
 
- def readFile(self, path):
-  self._req(b'PULL', path.encode('latin1'))
-  f = io.BytesIO()
+ def readFile(self, path, f, sizeCb=None):
+  size = self._req(b'PULL', path.encode('latin1'))
+  if sizeCb:
+   sizeCb(size)
   usb_transfer_read(self.transfer, f)
-  return f.getvalue()
 
- def writeFile(self, path, data):
+ def writeFile(self, path, f):
   self._req(b'PUSH', path.encode('latin1'))
-  usb_transfer_write(self.transfer, io.BytesIO(data))
+  usb_transfer_write(self.transfer, f)
 
  def getFileSize(self, path):
   return self._req(b'STAT', path.encode('latin1'))
 
- def pushFile(self, localPath, path):
-  with open(localPath, 'rb') as f:
-   try:
-    self._req(b'PUSH', path.encode('latin1'))
-   except UsbShellException:
-    path = posixpath.join(path, os.path.basename(localPath))
-    self._req(b'PUSH', path.encode('latin1'))
-   print('Writing to %s...' % path)
-   usb_transfer_write(self.transfer, f, os.fstat(f.fileno()).st_size, ProgressPrinter().cb)
-
- def pullFile(self, path, localPath='.'):
-  if os.path.isdir(localPath):
-   localPath = os.path.join(localPath, posixpath.basename(path))
-  with self._openOutputFile(localPath) as f:
-   size = self._req(b'PULL', path.encode('latin1'))
-   print('Writing to %s...' % f.name)
-   usb_transfer_read(self.transfer, f, size, ProgressPrinter().cb)
-
- def dumpBootloader(self, localPath='.'):
-  if not os.path.isdir(localPath):
-   raise Exception('%s is not a directory' % localPath)
+ def dumpBootloader(self):
   for i in range(self._req(b'BLDR')):
-   with self._openOutputFile(os.path.join(localPath, 'boot%d' % (i + 1))) as f:
-    print('Writing to %s...' % f.name)
-    usb_transfer_read(self.transfer, f)
+   f = io.BytesIO()
+   usb_transfer_read(self.transfer, f)
+   yield f.getvalue()
 
- def dumpBootRom(self, localPath='.'):
-  if os.path.isdir(localPath):
-   localPath = os.path.join(localPath, 'bootrom')
-  size = self._req(b'BROM')
-  with self._openOutputFile(localPath) as f:
-   usb_transfer_read(self.transfer, f, size)
+ def dumpBootRom(self, f):
+  self._req(b'BROM')
+  usb_transfer_read(self.transfer, f)
 
  def readBackup(self, id):
   size = self._req(b'BKRD', self.UsbBackupReadRequest.pack(id=id))
@@ -200,162 +171,138 @@ class UsbShell:
   self._req(b'EXIT')
 
 
-class ProgressPrinter:
- def __init__(self):
-  self._percent = -1
+class UpdaterShell(Shell):
+ def __init__(self, dev):
+  super(UpdaterShell, self).__init__("USB debug shell")
+  self.backend = UpdaterShellBackend(dev)
 
- def cb(self, written, total):
-  p = int(written * 20 / total) * 5 if total > 0 else 100
-  if p != self._percent:
-   print('%d%%' % p)
-   self._percent = p
+  self.addCommand('info', Command(self.info, (), 'Print device info'))
+  self.addCommand('tweak', Command(self.tweak, (), 'Tweak device settings'))
+  self.addCommand('shell', ResidueCommand(self.shell, 0, 'Start an interactive shell', '[<COMMAND>]'))
+  self.addCommand('push', Command(self.push, (2,), 'Copy the specified file from the computer to the device', '<LOCAL> <REMOTE>'))
+  self.addCommand('pull', Command(self.pull, (1, 1, ['.']), 'Copy the specified file from the device to the computer', '<REMOTE> [<LOCAL>]'))
+  self.addCommand('bootloader', Command(self.bootloader, (0, 1, ['.']), 'Dump the boot loader', '[<OUTDIR>]'))
+  self.addCommand('bootrom', Command(self.bootrom, (0, 1, ['.']), 'Dump the boot rom', '[<OUTDIR>]'))
+  self.addCommand('install', Command(self.install, (1,), 'Install the specified android app', '<APKFILE>'))
 
+  bk = SubCommand()
+  bk.addCommand('r', Command(self.readBackup, (1,), 'Read backup property', '<ID>'))
+  bk.addCommand('w', ResidueCommand(self.writeBackup, 1, 'Write backup property', '<ID> <DATA>'))
+  bk.addCommand('s', Command(self.syncBackup, (), 'Sync backup data to disk'))
+  self.addCommand('bk', bk)
 
-def usbshell_loop(dev):
- shell = UsbShell(dev)
- shell.waitReady()
+ def run(self):
+  self.backend.waitReady()
+  super(UpdaterShell, self).run()
+  self.backend.exit()
 
- print('Welcome to the USB debug shell.')
- print('Type `help` for the list of supported commands.')
- print('Type `exit` to quit.')
+ def _openOutputFile(self, fn):
+  if os.path.exists(fn):
+   i = 1
+   while os.path.exists(fn + ('-%d' % i)):
+    i += 1
+   fn += ('-%d' % i)
+  return open(fn, 'wb')
 
- while True:
+ def info(self):
+  for id, desc, value in self.backend.getProperties():
+   print('%-20s%s' % (desc + ': ', value))
+
+ def shell(self, cmd=''):
+  if cmd != '':
+   run_interactive_shell(self.backend.execCommand(cmd), stdin=False)
+  else:
+   run_interactive_shell(self.backend.startInteractiveShell())
+
+ def push(self, localPath, path):
+  with open(localPath, 'rb') as f:
+   print('Writing to %s...' % path)
+   self.backend.writeFile(path, ProgressFile(f))
+
+ def pull(self, path, localPath='.'):
+  if os.path.isdir(localPath):
+   localPath = os.path.join(localPath, posixpath.basename(path))
+  with self._openOutputFile(localPath) as f:
+   print('Writing to %s...' % f.name)
+   p = ProgressFile(f)
+   self.backend.readFile(path, p, p.setTotal)
+
+ def bootloader(self, localPath='.'):
+  if not os.path.isdir(localPath):
+   raise Exception('%s is not a directory' % localPath)
+  for i, data in enumerate(self.backend.dumpBootloader()):
+   with self._openOutputFile(os.path.join(localPath, 'boot%d' % (i + 1))) as f:
+    print('Writing to %s...' % f.name)
+    f.write(data)
+
+ def bootrom(self, localPath='.'):
+  if os.path.isdir(localPath):
+   localPath = os.path.join(localPath, 'bootrom')
+  with self._openOutputFile(localPath) as f:
+   print('Writing to %s...' % f.name)
+   self.backend.dumpBootRom(f)
+
+ def readBackup(self, id):
+  id = int(id, 16)
+  value = self.backend.readBackup(id)
+  print(' '.join('%02x' % ord(value[i:i+1]) for i in range(len(value))))
+
+ def writeBackup(self, id, data):
+  id = int(id, 16)
+  value = []
+  parser = ArgParser(data)
+  if not parser.available():
+   raise ValueError('Not enough arguments provided')
+  while parser.available():
+   value.append(int(parser.consumeRequiredArg(), 16))
+  self.backend.writeBackup(id, bytes(bytearray(value)))
+  print('Success')
+
+ def syncBackup(self):
+  self.backend.syncBackup()
+
+ def install(self, apkFile):
+  with open(apkFile, 'rb') as f:
+   installApk(self.backend, f)
+
+ def exit(self):
   try:
-   cmd = input('>').strip()
-  except KeyboardInterrupt:
-   print('')
-   continue
+   self.backend.syncBackup()
+  except:
+   print('Cannot sync backup')
+  super(UpdaterShell, self).exit()
 
-  try:
-   parser = ArgParser(cmd)
-   if not parser.available():
-    continue
-   cmd = parser.consumeRequiredArg()
-
-   if cmd == 'help':
-    parser.consumeArgs()
-    print('List of supported commands:')
-    for a, b in [
-     ('help', 'Print this help message'),
-     ('info', 'Print device info'),
-     ('tweak', 'Tweak device settings'),
-     ('shell', 'Start an interactive shell'),
-     ('shell <COMMAND>', 'Execute the specified command'),
-     ('push <LOCAL> <REMOTE>', 'Copy the specified file from the computer to the device'),
-     ('pull <REMOTE> [<LOCAL>]', 'Copy the specified file from the device to the computer'),
-     ('bootloader [<OUTDIR>]', 'Dump the boot loader'),
-     ('bk r <ID>', 'Read backup property'),
-     ('bk w <ID> <DATA>', 'Write backup property'),
-     ('bk s', 'Sync backup data to disk'),
-     ('install <APKFILE>', 'Install the specified android app'),
-     ('exit', 'Exit'),
-    ]:
-     print('%-24s %s' % (a, b))
-
-   elif cmd == 'info':
-    parser.consumeArgs()
-    for id, desc, value in shell.getProperties():
-     print('%-20s%s' % (desc + ': ', value))
-
-   elif cmd == 'tweak':
-    parser.consumeArgs()
-    usbshell_tweak_loop(shell)
-
-   elif cmd == 'shell':
-    if parser.available():
-     shell.execCommand(parser.getResidue())
-    else:
-     shell.startInteractiveShell()
-
-   elif cmd == 'push':
-    shell.pushFile(*parser.consumeArgs(2))
-
-   elif cmd == 'pull':
-    shell.pullFile(*parser.consumeArgs(1, 1, ['.']))
-
-   elif cmd == 'bootloader':
-    shell.dumpBootloader(*parser.consumeArgs(0, 1, ['.']))
-
-   elif cmd == 'bootrom':
-    shell.dumpBootRom(*parser.consumeArgs(0, 1, ['.']))
-
-   elif cmd == 'bk':
-    subcmd = parser.consumeRequiredArg()
-
-    if subcmd == 'r':
-     id = int(parser.consumeRequiredArg(), 16)
-     parser.consumeArgs()
-     value = shell.readBackup(id)
-     print(' '.join('%02x' % ord(value[i:i+1]) for i in range(len(value))))
-
-    elif subcmd == 'w':
-     id = int(parser.consumeRequiredArg(), 16)
-     value = []
-     if not parser.available():
-      raise ValueError('Not enough arguments provided')
-     while parser.available():
-      value.append(int(parser.consumeRequiredArg(), 16))
-     shell.writeBackup(id, bytes(bytearray(value)))
-     print('Success')
-
-    elif subcmd == 's':
-     parser.consumeArgs()
-     shell.syncBackup()
-
-    else:
-     raise Exception('Unknown subcommand')
-
-   elif cmd == 'install':
-    with open(parser.consumeArgs(1)[0], 'rb') as f:
-     installApk(shell, f)
-
-   elif cmd == 'exit':
-    parser.consumeArgs()
-    try:
-     shell.syncBackup()
-    except:
-     print('Cannot sync backup')
-    shell.exit()
+ def tweak(self):
+  while True:
+   tweaks = list(self.backend.getTweakStatus())
+   if not tweaks:
+    print('No tweaks available')
     break
 
-   else:
-    raise Exception('Unknown command')
+   for i, (id, desc, status, value) in enumerate(tweaks):
+    print('%d: [%s] %s' % (i + 1, ('X' if status else ' '), desc))
+    print('       %s' % value)
+    print('')
 
-  except Exception as e:
-   print('Error: %s' % e)
-
-
-def usbshell_tweak_loop(shell):
- while True:
-  tweaks = list(shell.getTweakStatus())
-  if not tweaks:
-   print('No tweaks available')
-   break
-
-  for i, (id, desc, status, value) in enumerate(tweaks):
-   print('%d: [%s] %s' % (i + 1, ('X' if status else ' '), desc))
-   print('       %s' % value)
-   print('')
-
-  try:
-   while True:
-    try:
-     i = int(input('Enter number of tweak to toggle (0 to finish): '))
-     if 0 <= i <= len(tweaks):
-      break
-    except ValueError:
-     pass
-  except KeyboardInterrupt:
-   print('')
-   break
-
-  if i == 0:
-   break
-  else:
    try:
-    id, desc, status, value = tweaks[i - 1]
-    shell.setTweakEnabled(id, not status)
-    print('Success')
-   except Exception as e:
-    print('Error: %s' % e)
-   print('')
+    while True:
+     try:
+      i = int(input('Enter number of tweak to toggle (0 to finish): '))
+      if 0 <= i <= len(tweaks):
+       break
+     except ValueError:
+      pass
+   except KeyboardInterrupt:
+    print('')
+    break
+
+   if i == 0:
+    break
+   else:
+    try:
+     id, desc, status, value = tweaks[i - 1]
+     self.backend.setTweakEnabled(id, not status)
+     print('Success')
+    except Exception as e:
+     print('Error: %s' % e)
+    print('')

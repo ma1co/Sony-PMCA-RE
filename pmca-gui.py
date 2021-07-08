@@ -118,7 +118,7 @@ class StartUpdaterShellTask(BackgroundTask):
    traceback.print_exc()
 
  def launchShell(self, dev):
-  shell = UsbShell(dev)
+  shell = UpdaterShellBackend(dev)
   shell.waitReady()
 
   endFlag = threading.Event()
@@ -137,7 +137,7 @@ class StartUpdaterShellTask(BackgroundTask):
 
 
 class TweakStatusTask(BackgroundTask):
- """Task to run UsbShell.getTweakStatus()"""
+ """Task to run UpdaterShellBackend.getTweakStatus()"""
  def doBefore(self):
   self.ui.setState(DISABLED)
 
@@ -153,7 +153,7 @@ class TweakStatusTask(BackgroundTask):
 
 
 class TweakSetTask(BackgroundTask):
- """Task to run UsbShell.setTweakEnabled()"""
+ """Task to run UpdaterShellBackend.setTweakEnabled()"""
  def __init__(self, ui, id, var):
   BackgroundTask.__init__(self, ui)
   self.id = id

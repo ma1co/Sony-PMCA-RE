@@ -8,9 +8,7 @@ if sys.version_info < (3,):
  # Python 2
  ConnectionError = OSError
 
-from .transfer import *
-
-def usb_transfer_interactive_shell(transfer, stdin=True, stdout=True, port=5005):
+def run_interactive_shell(serverFunc, stdin=True, stdout=True, port=5005):
  addr = '127.0.0.1'
 
  readyFlag = threading.Event()
@@ -18,7 +16,7 @@ def usb_transfer_interactive_shell(transfer, stdin=True, stdout=True, port=5005)
  t.setDaemon(True)
  t.start()
 
- usb_start_socket_server(transfer, addr, port, readyFlag)
+ start_socket_server(serverFunc, addr, port, readyFlag)
 
  try:
   t.join()
@@ -26,7 +24,7 @@ def usb_transfer_interactive_shell(transfer, stdin=True, stdout=True, port=5005)
   pass
 
 
-def usb_start_socket_server(transfer, addr, port, readyFlag=None):
+def start_socket_server(serverFunc, addr, port, readyFlag=None):
  with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
   abortFlag = threading.Event()
 
@@ -54,7 +52,7 @@ def usb_start_socket_server(transfer, addr, port, readyFlag=None):
      break
 
   signal.signal(signal.SIGINT, oldHandler)
-  usb_transfer_socket(transfer, conn)
+  serverFunc(conn)
 
 
 def console_loop(addr, port, readyFlag=None, stdin=True, stdout=True):

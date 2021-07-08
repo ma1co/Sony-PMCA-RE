@@ -1,4 +1,5 @@
 import binascii
+import io
 from xml.dom import minidom
 
 from ...apk import *
@@ -12,9 +13,11 @@ def installApk(shell, apkFile):
 
  # Patch packages.xml
  xmlFile = dataDir + '/system/packages.xml'
- xmlData = patchXml(shell.readFile(xmlFile), apk.getPackageName(), apk.getCert())
+ xmlData = io.BytesIO()
+ shell.readFile(xmlFile, xmlData)
+ xmlData = patchXml(xmlData.getvalue(), apk.getPackageName(), apk.getCert())
  if xmlData:
-  shell.writeFile(xmlFile, xmlData)
+  shell.writeFile(xmlFile, io.BytesIO(xmlData))
   commitBackup = True
 
  # Write apk
@@ -28,7 +31,7 @@ def installApk(shell, apkFile):
    break
   i += 1
  apkFile.seek(0)
- shell.writeFile(path, apkFile.read())
+ shell.writeFile(path, apkFile)
 
  # Unmount android data partition
  shell.unmountAndroidData(commitBackup)
