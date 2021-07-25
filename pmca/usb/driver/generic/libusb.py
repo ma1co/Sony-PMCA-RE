@@ -68,7 +68,7 @@ class UsbBackend(object):
 
  def read(self, ep, length):
   try:
-   return self.dev.read(ep, length).tostring()
+   return self.dev.read(ep, length).tobytes()
   except usb.core.USBError:
    raise GenericUsbException()
 
