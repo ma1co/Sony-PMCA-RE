@@ -152,6 +152,7 @@ def importDriver(driverName=None):
  """Imports the usb driver. Use in a with statement"""
  MscContext = None
  MtpContext = None
+ VendorSpecificContext = None
 
  # Load native drivers
  if driverName == 'native' or driverName is None:
@@ -165,7 +166,9 @@ def importDriver(driverName=None):
  elif driverName == 'qemu':
   from ..usb.driver.generic.qemu import MscContext
   from ..usb.driver.generic.qemu import MtpContext
- elif driverName != 'libusb':
+ elif driverName == 'libusb':
+  from ..usb.driver.generic.libusb import VendorSpecificContext
+ else:
   raise Exception('Unknown driver')
 
  # Fallback to libusb
@@ -174,7 +177,7 @@ def importDriver(driverName=None):
  if MtpContext is None:
   from ..usb.driver.generic.libusb import MtpContext
 
- drivers = [MscContext(), MtpContext()]
+ drivers = [context() for context in [MscContext, MtpContext, VendorSpecificContext] if context]
  print('Using drivers %s' % ', '.join(d.name for d in drivers))
  return UsbDriverList(*drivers)
 
@@ -214,6 +217,12 @@ def listDevices(driverList, quiet=False):
     if not quiet:
      print('%s %s is a camera in app install mode' % (info.manufacturer, info.model))
     yield SonyMtpAppInstallDevice(drv)
+
+  elif type == USB_CLASS_VENDOR_SPECIFIC:
+   if isSonySenserCamera(dev):
+    print('Found a camera in senser mode')
+    yield SonySenserDevice(drv)
+
   if not quiet:
    print('')
 

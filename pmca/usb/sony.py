@@ -6,8 +6,15 @@ from collections import namedtuple, OrderedDict
 from datetime import datetime, timedelta
 from io import BytesIO
 
+try:
+ from Cryptodome.Hash import SHA256
+except ImportError:
+ from Crypto.Hash import SHA256
+
 from . import *
+from . import constants, crypto
 from ..util import *
+from .driver.generic import GenericUsbException
 
 CameraInfo = namedtuple('CameraInfo', 'plist, modelName, modelCode, serial')
 LensInfo = namedtuple('LensInfo', 'type, model, region, version')
@@ -21,6 +28,7 @@ SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
 SONY_ID_PRODUCT_UPDATER = 0x03e2
+SONY_ID_PRODUCT_SENSER = [0x02a9, 0x0336]
 SONY_MANUFACTURER = 'Sony Corporation'
 SONY_MANUFACTURER_SHORT = 'Sony'
 SONY_MSC_MODELS = ['DSC', 'Camcorder']
@@ -32,6 +40,9 @@ def isSonyMscCamera(info):
 
 def isSonyMscUpdaterCamera(dev):
  return dev.idVendor == SONY_ID_VENDOR and dev.idProduct == SONY_ID_PRODUCT_UPDATER
+
+def isSonySenserCamera(dev):
+ return dev.idVendor == SONY_ID_VENDOR and dev.idProduct in SONY_ID_PRODUCT_SENSER
 
 def isSonyMtpCamera(info):
  """Pass an MTP device info tuple. Guesses if the device is a camera in MTP mode."""
@@ -798,3 +809,96 @@ class SonyAppInstallCamera(object):
  def sendEnd(self):
   """Ends the communication with the camera"""
   self._sendCommonMessage(self.SONY_MSG_Common_Bye, self.ThreeValueMsg.pack(a=0, b=0, c=0))
+
+
+class SonySenserDevice(SonyUsbDevice):
+ SenserPacketHeader = Struct('SenserPacketHeader', [
+  ('size', Struct.INT32),
+  ('pFunc', Struct.INT16),
+  ('sequence', Struct.INT16),
+  ('unknown', 3),
+  ('response', Struct.INT8),
+ ])
+
+ SenserMinSize = 0x200
+ SenserMaxSize = 0x100000
+
+ def __init__(self, driver):
+  super(SonySenserDevice, self).__init__(driver)
+  self._sequence = 1
+
+ def _readAll(self, n):
+  data = b''
+  while len(data) < n:
+   data += self.driver.read(n - len(data))
+  return data
+
+ def sendSenserPacket(self, pFunc, data, oData=None):
+  while data != b'':
+   header = self.SenserPacketHeader.pack(size=len(data), pFunc=pFunc, sequence=self._sequence, response=0)
+   self.driver.write(header + data[:self.SenserMaxSize])
+   data = data[self.SenserMaxSize:]
+
+  outData = BytesIO() if oData is None else oData
+  while True:
+   d = b''
+   while d == b'':
+    d = self.driver.read(self.SenserMinSize)
+   header = self.SenserPacketHeader.unpack(d)
+   if header.sequence != self._sequence:
+    raise Exception('Wrong senser sequence')
+   outData.write(d[self.SenserPacketHeader.size:])
+   outData.write(self._readAll(min(header.size, self.SenserMaxSize) - (len(d) - self.SenserPacketHeader.size)))
+   if header.size <= self.SenserMaxSize:
+    break
+  self._sequence += 1
+  return header.response, outData.getvalue() if oData is None else None
+
+
+class SonySenserAuthDevice(SonyUsbDevice):
+ SONY_VendorRequest_StartSenser = (1, 0x37ff, 0xd7aa)
+ SONY_VendorRequest_StopSenser = (1, 0xc800, 0x2855)
+
+ AuthPacket = Struct('AuthPacket', [
+  ('cmd', Struct.INT16),
+  ('salt', Struct.INT16),
+  ('data', Struct.STR % 0x200),
+ ], Struct.BIG_ENDIAN)
+
+ def start(self):
+  try:
+   self.driver.vendorRequestOut(*self.SONY_VendorRequest_StartSenser)
+  except GenericUsbException:
+   pass
+
+ def stop(self):
+  try:
+   self.driver.vendorRequestOut(*self.SONY_VendorRequest_StopSenser)
+  except GenericUsbException:
+   pass
+
+ def _sendAuthPacket(self, cmd, data=b''):
+  self.driver.write(self.AuthPacket.pack(cmd=~cmd & 0xffff, salt=0, data=data))
+  response = self.AuthPacket.unpack(self.driver.read(self.AuthPacket.size))
+  ret = (~response.cmd & 0xffff) - response.salt
+  return ret, response.data
+
+ def authenticate(self):
+  for i in range(3):
+   ret, data = self._sendAuthPacket(1)
+   if ret not in [2, 8]:
+    raise Exception('Invalid response: %d' % ret)
+
+   keys = constants.senserKeysSha1 if ret == 2 else constants.senserKeysSha256
+   data = data + keys[i] if self.driver.getId()[1] == 0x0336 else data[:4]
+   hash = crypto.sha1_faulty(data) if ret == 2 else SHA256.new(data).digest()
+   ret, data = self._sendAuthPacket(3, dump8(1) + hash)
+   if ret != 4:
+    raise Exception('Invalid response: %d' % ret)
+
+  ret, data = self._sendAuthPacket(5)
+  if ret != 6:
+   raise Exception('Invalid response: %d' % ret)
+  res = parse8(data[:1])
+  if res != 1:
+   raise Exception('Senser error %d' % res)

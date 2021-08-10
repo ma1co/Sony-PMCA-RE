@@ -194,13 +194,20 @@ class UsbBackend(BaseUsbBackend):
 
   return config, interfaces
 
+ def getId(self):
+  desc = self.getDeviceDescriptor()
+  return desc.idVendor, desc.idProduct
+
  def getEndpoints(self):
   config, interfaces = self.getConfigurationDescriptor(0)
   interface, eps = interfaces[0]
   return eps
 
- def read(self, ep, length):
+ def read(self, ep, length, timeout=None):
   return self._req(ep, inLength=length)
 
  def write(self, ep, data):
   return self._req(ep, data)
+
+ def vendorRequestOut(self, request, value, index, data=b''):
+  raise Exception('Not implemented')

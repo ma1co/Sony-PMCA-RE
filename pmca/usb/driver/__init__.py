@@ -5,6 +5,7 @@ from ...util import *
 
 USB_CLASS_PTP = 6
 USB_CLASS_MSC = 8
+USB_CLASS_VENDOR_SPECIFIC = 255
 
 UsbDeviceHandle = namedtuple('UsbDeviceHandle', 'handle, idVendor, idProduct')
 

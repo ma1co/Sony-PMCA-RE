@@ -40,19 +40,27 @@ class BaseUsbBackend(abc.ABC):
   pass
 
  @abc.abstractmethod
+ def getId(self):
+  pass
+
+ @abc.abstractmethod
  def getEndpoints(self):
   pass
 
  @abc.abstractmethod
- def read(self, ep, length):
+ def read(self, ep, length, timeout=None):
   pass
 
  @abc.abstractmethod
  def write(self, ep, data):
   pass
 
+ @abc.abstractmethod
+ def vendorRequestOut(self, request, value, index, data=b''):
+  pass
 
-class _UsbDriver(BaseUsbDriver):
+
+class GenericUsbDriver(BaseUsbDriver):
  USB_ENDPOINT_TYPE_BULK = 2
  USB_ENDPOINT_MASK = 1
  USB_ENDPOINT_OUT = 0
@@ -60,26 +68,35 @@ class _UsbDriver(BaseUsbDriver):
 
  def __init__(self, backend):
   self.backend = backend
-  self.epIn = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_IN)
-  self.epOut = self._findEndpoint(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT)
+  self.epIn = list(self._findEndpoints(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_IN))
+  if not self.epIn:
+   raise Exception('No in endpoint found')
+  self.epOut = list(self._findEndpoints(self.USB_ENDPOINT_TYPE_BULK, self.USB_ENDPOINT_OUT))
+  if not self.epOut:
+   raise Exception('No out endpoint found')
 
- def _findEndpoint(self, type, direction):
+ def _findEndpoints(self, type, direction):
   for ep in self.backend.getEndpoints():
    if ep.bmAttributes == type and ep.bEndpointAddress & self.USB_ENDPOINT_MASK == direction:
-    return ep.bEndpointAddress
-  raise Exception('No endpoint found')
+    yield ep.bEndpointAddress
 
  def reset(self):
   self.backend.reset()
 
- def read(self, length):
-  return self.backend.read(self.epIn, length)
+ def getId(self):
+  return self.backend.getId()
 
- def write(self, data):
-  self.backend.write(self.epOut, data)
+ def read(self, length, ep=0, timeout=None):
+  return self.backend.read(self.epIn[ep], length, timeout)
+
+ def write(self, data, ep=0):
+  self.backend.write(self.epOut[ep], data)
+
+ def vendorRequestOut(self, request, value, index, data=b''):
+  self.backend.vendorRequestOut(request, value, index, data)
 
 
-class MscDriver(_UsbDriver, BaseMscDriver):
+class MscDriver(GenericUsbDriver, BaseMscDriver):
  """Communicate with a USB mass storage device"""
  MSC_OC_REQUEST_SENSE = 0x03
 
@@ -126,7 +143,7 @@ class MscDriver(_UsbDriver, BaseMscDriver):
   except GenericUsbException:
    # Write stall
    stalled = True
-   self.backend.clearHalt(self.epOut)
+   self.backend.clearHalt(self.epOut[0])
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -143,7 +160,7 @@ class MscDriver(_UsbDriver, BaseMscDriver):
   except GenericUsbException:
    # Read stall
    stalled = True
-   self.backend.clearHalt(self.epIn)
+   self.backend.clearHalt(self.epIn[0])
 
   sense = self._readResponse(failOnError)
   if stalled and sense == MSC_SENSE_OK:
@@ -151,7 +168,7 @@ class MscDriver(_UsbDriver, BaseMscDriver):
   return sense, data
 
 
-class MtpDriver(_UsbDriver, BaseMtpDriver):
+class MtpDriver(GenericUsbDriver, BaseMtpDriver):
  """Send and receive PTP/MTP packages to a device. Inspired by libptp2"""
  MAX_PKG_LEN = 512
  TYPE_COMMAND = 1
