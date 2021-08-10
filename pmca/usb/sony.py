@@ -854,6 +854,17 @@ class SonySenserDevice(SonyUsbDevice):
   self._sequence += 1
   return header.response, outData.getvalue() if oData is None else None
 
+ def readTerminal(self):
+  try:
+   return self.driver.read(0x40, ep=1, timeout=100)
+  except GenericUsbException:
+   return b''
+
+ def writeTerminal(self, data):
+  while data:
+   self.driver.write(data[:0x40], ep=1)
+   data = data[0x40:]
+
 
 class SonySenserAuthDevice(SonyUsbDevice):
  SONY_VendorRequest_StartSenser = (1, 0x37ff, 0xd7aa)
@@ -902,3 +913,93 @@ class SonySenserAuthDevice(SonyUsbDevice):
   res = parse8(data[:1])
   if res != 1:
    raise Exception('Senser error %d' % res)
+
+
+class SonySenserCamera(object):
+ SONY_PFUNC_ProductInfo = 0x10
+ SONY_PFUNC_FirmwareUpdate = 0x20
+ SONY_PFUNC_MiconAccess = 0x30
+ SONY_PFUNC_AdjustControl = 0x40
+ SONY_PFUNC_TestMode = 0xff00
+ SONY_PFUNC_FileControl = 0xff01
+ SONY_PFUNC_Sonar = 0xff02
+ SONY_PFUNC_MemoryDump = 0xff03
+
+ CommandHeader = Struct('CommandHeader', [
+  ('category', Struct.INT16),
+  ('command', Struct.INT16),
+ ])
+
+ FileControlHeader = Struct('FileControlHeader', [
+  ('cmd', Struct.INT16),
+  ('filenameSize', Struct.INT16),
+ ])
+
+ MemoryDumpHeader = Struct('MemoryDumpHeader', [
+  ('base', Struct.INT32),
+  ('size', Struct.INT32),
+ ])
+
+ SONY_PRODUCT_INFO_READ_HASP = (0, 0x001f)
+
+ SONY_FILE_CONTROL_WRITE = 1
+ SONY_FILE_CONTROL_READ = 2
+ SONY_FILE_CONTROL_DELETE = 3
+
+ def __init__(self, dev):
+  self.dev = dev
+
+ def _sendProductInfoPacket(self, category, command, data=b''):
+  header = self.CommandHeader.pack(category=category, command=command)
+  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_ProductInfo, header + data)
+  if res != 1:
+   raise Exception('Senser product info error %d' % res)
+  return data
+
+ def _sendAdjustControlPacket(self, block, code, data=b''):
+  header = self.CommandHeader.pack(category=block, command=code)
+  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_AdjustControl, header + data)
+  if res != 0:
+   raise Exception('Senser adjust control error %d' % res)
+  return data
+
+ def _sendFileControlPacket(self, cmd, filename, data=b'', outFile=None):
+  filename = filename.encode('latin1')
+  filename += b'\0' * (4 - len(filename) % 4)
+  header = self.FileControlHeader.pack(cmd=cmd, filenameSize=len(filename))
+  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_FileControl, header + filename + data, outFile)
+  if res != 1:
+   raise Exception('Senser file control error %d' % res)
+  return data
+
+ def _sendMemoryDumpPacket(self, base, size, data=b''):
+  header = self.MemoryDumpHeader.pack(base=base, size=size)
+  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_MemoryDump, header + data)
+  if res not in [0, 1]:
+   raise Exception('Senser memory dump error %d' % res)
+  return data
+
+ def readHasp(self):
+  return self._sendProductInfoPacket(*self.SONY_PRODUCT_INFO_READ_HASP, dump8(0))
+
+ def readFile(self, filename, outFile=None):
+  return self._sendFileControlPacket(self.SONY_FILE_CONTROL_READ, filename, b'', outFile)
+
+ def writeFile(self, filename, data):
+  self._sendFileControlPacket(self.SONY_FILE_CONTROL_WRITE, filename, data)
+
+ def deleteFile(self, filename):
+  self._sendFileControlPacket(self.SONY_FILE_CONTROL_DELETE, filename)
+
+ def readMemory(self, base, size):
+  return self._sendMemoryDumpPacket(base, size)
+
+ def writeMemory(self, base, data):
+  self._sendMemoryDumpPacket(base, len(data), data)
+
+ def setTerminalEnable(self, enable):
+  self._sendProductInfoPacket(0, 0xf1, dump8(1 if enable else 0))
+  try:
+   self._sendAdjustControlPacket(0x601, 0x1f, dump8(2 if enable else 0))
+  except:
+   pass

@@ -44,6 +44,7 @@ def main():
  updaterShellMode = updaterShell.add_mutually_exclusive_group()
  updaterShellMode.add_argument('-f', dest='fdatFile', type=argparse.FileType('rb'), help='firmware file')
  updaterShellMode.add_argument('-m', dest='model', help='model name')
+ serviceShell = subparsers.add_parser('serviceshell', description='Launch service mode shell')
  guessFirmware = subparsers.add_parser('guess_firmware', description='Guess the applicable firmware file')
  guessFirmware.add_argument('-d', dest='driver', choices=drivers, help='specify the driver')
  guessFirmware.add_argument('-f', dest='file', type=argparse.FileType('rb'), required=True, help='input file')
@@ -81,6 +82,8 @@ def main():
   firmwareUpdateCommand(args.datFile, args.driver)
  elif args.command == 'updatershell':
   updaterShellCommand(args.model, args.fdatFile, args.driver)
+ elif args.command == 'serviceshell':
+  senserShellCommand()
  elif args.command == 'guess_firmware':
   guessFirmwareCommand(args.file, args.driver)
  elif args.command == 'gps':

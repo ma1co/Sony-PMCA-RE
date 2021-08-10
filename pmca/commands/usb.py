@@ -20,6 +20,7 @@ from ..io import *
 from ..marketserver.server import *
 from ..usb import *
 from ..usb.driver import *
+from ..usb.sensershell import *
 from ..usb.sony import *
 from ..usb.usbshell import *
 from ..util import http
@@ -655,3 +656,41 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
     else:
      for k, v in data:
       print('%-20s%s' % (k + ': ', v))
+
+
+def senserShellCommand(driverName='libusb'):
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device and isinstance(device, SonyMscExtCmdDevice):
+   print('Switching to senser mode')
+   dev = SonySenserAuthDevice(device.driver)
+   dev.start()
+   dev.authenticate()
+
+   device = None
+   print('')
+   print('Waiting for camera to switch...')
+   for i in range(10):
+    time.sleep(.5)
+    try:
+     devices = list(listDevices(driver, True))
+     if len(devices) == 1 and isinstance(devices[0], SonySenserDevice):
+      device = devices[0]
+      break
+    except:
+     pass
+   else:
+    print('Operation timed out. Please run this command again when your camera has connected.')
+
+  if device and isinstance(device, SonySenserDevice):
+   print('Authenticating')
+   dev = SonySenserAuthDevice(device.driver)
+   dev.start()
+   dev.authenticate()
+   try:
+    SenserShell(SonySenserCamera(device)).run()
+   finally:
+    dev.stop()
+   print('Done')
+  elif device:
+   print('Error: Cannot use camera in this mode.')
