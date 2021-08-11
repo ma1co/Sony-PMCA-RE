@@ -32,15 +32,6 @@ def getDevices(portalid):
  r = re.compile('<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
  return [MarketDevice(**m.groupdict()) for m in r.finditer(contents)]
 
-def getPluginInstallText():
- """Fetches the English help text for installing the PMCA Downloader plugin"""
- data = json.loads(http.get(constants.baseUrl + '/dialog.php?case=installingPlugin', cookies = {
-  'localeid': constants.localeUs,
- }).data)
- contents = data['installingPlugin']['contents']
- r = re.compile('<div id="notinstallpopup".*?>(.*?)</div>', re.DOTALL)
- return r.search(contents).group(1)
-
 def getApps(devicename=None):
  """Fetches the list of apps compatible with the given device"""
  data = json.loads(http.get(constants.baseUrl + '/api/api_all_contents.php', data = {

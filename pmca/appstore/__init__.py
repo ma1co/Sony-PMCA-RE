@@ -47,7 +47,7 @@ class App(object):
  def _loadRelease(self):
   release = self.dict.get('release', {})
   if release.get('type') == 'github' and 'user' in release and 'repo' in release:
-   for dict in GithubApi(release['user'], release['repo'], self.repo.client).getReleases():
+   for dict in GithubApi(release['user'], release['repo']).getReleases():
     asset = self._findGithubAsset(dict.get('assets', []))
     if asset:
      return {
