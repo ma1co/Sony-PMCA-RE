@@ -1,12 +1,7 @@
 import io
 import os
 import posixpath
-import sys
 import time
-
-if sys.version_info < (3,):
- # Python 2
- input = raw_input
 
 from .android import *
 from .transfer import *

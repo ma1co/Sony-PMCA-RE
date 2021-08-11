@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """A simple gui interface"""
-from __future__ import print_function
 import sys
 import traceback
 import webbrowser

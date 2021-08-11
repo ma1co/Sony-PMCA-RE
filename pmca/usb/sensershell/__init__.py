@@ -1,15 +1,9 @@
 import os
 import posixpath
 import select
-import sys
 
 from ...shell import *
 from ...shell.interactive import *
-
-if sys.version_info < (3,):
- # Python 2
- ConnectionError = OSError
-
 
 def transferSenserTerminal(dev, conn):
  if not conn:

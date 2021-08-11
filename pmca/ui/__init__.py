@@ -1,25 +1,11 @@
 """Gui related classes"""
 
-import sys
 import threading
-
-try:
- from queue import Queue, Empty
-except ImportError:
- # Python 2
- from Queue import Queue, Empty
-
-if sys.version_info >= (3,):
- from tkinter import *
- from tkinter.ttk import *
- from tkinter.filedialog import askopenfilename
- from tkinter.simpledialog import Dialog
-else:
- # Python 2
- from Tkinter import *
- from ttk import *
- from tkFileDialog import askopenfilename
- from tkSimpleDialog import Dialog
+from queue import Queue, Empty
+from tkinter import *
+from tkinter.ttk import *
+from tkinter.filedialog import askopenfilename
+from tkinter.simpledialog import Dialog
 
 class UiRoot(Tk):
  def __init__(self):

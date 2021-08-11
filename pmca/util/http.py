@@ -1,15 +1,8 @@
 """Some methods to make HTTP requests"""
 
 from collections import namedtuple
-
-try:
- from urllib.parse import *
- from urllib.request import *
-except ImportError:
- # Python 2
- from urllib import *
- from urllib2 import *
- from urlparse import *
+from urllib.parse import *
+from urllib.request import *
 
 HttpResponse = namedtuple('HttpResponse', 'url, data, raw_data, headers')
 

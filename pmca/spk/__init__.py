@@ -1,7 +1,5 @@
 """Methods for reading and writing spk files"""
 
-import sys
-
 try:
  from Cryptodome.Cipher import AES
  from Cryptodome.PublicKey import RSA
@@ -10,9 +8,6 @@ except ImportError:
  from Crypto.Cipher import AES
  from Crypto.PublicKey import RSA
  from Crypto.Util.number import bytes_to_long, long_to_bytes
-
-if sys.version_info >= (3,):
- long = int
 
 from . import constants
 from . import util
@@ -69,7 +64,7 @@ def dumpContainer(encryptedKey, encryptedData):
 
 def decryptKey(encryptedKey):
  """Decrypts an RSA-encrypted key"""
- rsa = RSA.construct((long(constants.rsaModulus), long(constants.rsaExponent)))
+ rsa = RSA.construct((constants.rsaModulus, constants.rsaExponent))
  try:
   return rsa.encrypt(encryptedKey, 0)[0]
  except NotImplementedError:

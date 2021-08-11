@@ -1,11 +1,6 @@
 import select
 import signal
-import sys
 import threading
-
-if sys.version_info < (3,):
- # Python 2
- ConnectionError = OSError
 
 from ...util import *
 

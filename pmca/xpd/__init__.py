@@ -1,23 +1,12 @@
 """Methods for reading and writing xpd files"""
 
-import sys
-
 try:
  from Cryptodome.Hash import HMAC, SHA256
 except ImportError:
  from Crypto.Hash import HMAC, SHA256
 
-try:
- from configparser import ConfigParser
-except ImportError:
- # Python 2
- from ConfigParser import ConfigParser
-
-if sys.version_info >= (3,):
- from io import StringIO
-else:
- # Python 2
- from StringIO import StringIO
+from configparser import ConfigParser
+from io import StringIO
 
 from . import constants
 

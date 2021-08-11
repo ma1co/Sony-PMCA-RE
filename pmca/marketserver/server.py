@@ -2,12 +2,7 @@ from collections import OrderedDict
 import json
 from threading import Thread
 import tlslite
-
-try:
- from http.server import BaseHTTPRequestHandler, HTTPServer
-except ImportError:
- # Python 2
- from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from . import *
 from .. import appstore

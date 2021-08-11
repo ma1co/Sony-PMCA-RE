@@ -4,10 +4,6 @@ import socket
 import sys
 import threading
 
-if sys.version_info < (3,):
- # Python 2
- ConnectionError = OSError
-
 def run_interactive_shell(serverFunc, stdin=True, stdout=True, port=5005):
  addr = '127.0.0.1'
 

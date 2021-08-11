@@ -1,13 +1,7 @@
 import abc
 from collections import OrderedDict
-import sys
 
 from .parser import *
-
-if sys.version_info < (3,):
- # Python 2
- input = raw_input
-
 
 class BaseCommand(abc.ABC):
  @abc.abstractmethod

@@ -13,12 +13,8 @@ from .. import *
 comtypes.client._generate.__verbose__ = False
 _oldImport = comtypes.client._generate._my_import
 def _newImport(fullname):
- try:
-  import importlib
-  importlib.invalidate_caches()
- except:
-  # Python 2
-  pass
+ import importlib
+ importlib.invalidate_caches()
  _oldImport(fullname)
 comtypes.client._generate._my_import = _newImport
 

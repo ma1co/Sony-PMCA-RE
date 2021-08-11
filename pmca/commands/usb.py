@@ -1,4 +1,3 @@
-from __future__ import print_function
 import io
 import json
 import os
@@ -6,10 +5,6 @@ import sys
 import time
 import struct
 import zipfile
-
-if sys.version_info < (3,):
- # Python 2
- input = raw_input
 
 import config
 from ..apk import *
