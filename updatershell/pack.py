@@ -23,6 +23,7 @@ def mkdirs(path):
 
 bodyFiles = {
  'CXD4115':  'libupdaterbody_gen1.so',
+ 'CXD4120':  'libupdaterbody_gen1.so',
  'CXD4132':  'libupdaterbody_gen2.so',
  'CXD90014': 'libupdaterbody_gen3.so',
 }
