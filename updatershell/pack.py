@@ -22,11 +22,10 @@ def mkdirs(path):
   pass
 
 bodyFiles = {
-  0: 'libupdaterbody_gen1.so',
-  1: 'libupdaterbody_gen1.so',
-  2: 'libupdaterbody_gen2.so',
-  3: 'libupdaterbody_gen3.so',
- }
+ 'CXD4115':  'libupdaterbody_gen1.so',
+ 'CXD4132':  'libupdaterbody_gen2.so',
+ 'CXD90014': 'libupdaterbody_gen3.so',
+}
 
 if __name__ == '__main__':
  if len(sys.argv) != 3:
@@ -41,7 +40,7 @@ if __name__ == '__main__':
  dataDict = {}
  for name, config in devices.items():
   fsFile = io.BytesIO()
-  with open(buildDir + '/' + bodyFiles[config['gen']], 'rb') as f:
+  with open(buildDir + '/' + bodyFiles[config['arch']], 'rb') as f:
    cramfs.writeCramfs([UnixFile(
     path = '/bodylib/libupdaterbody.so',
     size = -1,
@@ -62,13 +61,14 @@ if __name__ == '__main__':
    fs = fsFile,
   ), fdatFile)
 
-  data = fdat.encryptFdat(fdatFile, 'gen%d' % config['gen']).read()
-  dataDict.setdefault(config['gen'], {})[name] = data
+  key = config['arch'] + ('_' + config['key'] if 'key' in config else '')
+  data = fdat.encryptFdat(fdatFile, key).read()
+  dataDict.setdefault(key, {})[name] = data
 
  mkdirs(fdatDir)
 
  headerSize = 0x30
- for gen, datas in dataDict.items():
+ for key, datas in dataDict.items():
   payload = None
   for name, data in datas.items():
    if payload is None:
@@ -76,10 +76,10 @@ if __name__ == '__main__':
    elif len(data) != headerSize + len(payload) or data[headerSize:] != payload:
     raise Exception('Cannot split header')
 
-  with open(fdatDir + '/gen%d.dat' % gen, 'wb') as f:
+  with open(fdatDir + '/%s.dat' % key, 'wb') as f:
    f.write(payload)
 
-  mkdirs(fdatDir + '/gen%d' % gen)
+  mkdirs(fdatDir + '/%s' % key)
   for name, data in datas.items():
-   with open(fdatDir + '/gen%d/%s.hdr' % (gen, name), 'wb') as f:
+   with open(fdatDir + '/%s/%s.hdr' % (key, name), 'wb') as f:
     f.write(data[:headerSize])
