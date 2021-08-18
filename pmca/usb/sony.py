@@ -481,8 +481,11 @@ class SonyUpdaterCamera(object):
  STAT_BUSY = 0x2
  STAT_INVALID_DATA = 0x40
  STAT_LOW_BATTERY = 0x100
- STAT_HOT_BATTERY = 0x101
+ STAT_BAD_BATTERY = 0x101
+ STAT_BATTERY_INSERTED = 0x102
  STAT_AC_ADAPTER_REQUIRED = 0x103
+ STAT_DISK_INSERTED = 0x120
+ STAT_MS_INSERTED = 0x121
  STAT_INVALID_MODEL = 0x140
  STAT_INVALID_REGION = 0x141
  STAT_INVALID_VERSION = 0x142
@@ -540,8 +543,11 @@ class SonyUpdaterCamera(object):
    self.STAT_BUSY: 'Busy',
    self.STAT_INVALID_DATA: 'Invalid data',
    self.STAT_LOW_BATTERY: 'Low battery',
-   self.STAT_HOT_BATTERY: 'Hot battery',
+   self.STAT_BAD_BATTERY: 'Bad battery',
+   self.STAT_BATTERY_INSERTED: 'Battery inserted',
    self.STAT_AC_ADAPTER_REQUIRED: 'AC adapter required',
+   self.STAT_DISK_INSERTED: 'Disk inserted',
+   self.STAT_MS_INSERTED: 'Memory card inserted',
    self.STAT_INVALID_MODEL: 'Invalid model',
    self.STAT_INVALID_REGION: 'Invalid region',
    self.STAT_INVALID_VERSION: 'Invalid version',
