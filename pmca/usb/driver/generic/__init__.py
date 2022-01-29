@@ -56,6 +56,10 @@ class BaseUsbBackend(abc.ABC):
   pass
 
  @abc.abstractmethod
+ def classInterfaceRequestOut(self, request, value, index, data=b''):
+  pass
+
+ @abc.abstractmethod
  def vendorRequestOut(self, request, value, index, data=b''):
   pass
 
@@ -96,7 +100,7 @@ class GenericUsbDriver(BaseUsbDriver):
   self.backend.vendorRequestOut(request, value, index, data)
 
 
-class MscDriver(GenericUsbDriver, BaseMscDriver):
+class MscBbbDriver(GenericUsbDriver, BaseMscDriver):
  """Communicate with a USB mass storage device"""
  MSC_OC_REQUEST_SENSE = 0x03
 
@@ -166,6 +170,25 @@ class MscDriver(GenericUsbDriver, BaseMscDriver):
   if stalled and sense == MSC_SENSE_OK:
    raise Exception('Mass storage read error')
   return sense, data
+
+
+class MscCbiDriver(GenericUsbDriver, BaseMscDriver):
+ def _writeCommand(self, command):
+  self.backend.classInterfaceRequestOut(0, 0, 0, command)
+
+ def sendCommand(self, command):
+  self._writeCommand(command)
+  return MSC_SENSE_OK
+
+ def sendWriteCommand(self, command, data):
+  self._writeCommand(command)
+  self.write(data)
+  return MSC_SENSE_OK
+
+ def sendReadCommand(self, command, size):
+  self._writeCommand(command)
+  data = self.read(size)
+  return MSC_SENSE_OK, data
 
 
 class MtpDriver(GenericUsbDriver, BaseMtpDriver):

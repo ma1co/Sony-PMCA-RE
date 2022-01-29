@@ -88,7 +88,7 @@ class _UsbContext(BaseUsbContext):
 
 class MscContext(_UsbContext):
  def __init__(self):
-  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, MscDriver)
+  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, MscBbbDriver)
 
 class MtpContext(_UsbContext):
  def __init__(self):
@@ -208,6 +208,9 @@ class UsbBackend(BaseUsbBackend):
 
  def write(self, ep, data):
   return self._req(ep, data)
+
+ def classInterfaceRequestOut(self, request, value, index, data=b''):
+  raise Exception('Not implemented')
 
  def vendorRequestOut(self, request, value, index, data=b''):
   raise Exception('Not implemented')

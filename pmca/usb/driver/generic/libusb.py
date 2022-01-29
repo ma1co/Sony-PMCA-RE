@@ -20,7 +20,17 @@ class _UsbContext(BaseUsbContext):
 
 class MscContext(_UsbContext):
  def __init__(self):
-  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, MscDriver)
+  super(MscContext, self).__init__('MSC', USB_CLASS_MSC, None)
+
+ def openDevice(self, device):
+  backend = UsbBackend(device.handle)
+  interface = next((interface for config in device.handle for interface in config), None)
+  if interface.bInterfaceProtocol in (0, 1):
+   return MscCbiDriver(backend)
+  elif interface.bInterfaceProtocol == 0x50:
+   return MscBbbDriver(backend)
+  else:
+   raise Exception('Invalid protocol')
 
 class MtpContext(_UsbContext):
  def __init__(self):
@@ -77,6 +87,12 @@ class UsbBackend(BaseUsbBackend):
   try:
    self.dev.write(ep, data)
   except usb.core.USBError:
+   raise GenericUsbException()
+
+ def classInterfaceRequestOut(self, request, value, index, data=b''):
+  try:
+   self.dev.ctrl_transfer(usb.util.CTRL_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE, request, value, index, data)
+  except usb.core.USBError as e:
    raise GenericUsbException()
 
  def vendorRequestOut(self, request, value, index, data=b''):
