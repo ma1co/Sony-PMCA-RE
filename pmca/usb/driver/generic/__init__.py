@@ -62,9 +62,9 @@ class BaseUsbBackend(abc.ABC):
 
 class GenericUsbDriver(BaseUsbDriver):
  USB_ENDPOINT_TYPE_BULK = 2
- USB_ENDPOINT_MASK = 1
+ USB_ENDPOINT_MASK = 0x80
  USB_ENDPOINT_OUT = 0
- USB_ENDPOINT_IN = 1
+ USB_ENDPOINT_IN = 0x80
 
  def __init__(self, backend):
   self.backend = backend
