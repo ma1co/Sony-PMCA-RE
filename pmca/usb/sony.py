@@ -634,11 +634,13 @@ class SonyMtpAppInstallDevice(MtpDevice, SonyAppInstallDevice):
  def _read(self):
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessageInfo, [0])
   self._checkResponse(response)
-  self.InfoMsgHeader.unpack(data)
+  info = self.InfoMsgHeader.unpack(data)
+  if info.magic != self.InfoMsgHeaderMagic:
+   raise Exception('Wrong magic')
 
   response, data = self.driver.sendReadCommand(self.PTP_OC_GetProxyMessage, [0])
   self._checkResponse(response, [self.PTP_RC_NoData])
-  return data
+  return data[:info.dataSize]
 
  def sendMessage(self, type, data):
   self._write(self.MsgHeader.pack(type=type) + data)
