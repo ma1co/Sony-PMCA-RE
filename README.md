@@ -13,7 +13,7 @@ The application should work fine on Windows using the operating system's mass st
 Download the [latest stable release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) or the newest [development build](https://ci.appveyor.com/project/ma1co/sony-pmca-re/build/artifacts).
 
 ### macOS
-macOS binaries are also distributed, but less tested than the Windows equivalents. Getting the USB drivers to work may require some fiddling. To communicate with cameras in mass storage mode, the [PMCADownloader](https://sony-pmca.appspot.com/plugin/install) browser plugin and/or the [DriverLoader](https://support.d-imaging.sony.co.jp/mac/driver/1015/en/) application are required. Make sure to close all applications which could access USB drivers, including Photos, Dropbox and Google Drive.
+macOS binaries are also distributed, but less tested than the Windows equivalents. Getting the USB drivers to work may require some fiddling. To communicate with cameras in mass storage mode, the PMCADownloader browser plugin and/or the [DriverLoader](https://support.d-imaging.sony.co.jp/mac/driver/1015/en/) application are required. Make sure to close all applications which could access USB drivers, including Photos, Dropbox and Google Drive.
 
 The latest release binaries can be found in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
 
@@ -35,10 +35,9 @@ If the camera supports *PlayMemories Camera Apps (PMCA)*, it is possible to inst
 
 It is recommended to install the [*OpenMemories: Tweak*](https://github.com/ma1co/OpenMemories-Tweak) app. This app allows to tweak settings and to start *telnet* and *adb* servers to execute code on the system.
 
-Other apps are available. A list can be found [here](https://sony-pmca.appspot.com/apps).
+Other apps are available. A list can be found [here](https://github.com/ma1co/OpenMemories-AppList).
 
-There are three ways to install apps:
-* **Browser plugin (deprecated)**: If you find a compatible browser, the official PMCA plugin can be used directly from your browser at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). This method is deprecated and it is recommended to use pmca-console or pmca-gui instead.
+There are two ways to install apps:
 * **pmca-gui**: In the *Install app* tab, select an app from the list and click *Install selected app*.
 * **pmca-console**: Run `pmca-console install -i` to interactively select an app to install.
 
@@ -72,11 +71,6 @@ To use service mode on Windows, custom drivers have to be installed using [Zadig
 * You should now be able to use `pmca-console serviceshell`.
 
 To be able to use the camera normally again, the libusb drivers have to be uninstalled in device manager.
-
-## Browser Compatibility
-The browser-based installer can be found at [sony-pmca.appspot.com](https://sony-pmca.appspot.com/). This site uses the official Sony browser plugin to communicate with the camera directly from a browser window. Since other browser vendors are disabling NPAPI plugins, this method only works in Internet Explorer and Safari. Additionally, camera firmware updates released in June 2017 and later explicitly whitelist the URL of the official app store. Updated cameras refuse to install apps from our site. It is thus recommended to use the native installer instead.
-
-Meanwhile, the site is still used to keep track of the installation counters for the apps in the app list.
 
 ## Is it safe?
 This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. **We won't take any responsibility.**

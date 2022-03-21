@@ -37,25 +37,20 @@ def switchToAppInstaller(dev):
 appListCache = None
 def listApps(enableCache=False):
  global appListCache
- remoteAppStore = RemoteAppStore(config.appengineServer)
  appStoreRepo = appstore.GithubApi(config.githubAppListUser, config.githubAppListRepo)
 
  if not appListCache or not enableCache:
   print('Loading app list')
-  try:
-   apps = remoteAppStore.listApps()
-  except:
-   print('Cannot connect to remote server, falling back to appstore repository')
-   apps = appstore.AppStore(appStoreRepo).apps
+  apps = appstore.AppStore(appStoreRepo).apps
   print('Found %d apps' % len(apps))
   appListCache = apps
  return appListCache
 
 
-def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
+def installApp(dev, apkFile=None, appPackage=None, outFile=None):
  """Installs an app on the specified device."""
  certFile = scriptRoot + '/certs/localtest.me.pem'
- with ServerContext(LocalMarketServer(certFile, config.officialServer)) as server:
+ with ServerContext(LocalMarketServer(certFile)) as server:
   apkData = None
   if apkFile:
    apkData = apkFile.read()
@@ -83,12 +78,6 @@ def installApp(dev, apkFile=None, appPackage=None, outFile=None, local=False):
    raise Exception('Communication error %d: %s' % (result.code, result.message))
 
   result = server.getResult()
-
-  if not local:
-   try:
-    RemoteAppStore(config.appengineServer).sendStats(result)
-   except:
-    pass
 
   print('Task completed successfully')
 
@@ -278,7 +267,7 @@ def infoCommand(driverName=None):
     print('%-20s%s' % (k + ': ', v))
 
 
-def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None, local=False):
+def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None):
  """Install the given apk on the camera"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
@@ -300,7 +289,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None,
     print('Operation timed out. Please run this command again when your camera has connected.')
 
   if device and isinstance(device, SonyAppInstallDevice):
-   installApp(device, apkFile, appPackage, outFile, local)
+   installApp(device, apkFile, appPackage, outFile)
   elif device:
    print('Error: Cannot use camera in this mode.')
 

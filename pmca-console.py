@@ -23,7 +23,6 @@ def main():
  install = subparsers.add_parser('install', description='Installs an apk file on the camera connected via USB. The connection can be tested without specifying a file.')
  install.add_argument('-d', dest='driver', choices=drivers, help='specify the driver')
  install.add_argument('-o', dest='outFile', type=argparse.FileType('w'), help='write the output to this file')
- install.add_argument('-l', dest='local', action='store_true', help='local only (don\'t send statistics)')
  installMode = install.add_mutually_exclusive_group()
  installMode.add_argument('-f', dest='apkFile', type=argparse.FileType('rb'), help='install an apk file')
  installMode.add_argument('-a', dest='appPackage', help='the package name of an app from the app list')
@@ -71,7 +70,7 @@ def main():
     return
   else:
    pkg = args.appPackage
-  installCommand(args.driver, args.apkFile, pkg, args.outFile, args.local)
+  installCommand(args.driver, args.apkFile, pkg, args.outFile)
  elif args.command == 'market':
   marketCommand(args.token)
  elif args.command == 'apk2spk':

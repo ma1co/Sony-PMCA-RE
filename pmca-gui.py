@@ -238,7 +238,7 @@ class InstallerFrame(UiFrame):
   self.appLoadButton.grid(row=0, column=1)
 
   appListLink = Label(appFrame, text='Source', foreground='blue', cursor='hand2')
-  appListLink.bind('<Button-1>', lambda e: webbrowser.open_new('https://' + config.appengineServer + '/apps'))
+  appListLink.bind('<Button-1>', lambda e: webbrowser.open_new('https://github.com/' + config.githubAppListUser + '/' + config.githubAppListRepo))
   appListLink.grid(columnspan=2, sticky=W)
 
   apkFrame = Labelframe(self, padding=5)

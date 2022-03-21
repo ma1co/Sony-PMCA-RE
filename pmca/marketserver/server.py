@@ -1,12 +1,8 @@
-from collections import OrderedDict
-import json
 from threading import Thread
 import tlslite
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from . import *
-from .. import appstore
-from ..util import http
 from .. import spk
 
 
@@ -42,12 +38,11 @@ class TLSConnection(tlslite.TLSConnection):
 class LocalMarketServer(HTTPServer):
  """A local https server to communicate with the camera"""
 
- def __init__(self, certFile, fakeHost, host='127.0.0.1', port=4443):
+ def __init__(self, certFile, host='127.0.0.1', port=4443):
   HTTPServer.__init__(self, (host, port), HttpHandler)
   self.host = host
   self.port = port
   self.url = 'https://' + host + '/'
-  self.fakeUrl = 'https://' + fakeHost + '/'
   self.apk = None
   self.result = None
 
@@ -74,7 +69,7 @@ class LocalMarketServer(HTTPServer):
 
  def getXpd(self):
   """Return the xpd contents"""
-  return getXpdResponse('0', self.fakeUrl)
+  return getXpdResponse('0', constants.baseUrl)
 
  def getResult(self):
   """Return the result sent from the camera"""
@@ -97,20 +92,6 @@ class LocalMarketServer(HTTPServer):
   """Handle GET requests to the server"""
   # Send the spk file to the camera
   handler.output(spk.constants.mimeType, spk.dump(self.apk), 'app%s' % spk.constants.extension)
-
-
-class RemoteAppStore(object):
- """A wrapper for a remote api"""
-
- def __init__(self, host):
-  self.base = 'https://' + host
-
- def listApps(self):
-  apps = (appstore.App(None, dict) for dict in json.loads(http.get(self.base + '/api/apps').data))
-  return OrderedDict((app.package, app) for app in apps)
-
- def sendStats(self, result):
-  http.post(self.base + '/api/stats', json.dumps(result).encode('latin1'))
 
 
 class ServerContext(object):
