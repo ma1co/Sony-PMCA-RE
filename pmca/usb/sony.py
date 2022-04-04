@@ -824,7 +824,9 @@ class SonySenserDevice(SonyUsbDevice):
   ('size', Struct.INT32),
   ('pFunc', Struct.INT16),
   ('sequence', Struct.INT16),
-  ('unknown', 3),
+  ('version', Struct.INT8),
+  ('miconType', Struct.INT8),
+  ('offsetType', Struct.INT8),
   ('response', Struct.INT8),
  ])
 
@@ -843,7 +845,7 @@ class SonySenserDevice(SonyUsbDevice):
 
  def sendSenserPacket(self, pFunc, data, oData=None):
   while data != b'':
-   header = self.SenserPacketHeader.pack(size=len(data), pFunc=pFunc, sequence=self._sequence, response=0)
+   header = self.SenserPacketHeader.pack(size=len(data), pFunc=pFunc, sequence=self._sequence, version=0, miconType=0, offsetType=0, response=0)
    self.driver.write(header + data[:self.SenserMaxSize])
    data = data[self.SenserMaxSize:]
 
