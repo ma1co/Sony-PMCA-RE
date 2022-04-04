@@ -831,17 +831,12 @@ class SonySenserDevice(SonyUsbDevice):
  ])
 
  SenserMinSize = 0x200
+ SenserChunkSize = 0x8000
  SenserMaxSize = 0x100000
 
  def __init__(self, driver):
   super(SonySenserDevice, self).__init__(driver)
   self._sequence = 1
-
- def _readAll(self, n):
-  data = b''
-  while len(data) < n:
-   data += self.driver.read(n - len(data))
-  return data
 
  def sendSenserPacket(self, pFunc, data, oData=None):
   while data != b'':
@@ -850,15 +845,25 @@ class SonySenserDevice(SonyUsbDevice):
    data = data[self.SenserMaxSize:]
 
   outData = BytesIO() if oData is None else oData
+  minSize = 0 if self.driver.getId()[1] == 0x0336 else self.SenserMinSize
   while True:
-   d = b''
-   while d == b'':
-    d = self.driver.read(self.SenserMinSize)
+   l = max(minSize - self.SenserPacketHeader.size, 0)
+   d = self.driver.read(self.SenserPacketHeader.size + l)
    header = self.SenserPacketHeader.unpack(d)
    if header.sequence != self._sequence:
     raise Exception('Wrong senser sequence')
    outData.write(d[self.SenserPacketHeader.size:])
-   outData.write(self._readAll(min(header.size, self.SenserMaxSize) - (len(d) - self.SenserPacketHeader.size)))
+   done = l
+
+   dataLen = min(header.size, self.SenserMaxSize)
+   chunkLen = self.SenserChunkSize - minSize
+   while done < dataLen:
+    l = min(dataLen - done, chunkLen)
+    outData.write(self.driver.read(l))
+    done += l
+    if not (l & (self.SenserMinSize - 1)):
+     self.driver.read(self.SenserMinSize)
+    chunkLen = self.SenserChunkSize
    if header.size <= self.SenserMaxSize:
     break
   self._sequence += 1
