@@ -6,7 +6,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2016, macos-10.15]
+        os: [windows-2019, macos-10.15]
     defaults:
       run:
         shell: bash
