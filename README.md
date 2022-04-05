@@ -13,7 +13,7 @@ The application should work fine on Windows using the operating system's mass st
 Download the [latest stable release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) or the newest [development build](https://ci.appveyor.com/project/ma1co/sony-pmca-re/build/artifacts).
 
 ### macOS
-macOS binaries are also distributed, but less tested than the Windows equivalents. Getting the USB drivers to work may require some fiddling. To communicate with cameras in mass storage mode, the PMCADownloader browser plugin and/or the [DriverLoader](https://support.d-imaging.sony.co.jp/mac/driver/1015/en/) application are required. Make sure to close all applications which could access USB drivers, including Photos, Dropbox and Google Drive.
+macOS binaries are also distributed, but less tested than the Windows equivalents. Getting the USB drivers to work may require some fiddling. To communicate with cameras in mass storage mode, Sony's [Camera Driver](https://support.d-imaging.sony.co.jp/mac/driver/11/ja/) has to be installed. Make sure to close all applications which could access USB drivers, including Photos, Dropbox and Google Drive.
 
 The latest release binaries can be found in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
 
