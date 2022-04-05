@@ -27,7 +27,7 @@ SslSendDataMessage = namedtuple('SslSendDataMessage', 'connectionId, data')
 SslEndMessage = namedtuple('SslEndMessage', 'connectionId')
 
 SONY_ID_VENDOR = 0x054c
-SONY_ID_PRODUCT_UPDATER = 0x03e2
+SONY_ID_PRODUCT_UPDATER = [0x033a, 0x03e2]
 SONY_ID_PRODUCT_SENSER = [0x02a9, 0x0336]
 SONY_MANUFACTURER = 'Sony Corporation'
 SONY_MANUFACTURER_SHORT = 'Sony'
@@ -39,7 +39,7 @@ def isSonyMscCamera(info):
  return info.manufacturer == SONY_MANUFACTURER_SHORT and info.model in SONY_MSC_MODELS
 
 def isSonyMscUpdaterCamera(dev):
- return dev.idVendor == SONY_ID_VENDOR and dev.idProduct == SONY_ID_PRODUCT_UPDATER
+ return dev.idVendor == SONY_ID_VENDOR and dev.idProduct in SONY_ID_PRODUCT_UPDATER
 
 def isSonySenserCamera(dev):
  return dev.idVendor == SONY_ID_VENDOR and dev.idProduct in SONY_ID_PRODUCT_SENSER

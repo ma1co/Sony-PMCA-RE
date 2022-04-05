@@ -345,11 +345,12 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
     fdat = fdatFile.read()
    else:
     if not model:
-     if not isinstance(device, SonyExtCmdDevice):
-      print('Error: Cannot determine camera model in this mode.')
-      return
      print('Getting device info')
-     model = SonyExtCmdCamera(device).getCameraInfo().modelName
+     try:
+      model = SonyExtCmdCamera(device).getCameraInfo().modelName
+     except:
+      print('Error: Cannot determine camera model')
+      return
      print('Using firmware for model %s' % model)
      print('')
 
