@@ -15,6 +15,7 @@ from ..io import *
 from ..marketserver.server import *
 from ..usb import *
 from ..usb.driver import *
+from ..usb.driver.generic import *
 from ..usb.sensershell import *
 from ..usb.sony import *
 from ..usb.usbshell import *
@@ -138,6 +139,9 @@ def importDriver(driverName=None):
  MscContext = None
  MtpContext = None
  VendorSpecificContext = None
+ MscContext2 = None
+ MtpContext2 = None
+ VendorSpecificContext2 = None
 
  # Load native drivers
  if driverName == 'native' or driverName is None:
@@ -152,18 +156,18 @@ def importDriver(driverName=None):
  elif driverName == 'qemu':
   from ..usb.driver.generic.qemu import MscContext
   from ..usb.driver.generic.qemu import MtpContext
- elif driverName == 'libusb':
-  from ..usb.driver.generic.libusb import VendorSpecificContext
- else:
+ elif driverName != 'libusb':
   raise Exception('Unknown driver')
 
  # Fallback to libusb
- if MscContext is None:
-  from ..usb.driver.generic.libusb import MscContext
- if MtpContext is None:
-  from ..usb.driver.generic.libusb import MtpContext
+ if MscContext is None or (driverName is None and sys.platform == 'win32'):
+  from ..usb.driver.generic.libusb import MscContext as MscContext2
+ if MtpContext is None or (driverName is None and sys.platform == 'win32'):
+  from ..usb.driver.generic.libusb import MtpContext as MtpContext2
+ if (VendorSpecificContext is None and driverName != 'qemu') or (driverName is None and sys.platform == 'win32'):
+  from ..usb.driver.generic.libusb import VendorSpecificContext as VendorSpecificContext2
 
- drivers = [context() for context in [MscContext, MtpContext, VendorSpecificContext] if context]
+ drivers = [context() for context in [MscContext, MtpContext, VendorSpecificContext, MscContext2, MtpContext2, VendorSpecificContext2] if context]
  print('Using drivers %s' % ', '.join(d.name for d in drivers))
  return UsbDriverList(*drivers)
 
@@ -206,7 +210,7 @@ def listDevices(driverList, quiet=False):
 
   elif type == USB_CLASS_VENDOR_SPECIFIC:
    if isSonySenserCamera(dev):
-    print('Found a camera in senser mode')
+    print('Found a camera in service mode')
     yield SonySenserDevice(drv)
 
   if not quiet:
@@ -644,11 +648,17 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
       print('%-20s%s' % (k + ': ', v))
 
 
-def senserShellCommand(driverName='libusb'):
+def senserShellCommand(driverName=None):
+ if driverName is None and sys.platform != 'win32':
+  driverName = 'libusb'
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device and isinstance(device, SonyMscExtCmdDevice):
-   print('Switching to senser mode')
+   if not isinstance(device.driver, GenericUsbDriver):
+    print('Error: Only libusb drivers are supported for service mode')
+    return
+
+   print('Switching to service mode')
    dev = SonySenserAuthDevice(device.driver)
    dev.start()
    dev.authenticate()
@@ -669,6 +679,10 @@ def senserShellCommand(driverName='libusb'):
     print('Operation timed out. Please run this command again when your camera has connected.')
 
   if device and isinstance(device, SonySenserDevice):
+   if not isinstance(device.driver, GenericUsbDriver):
+    print('Error: Only libusb drivers are supported for service mode')
+    return
+
    print('Authenticating')
    dev = SonySenserAuthDevice(device.driver)
    dev.start()
