@@ -29,12 +29,6 @@ def printStatus(status):
  print('%s %d%%' % (status.message, status.percent))
 
 
-def switchToAppInstaller(dev):
- """Switches a camera in MTP mode to app installation mode"""
- print('Switching to app install mode')
- SonyExtCmdCamera(dev).switchToAppInstaller()
-
-
 appListCache = None
 def listApps(enableCache=False):
  global appListCache
@@ -281,7 +275,12 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None)
  with importDriver(driverName) as driver:
   device = getDevice(driver)
   if device and isinstance(device, SonyExtCmdDevice):
-   switchToAppInstaller(device)
+   print('Switching to app install mode')
+   try:
+    SonyExtCmdCamera(device).switchToAppInstaller()
+   except InvalidCommandException:
+    print('Error: This device does not support apps')
+    return
    device = None
 
    print('Waiting for camera to switch...')
