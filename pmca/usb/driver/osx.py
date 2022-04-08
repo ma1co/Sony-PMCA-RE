@@ -4,6 +4,7 @@
 
 from ctypes import *
 from ctypes.util import *
+import os
 
 from . import *
 
@@ -11,7 +12,6 @@ iokit = cdll.LoadLibrary(find_library('IOKit'))
 cf = cdll.LoadLibrary(find_library('CoreFoundation'))
 
 kIOMasterPortDefault = c_void_p.in_dll(iokit, 'kIOMasterPortDefault')
-kCFAllocatorDefault = c_void_p.in_dll(cf, 'kCFAllocatorDefault')
 
 kSCSIDataTransfer_NoDataTransfer = 0
 kSCSIDataTransfer_FromInitiatorToTarget = 1
@@ -27,6 +27,7 @@ iokit.IOServiceGetMatchingServices.argtypes = [c_void_p, c_void_p, c_void_p]
 iokit.IOServiceGetMatchingServices.restype = c_void_p
 
 iokit.IORegistryEntryGetParentEntry.argtypes = [c_void_p, c_char_p, c_void_p]
+iokit.IORegistryEntryGetParentEntry.restype = c_uint
 
 iokit.IORegistryEntryCreateCFProperty.argtypes = [c_void_p, c_void_p, c_void_p, c_uint]
 iokit.IORegistryEntryCreateCFProperty.restype = c_void_p
@@ -49,18 +50,24 @@ iokit.IOConnectCallScalarMethod.restype = c_uint
 iokit.IOConnectCallStructMethod.argtypes = [c_void_p, c_uint, c_void_p, c_size_t, c_void_p, c_void_p]
 iokit.IOConnectCallStructMethod.restype = c_uint
 
+iokit.KextManagerCopyLoadedKextInfo.argtypes = [c_void_p, c_void_p]
+iokit.KextManagerCopyLoadedKextInfo.restype = c_void_p
+
 cf.CFStringCreateWithCString.argtypes = [c_void_p, c_char_p, c_uint]
 cf.CFStringCreateWithCString.restype = c_void_p
 
 cf.CFNumberGetValue.argtypes = [c_void_p, c_int, c_void_p]
 cf.CFNumberGetValue.restype = c_void_p
 
+cf.CFDictionaryContainsKey.argtypes = [c_void_p, c_void_p]
+cf.CFDictionaryContainsKey.restype = c_bool
+
 cf.CFRelease.argtypes = [c_void_p]
 cf.CFRelease.restype = None
 
 kextNames = {
- 'SONYDeviceType01': b'com_sony_driver_dsccamFirmwareUpdaterType00',
- 'SONYDeviceType04': b'com_sony_driver_dsccamDeviceInfo00',
+ 'SONYDeviceType01': b'com.sony.driver.dsccamFirmwareUpdaterType00',
+ 'SONYDeviceType04': b'com.sony.driver.dsccamDeviceInfo00',
 }
 kextOpenUserClient = 0
 kextCloseUserClient = 1
@@ -91,6 +98,29 @@ class MscContext(BaseUsbContext):
   return _MscDriver(device.handle)
 
 
+def isMscDriverAvailable():
+ return _isKextLoaded() or _isKextInstalled()
+
+
+def _isKextInstalled():
+ for name in kextNames.keys():
+  if os.path.exists('/Library/Extensions/%s.kext/Contents/Info.plist' % name):
+   return True
+ return False
+
+def _isKextLoaded():
+ loaded = False
+ infos = iokit.KextManagerCopyLoadedKextInfo(0, 0)
+
+ for name in kextNames.values():
+  key = cf.CFStringCreateWithCString(0, name, 0)
+  if cf.CFDictionaryContainsKey(infos, key):
+   loaded = True
+  cf.CFRelease(key)
+
+ cf.CFRelease(infos)
+ return loaded
+
 def _getParent(device, parentType):
  while not iokit.IOObjectConformsTo(device, parentType):
   parent = c_void_p()
@@ -101,8 +131,9 @@ def _getParent(device, parentType):
  return device
 
 def _getProperty(device, prop):
- key = cf.CFStringCreateWithCString(kCFAllocatorDefault, prop, 0)
- container = iokit.IORegistryEntryCreateCFProperty(device, key, kCFAllocatorDefault, 0)
+ key = cf.CFStringCreateWithCString(0, prop, 0)
+ container = iokit.IORegistryEntryCreateCFProperty(device, key, 0, 0)
+ cf.CFRelease(key)
  if container:
   number = c_uint16()
   cf.CFNumberGetValue(container, 2, byref(number))
@@ -120,7 +151,7 @@ def _listDevices(vendor):
    break
   device = _getParent(service, b'IOUSBDevice')
   for kextName in kextNames.values():
-   driver = _getParent(service, kextName)
+   driver = _getParent(service, kextName.replace(b'.', b'_'))
    if device and driver and device.value not in devices:
     devices.add(device.value)
     vid = _getProperty(device, b'idVendor')

@@ -150,7 +150,11 @@ def importDriver(driverName=None):
    from ..usb.driver.windows.wpd import MtpContext
    from ..usb.driver.windows.driverless import VendorSpecificContext
   elif sys.platform == 'darwin':
-   from ..usb.driver.osx import MscContext
+   from ..usb.driver.osx import isMscDriverAvailable
+   if isMscDriverAvailable():
+    from ..usb.driver.osx import MscContext
+   else:
+    print('Native driver not installed')
   else:
    print('No native drivers available')
  elif driverName == 'qemu':
