@@ -35,6 +35,6 @@ artifacts:
 deploy:
  # Deploy tagged releases
  - provider: GitHub
-   auth_token: {secure: fKuIKISPj15kzBq1zlLtAyscXK43FG6oQQPMw8k8rsbVXRYZfCYtK3XSn6AQDlip}
+   auth_token: {secure: oojQVGlq4+lrv8NZ2LlNpsMMavvFEwgUKGgqZJ+TnoVV8XwqrbJnuAyvI2AHcCYu}
    artifact: /.*/
    on: {appveyor_repo_tag: true}
