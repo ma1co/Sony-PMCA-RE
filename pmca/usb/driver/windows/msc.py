@@ -79,6 +79,10 @@ SetupDiDestroyDeviceInfoList = windll.setupapi.SetupDiDestroyDeviceInfoList
 SetupDiDestroyDeviceInfoList.restype = BOOL
 SetupDiDestroyDeviceInfoList.argtypes = [HANDLE]
 
+SetupDiEnumDeviceInfo = windll.setupapi.SetupDiEnumDeviceInfo
+SetupDiEnumDeviceInfo.restype = BOOL
+SetupDiEnumDeviceInfo.argtypes = [HANDLE, DWORD, POINTER(SP_DEVINFO_DATA)]
+
 SetupDiEnumDeviceInterfaces = windll.setupapi.SetupDiEnumDeviceInterfaces
 SetupDiEnumDeviceInterfaces.restype = BOOL
 SetupDiEnumDeviceInterfaces.argtypes = [HANDLE, c_void_p, POINTER(GUID), DWORD, POINTER(SP_DEVICE_INTERFACE_DATA)]
@@ -86,6 +90,10 @@ SetupDiEnumDeviceInterfaces.argtypes = [HANDLE, c_void_p, POINTER(GUID), DWORD, 
 SetupDiGetDeviceInterfaceDetail = windll.setupapi.SetupDiGetDeviceInterfaceDetailW
 SetupDiGetDeviceInterfaceDetail.restype = BOOL
 SetupDiGetDeviceInterfaceDetail.argtypes = [HANDLE, POINTER(SP_DEVICE_INTERFACE_DATA), POINTER(SP_DEVICE_INTERFACE_DETAIL_DATA), DWORD, POINTER(DWORD), POINTER(SP_DEVINFO_DATA)]
+
+SetupDiGetDeviceRegistryProperty = windll.setupapi.SetupDiGetDeviceRegistryPropertyW
+SetupDiGetDeviceRegistryProperty.restype = BOOL
+SetupDiGetDeviceRegistryProperty.argtypes = [HANDLE, POINTER(SP_DEVINFO_DATA), DWORD, PDWORD, LPCWSTR, DWORD, PDWORD]
 
 CM_Get_Child = windll.CfgMgr32.CM_Get_Child
 CM_Get_Child.restype = DWORD
@@ -99,6 +107,9 @@ GUID_DEVINTERFACE_USB_DEVICE = GUID('{A5DCBF10-6530-11D2-901F-00C04FB951ED}')
 GUID_DEVINTERFACE_DISK = GUID('{53F56307-B6BF-11D0-94F2-00A0C91EFB8B}')
 DIGCF_PRESENT = 2
 DIGCF_DEVICEINTERFACE = 16
+SPDRP_HARDWAREID = 1
+
+INVALID_HANDLE_VALUE = 0x100 ** sizeof(HANDLE) - 1
 
 
 class MscContext(BaseUsbContext):
@@ -112,27 +123,39 @@ class MscContext(BaseUsbContext):
   return _MscDriver(device.handle)
 
 
-def _listDeviceClass(guid):
- handle = SetupDiGetClassDevs(byref(guid), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT)
- if handle == INVALID_HANDLE_VALUE:
-  raise Exception('SetupDiGetClassDevs failed')
+def _getDeviceProperty(handle, devInfoData, prop):
+ buf = create_unicode_buffer(512)
+ if not SetupDiGetDeviceRegistryProperty(handle, byref(devInfoData), prop, None, buf, len(buf), None):
+  raise Exception('SetupDiGetDeviceRegistryProperty failed')
+ return buf.value
 
+def _listDeviceInterfaces(handle, devInfoData, guid):
  i = 0
  interfaceData = SP_DEVICE_INTERFACE_DATA()
  interfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA)
- while SetupDiEnumDeviceInterfaces(handle, None, byref(guid), i, byref(interfaceData)):
+ while SetupDiEnumDeviceInterfaces(handle, byref(devInfoData), byref(guid), i, byref(interfaceData)):
   size = c_ulong(0)
   SetupDiGetDeviceInterfaceDetail(handle, byref(interfaceData), None, 0, byref(size), None)
 
   interfaceDetailData = SP_DEVICE_INTERFACE_DETAIL_DATA()
   interfaceDetailData.cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA)
   resize(interfaceDetailData, size.value)
-  devInfoData = SP_DEVINFO_DATA()
-  devInfoData.cbSize = sizeof(SP_DEVINFO_DATA)
-  if not SetupDiGetDeviceInterfaceDetail(handle, byref(interfaceData), byref(interfaceDetailData), size, None, byref(devInfoData)):
+  if not SetupDiGetDeviceInterfaceDetail(handle, byref(interfaceData), byref(interfaceDetailData), size, None, None):
    raise Exception('SetupDiGetDeviceInterfaceDetail failed')
 
-  yield devInfoData.DevInst, wstring_at(byref(interfaceDetailData, SP_DEVICE_INTERFACE_DETAIL_DATA.DevicePath.offset))
+  yield wstring_at(byref(interfaceDetailData, SP_DEVICE_INTERFACE_DETAIL_DATA.DevicePath.offset))
+  i += 1
+
+def _listDeviceClass(guid):
+ handle = SetupDiGetClassDevs(byref(guid), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT)
+ if handle == INVALID_HANDLE_VALUE:
+  raise Exception('SetupDiGetClassDevs failed')
+
+ devInfoData = SP_DEVINFO_DATA()
+ devInfoData.cbSize = sizeof(SP_DEVINFO_DATA)
+ i = 0
+ while SetupDiEnumDeviceInfo(handle, i, byref(devInfoData)):
+  yield devInfoData.DevInst, (_getDeviceProperty(handle, devInfoData, SPDRP_HARDWAREID), list(_listDeviceInterfaces(handle, devInfoData, guid)) if guid else [])
   i += 1
 
  if not SetupDiDestroyDeviceInfoList(handle):
@@ -166,9 +189,9 @@ def _listDevices():
  """Lists all detected mass storage devices"""
  # Similar to what calibre does: https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/winusb.py
  logicalDrives = dict((_getStorageNumber(l), l) for l in _listLogicalDrives())
- disks = dict(_listDeviceClass(GUID_DEVINTERFACE_DISK))
+ disks = {dev: path for dev, (id, paths) in _listDeviceClass(GUID_DEVINTERFACE_DISK) for path in paths}
  usbDevices = dict(_listDeviceClass(GUID_DEVINTERFACE_USB_DEVICE))
- for usbInst, usbPath in usbDevices.items():
+ for usbInst, (usbPath, _) in usbDevices.items():
   for diskInst in _listDeviceChildren(usbInst):
    if diskInst in disks:
     storageNumber = _getStorageNumber(disks[diskInst])
