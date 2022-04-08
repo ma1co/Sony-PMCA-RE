@@ -61,22 +61,24 @@ CM_Get_Sibling.argtypes = [POINTER(DWORD), DWORD, ULONG]
 GUID_DEVINTERFACE_USB_DEVICE = GUID('{A5DCBF10-6530-11D2-901F-00C04FB951ED}')
 GUID_DEVINTERFACE_DISK = GUID('{53F56307-B6BF-11D0-94F2-00A0C91EFB8B}')
 DIGCF_PRESENT = 2
+DIGCF_ALLCLASSES = 4
 DIGCF_DEVICEINTERFACE = 16
 SPDRP_HARDWAREID = 1
+SPDRP_SERVICE = 4
 
 INVALID_HANDLE_VALUE = 0x100 ** sizeof(HANDLE) - 1
 
 def _getDeviceProperty(handle, devInfoData, prop):
  buf = create_unicode_buffer(512)
  if not SetupDiGetDeviceRegistryProperty(handle, byref(devInfoData), prop, None, buf, len(buf), None):
-  raise Exception('SetupDiGetDeviceRegistryProperty failed')
+  return ''
  return buf.value
 
 def _listDeviceInterfaces(handle, devInfoData, guid):
  i = 0
  interfaceData = SP_DEVICE_INTERFACE_DATA()
  interfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA)
- while SetupDiEnumDeviceInterfaces(handle, byref(devInfoData), byref(guid), i, byref(interfaceData)):
+ while SetupDiEnumDeviceInterfaces(handle, byref(devInfoData), guid, i, byref(interfaceData)):
   size = c_ulong(0)
   SetupDiGetDeviceInterfaceDetail(handle, byref(interfaceData), None, 0, byref(size), None)
 
@@ -89,8 +91,8 @@ def _listDeviceInterfaces(handle, devInfoData, guid):
   yield wstring_at(byref(interfaceDetailData, SP_DEVICE_INTERFACE_DETAIL_DATA.DevicePath.offset))
   i += 1
 
-def listDeviceClass(guid):
- handle = SetupDiGetClassDevs(byref(guid), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT)
+def listDeviceClass(guid=None, enumerator=None, service=None):
+ handle = SetupDiGetClassDevs(guid, enumerator, None, DIGCF_PRESENT | (DIGCF_ALLCLASSES if not guid else 0) | (DIGCF_DEVICEINTERFACE if not enumerator else 0))
  if handle == INVALID_HANDLE_VALUE:
   raise Exception('SetupDiGetClassDevs failed')
 
@@ -98,7 +100,8 @@ def listDeviceClass(guid):
  devInfoData.cbSize = sizeof(SP_DEVINFO_DATA)
  i = 0
  while SetupDiEnumDeviceInfo(handle, i, byref(devInfoData)):
-  yield devInfoData.DevInst, (_getDeviceProperty(handle, devInfoData, SPDRP_HARDWAREID), list(_listDeviceInterfaces(handle, devInfoData, guid)) if guid else [])
+  if service is None or _getDeviceProperty(handle, devInfoData, SPDRP_SERVICE) == service:
+   yield devInfoData.DevInst, (_getDeviceProperty(handle, devInfoData, SPDRP_HARDWAREID), list(_listDeviceInterfaces(handle, devInfoData, guid)) if guid else [])
   i += 1
 
  if not SetupDiDestroyDeviceInfoList(handle):
