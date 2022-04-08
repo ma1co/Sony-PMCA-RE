@@ -22,7 +22,7 @@ def mkdirs(path):
   pass
 
 bodyFiles = {
- 'MB8AC102': 'libupdaterbody_gen1.so',
+ 'CXD4105':  'libupdaterbody_gen1.so',
  'CXD4115':  'libupdaterbody_gen1.so',
  'CXD4120':  'libupdaterbody_gen1.so',
  'CXD4132':  'libupdaterbody_gen2.so',
@@ -41,6 +41,9 @@ if __name__ == '__main__':
 
  dataDict = {}
  for name, config in devices.items():
+  if config['arch'] == 'MB8AC102':
+   config['arch'] = 'CXD4105'
+
   fsFile = io.BytesIO()
   with open(buildDir + '/' + bodyFiles[config['arch']], 'rb') as f:
    cramfs.writeCramfs([UnixFile(
