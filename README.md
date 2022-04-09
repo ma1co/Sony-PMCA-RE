@@ -31,7 +31,7 @@ pip install -r requirements.txt  # to install the dependencies
 There are three main modes of interfacing with a camera:
 
 ### App Installer
-If the camera supports *PlayMemories Camera Apps (PMCA)*, it is possible to install custom Android apps using this tool. A list of supported cameras can be found [here](https://github.com/ma1co/OpenMemories-Framework/blob/master/docs/Cameras.md).
+If the camera supports *PlayMemories Camera Apps (PMCA)*, it is possible to install custom Android apps using this tool. A list of supported cameras can be found [here](https://openmemories.readthedocs.io/devices.html).
 
 It is recommended to install the [*OpenMemories: Tweak*](https://github.com/ma1co/OpenMemories-Tweak) app. This app allows to tweak settings and to start *telnet* and *adb* servers to execute code on the system.
 
@@ -46,7 +46,7 @@ Sony cameras can boot from a secondary partition for firmware updates. Using a c
 
 This mode does not require any special drivers, the operating system's mass storage USB driver is enough.
 
-A list of supported camera models can be found [here](https://github.com/ma1co/fwtool.py/blob/master/devices.yml). *gen4* models are not compatible, since their firmware is cryptographically signed.
+A list of supported camera models can be found [here](https://openmemories.readthedocs.io/devices.html). Devices based on the CXD90045 and CXD90057 architectures are not compatible, since their firmware is cryptographically signed.
 
 There are two ways to use this:
 * **pmca-gui**: In the *Tweaks* tab, click *Start tweaking (updater mode)*. You can then use the checkboxes to configure your camera's settings.
