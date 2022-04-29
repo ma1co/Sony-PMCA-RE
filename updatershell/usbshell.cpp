@@ -1,7 +1,5 @@
 #include <cstring>
 #include <fcntl.h>
-#include <stdexcept>
-#include <string>
 #include <sys/mount.h>
 #include <unistd.h>
 #include <vector>
@@ -9,7 +7,6 @@
 #include "api/android_data_backup.hpp"
 #include "api/backup.hpp"
 #include "api/bootloader.hpp"
-#include "api/properties.hpp"
 #include "api/tweaks.hpp"
 #include "api/usbcmd.hpp"
 #include "usbshell.hpp"
@@ -18,6 +15,7 @@
 extern "C"
 {
     #include "drivers/backup.h"
+    #include "drivers/backup_senser.h"
     #include "mount.h"
     #include "process.h"
 }
@@ -31,37 +29,9 @@ using namespace std;
 
 const char *android_data_mount_dir = "/mnt";
 
-struct list_entry {
-    int id;
-    void *value;
-};
-
-static list_entry property_list[] = {
-    {*(int *) "MODL", &prop_model_name()},
-    {*(int *) "PROD", &prop_model_code()},
-    {*(int *) "SERN", &prop_serial_number()},
-    {*(int *) "BKRG", &prop_backup_region()},
-    {*(int *) "FIRM", &prop_firmware_version()},
-};
-
-static list_entry tweak_list[] = {
-    {*(int *) "RECL", &tweak_rec_limit()},
-    {*(int *) "RL4K", &tweak_rec_limit_4k()},
-    {*(int *) "LANG", &tweak_language()},
-    {*(int *) "NTSC", &tweak_pal_ntsc_selector()},
-    {*(int *) "UAPP", &tweak_usb_app_installer()},
-    {*(int *) "PROT", &tweak_protection()},
-};
-
-struct usb_tweak_request {
-    int id;
-    int enable;
-};
-
-struct usb_list_response {
-    int id;
-    int status;
-    char value[0xfff4];
+struct usb_memory_read_request {
+    unsigned int offset;
+    unsigned int size;
 };
 
 struct usb_backup_read_request {
@@ -72,6 +42,10 @@ struct usb_backup_write_request {
     int id;
     int size;
     char data[0xfff4];
+};
+
+struct usb_backup_protection_request {
+    int enable;
 };
 
 struct usb_android_unmount_request {
@@ -111,64 +85,6 @@ void usbshell_loop()
         if (request.cmd == *(int *) "TEST") {
             response.result = USB_RESULT_SUCCESS;
             transfer->write(&response, sizeof(response));
-        } else if (request.cmd == *(int *) "PROP") {
-            vector<list_entry> props;
-            for (int i = 0; i < (int) (sizeof(property_list) / sizeof(property_list[0])); i++) {
-                if (((Property *) property_list[i].value)->is_available())
-                    props.push_back(property_list[i]);
-            }
-
-            response.result = props.size();
-            transfer->write(&response, sizeof(response));
-
-            for (vector<list_entry>::iterator it = props.begin(); it != props.end(); it++) {
-                transfer->read(NULL, 0);
-                usb_list_response prop_response;
-                prop_response.id = it->id;
-                strncpy(prop_response.value, ((Property *) it->value)->get_string_value().c_str(), sizeof(prop_response.value));
-                transfer->write(&prop_response, sizeof(prop_response));
-            }
-        } else if (request.cmd == *(int *) "TLST") {
-            vector<list_entry> tweaks;
-            for (int i = 0; i < (int) (sizeof(tweak_list) / sizeof(tweak_list[0])); i++) {
-                if (((Tweak *) tweak_list[i].value)->is_available())
-                    tweaks.push_back(tweak_list[i]);
-            }
-
-            response.result = tweaks.size();
-            transfer->write(&response, sizeof(response));
-
-            for (vector<list_entry>::iterator it = tweaks.begin(); it != tweaks.end(); it++) {
-                transfer->read(NULL, 0);
-                usb_list_response tweak_response;
-                tweak_response.id = it->id;
-                tweak_response.status = ((Tweak *) it->value)->is_enabled();
-                strncpy(tweak_response.value, ((Tweak *) it->value)->get_string_value().c_str(), sizeof(tweak_response.value));
-                transfer->write(&tweak_response, sizeof(tweak_response));
-            }
-        } else if (request.cmd == *(int *) "TSET") {
-            usb_tweak_request *args = (usb_tweak_request *) request.data;
-            Tweak *tweak = NULL;
-            for (int i = 0; i < (int) (sizeof(tweak_list) / sizeof(tweak_list[0])); i++) {
-                if (tweak_list[i].id == args->id) {
-                    tweak = (Tweak *) tweak_list[i].value;
-                    break;
-                }
-            }
-
-            if (tweak && tweak->is_available()) {
-                try {
-                    tweak->set_enabled(args->enable);
-                    response.result = USB_RESULT_SUCCESS;
-                } catch (const backup_protected_error &) {
-                    response.result = USB_RESULT_ERROR_PROTECTION;
-                } catch (...) {
-                    response.result = USB_RESULT_ERROR;
-                }
-            } else {
-                response.result = USB_RESULT_ERROR;
-            }
-            transfer->write(&response, sizeof(response));
         } else if (request.cmd == *(int *) "SHEL") {
             int fd_stdin, fd_stdout;
             const char *args[] = { "sh", "-i", NULL };
@@ -178,15 +94,6 @@ void usbshell_loop()
 
             if (pid >= 0)
                 usb_transfer_socket(transfer, fd_stdin, fd_stdout);
-        } else if (request.cmd == *(int *) "EXEC") {
-            int fd_stdout;
-            const char *args[] = { "sh", "-c", request.data, NULL };
-            int pid = popen2((char *const *) args, NULL, &fd_stdout);
-            response.result = pid >= 0 ? USB_RESULT_SUCCESS : pid;
-            transfer->write(&response, sizeof(response));
-
-            if (pid >= 0)
-                usb_transfer_socket(transfer, 0, fd_stdout);
         } else if (request.cmd == *(int *) "PULL") {
             int size = get_file_size(request.data);
             int fd = size >= 0 ? open(request.data, O_RDONLY) : -1;
@@ -202,20 +109,11 @@ void usbshell_loop()
 
             if (fd >= 0)
                 usb_transfer_write_fd(transfer, fd);
-        } else if (request.cmd == *(int *) "STAT") {
-            response.result = get_file_size(request.data);
+        } else if (request.cmd == *(int *) "RMEM") {
+            usb_memory_read_request *args = (usb_memory_read_request *) request.data;
+            response.result = USB_RESULT_SUCCESS;
             transfer->write(&response, sizeof(response));
-        } else if (request.cmd == *(int *) "BROM") {
-            vector<char> rom;
-            try {
-                rom = bootloader_read_rom();
-                response.result = rom.size();
-            } catch (const bootloader_error &) {
-                response.result = USB_RESULT_ERROR;
-            }
-            transfer->write(&response, sizeof(response));
-            if (response.result != USB_RESULT_ERROR)
-                usb_transfer_read_buffer(transfer, &rom[0], rom.size());
+            usb_transfer_read_mem(transfer, args->offset, args->size);
         } else if (request.cmd == *(int *) "BLDR") {
             int fd = open(BOOTLOADER_DEV, O_RDONLY);
             vector<bootloader_block> blocks;
@@ -267,6 +165,39 @@ void usbshell_loop()
         } else if (request.cmd == *(int *) "BKSY") {
             Backup_sync_all();
             response.result = USB_RESULT_SUCCESS;
+            transfer->write(&response, sizeof(response));
+        } else if (request.cmd == *(int *) "BKST") {
+            backup_senser_preset_data_status status;
+            if (!backup_senser_cmd_preset_data_status(&status)) {
+                response.result = sizeof(status);
+                transfer->write(&response, sizeof(response));
+                transfer->read(NULL, 0);
+                transfer->write(&status, sizeof(status));
+            } else {
+                response.result = USB_RESULT_ERROR;
+                transfer->write(&response, sizeof(response));
+            }
+        } else if (request.cmd == *(int *) "BKDA") {
+            try {
+                vector<char> data = Backup_read_data();
+                response.result = data.size();
+                transfer->write(&response, sizeof(response));
+                usb_transfer_read_buffer(transfer, &data[0], data.size());
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
+                transfer->write(&response, sizeof(response));
+            }
+        } else if (request.cmd == *(int *) "BKPR") {
+            usb_backup_protection_request *args = (usb_backup_protection_request *) request.data;
+            response.result = USB_RESULT_ERROR;
+            try {
+                if (tweak_protection().is_available()) {
+                    tweak_protection().set_enabled(!args->enable);
+                    response.result = USB_RESULT_SUCCESS;
+                }
+            } catch (...) {
+                // ignore
+            }
             transfer->write(&response, sizeof(response));
 #endif
 #ifdef API_android_data_backup

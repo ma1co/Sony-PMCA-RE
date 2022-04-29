@@ -2,7 +2,7 @@ import select
 import signal
 import threading
 
-from ...util import *
+from ....util import *
 
 UsbSequenceTransferHeader = Struct('UsbSequenceTransferHeader', [
  ('sequence', Struct.INT32),
@@ -46,16 +46,18 @@ USB_SOCKET_BUFFER_SIZE = 0xfff4
 
 
 def usb_transfer_socket(transfer, conn):
+ interruptible = threading.current_thread() is threading.main_thread()
  closed = threading.Event()
  if not conn:
   closed.set()
 
- def sigHandler(sig, frame):
-  if not closed.isSet():
-   print("Aborting...")
-   conn.close()
-   closed.set()
- oldHandler = signal.signal(signal.SIGINT, sigHandler)
+ if interruptible:
+  def sigHandler(sig, frame):
+   if not closed.isSet():
+    print("Aborting...")
+    conn.close()
+    closed.set()
+  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
  rxBuf = b''
  txBuf = b''
@@ -110,17 +112,20 @@ def usb_transfer_socket(transfer, conn):
   if rxSize > 0:
    rxBuf = data
 
- signal.signal(signal.SIGINT, oldHandler)
+ if interruptible:
+  signal.signal(signal.SIGINT, oldHandler)
 
 
 def usb_transfer_read(transfer, f, total=0, progress=None):
+ interruptible = threading.current_thread() is threading.main_thread()
  abortFlag = threading.Event()
 
- def sigHandler(sig, frame):
-  if not abortFlag.isSet():
-   print("Aborting...")
-   abortFlag.set()
- oldHandler = signal.signal(signal.SIGINT, sigHandler)
+ if interruptible:
+  def sigHandler(sig, frame):
+   if not abortFlag.isSet():
+    print("Aborting...")
+    abortFlag.set()
+  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
  written = 0
  while True:
@@ -133,17 +138,20 @@ def usb_transfer_read(transfer, f, total=0, progress=None):
   if msg.size == 0 or status.status == USB_STATUS_CANCEL:
    break
 
- signal.signal(signal.SIGINT, oldHandler)
+ if interruptible:
+  signal.signal(signal.SIGINT, oldHandler)
 
 
 def usb_transfer_write(transfer, f, total=0, progress=None):
+ interruptible = threading.current_thread() is threading.main_thread()
  flag = threading.Event()
 
- def sigHandler(sig, frame):
-  if not flag.isSet():
-   print("Aborting...")
-   flag.set()
- oldHandler = signal.signal(signal.SIGINT, sigHandler)
+ if interruptible:
+  def sigHandler(sig, frame):
+   if not flag.isSet():
+    print("Aborting...")
+    flag.set()
+  oldHandler = signal.signal(signal.SIGINT, sigHandler)
 
  written = 0
  while True:
@@ -158,4 +166,5 @@ def usb_transfer_write(transfer, f, total=0, progress=None):
   if len(data) == 0 or status.status == USB_STATUS_CANCEL:
    break
 
- signal.signal(signal.SIGINT, oldHandler)
+ if interruptible:
+  signal.signal(signal.SIGINT, oldHandler)

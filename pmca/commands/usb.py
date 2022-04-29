@@ -13,12 +13,13 @@ from .. import firmware
 from .. import installer
 from ..io import *
 from ..marketserver.server import *
+from ..platform import *
+from ..platform.backend.usb import *
 from ..usb import *
 from ..usb.driver import *
 from ..usb.driver.generic import *
 from ..usb.sensershell import *
 from ..usb.sony import *
-from ..usb.usbshell import *
 from ..util import http
 
 scriptRoot = getattr(sys, '_MEIPASS', os.path.dirname(__file__) + '/../..')
@@ -371,7 +372,7 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
     def complete(device):
      print('Starting updater shell...')
      print('')
-     UpdaterShell(device).run()
+     CameraShell(UsbPlatformBackend(device)).run()
    firmwareUpdateCommandInternal(driver, device, io.BytesIO(fdat), 0, len(fdat), complete)
 
 

@@ -10,6 +10,7 @@
 extern "C"
 {
     #include "errno.h"
+    #include "drivers/mem.h"
 }
 
 using namespace std;
@@ -202,6 +203,28 @@ void usb_transfer_read_buffer(UsbTransfer *transfer, const char *buffer, size_t 
     for (size_t i = 0; i < size; i += sizeof(data_msg.data)) {
         data_msg.size = (size - i) >= sizeof(data_msg.data) ? sizeof(data_msg.data) : (size - i);
         memcpy(data_msg.data, buffer + i, data_msg.size);
+
+        transfer->read(&status_msg, sizeof(status_msg));
+        transfer->write(&data_msg, sizeof(data_msg));
+
+        if (status_msg.status == USB_STATUS_CANCEL)
+            break;
+    }
+
+    data_msg.size = 0;
+    transfer->read(&status_msg, sizeof(status_msg));
+    transfer->write(&data_msg, sizeof(data_msg));
+}
+
+void usb_transfer_read_mem(UsbTransfer *transfer, off_t offset, size_t size)
+{
+    usb_status_msg status_msg;
+    usb_data_msg data_msg;
+
+    for (size_t i = 0; i < size; i += sizeof(data_msg.data)) {
+        data_msg.size = (size - i) >= sizeof(data_msg.data) ? sizeof(data_msg.data) : (size - i);
+        if (mem_read(data_msg.data, offset + i, data_msg.size))
+            throw runtime_error("Read error");
 
         transfer->read(&status_msg, sizeof(status_msg));
         transfer->write(&data_msg, sizeof(data_msg));

@@ -6,8 +6,9 @@ import webbrowser
 
 import config
 from pmca.commands.usb import *
+from pmca.platform.backend.usb import *
+from pmca.platform.tweaks import *
 from pmca.ui import *
-from pmca.usb.usbshell import *
 
 if getattr(sys, 'frozen', False):
  from frozenversion import version
@@ -105,7 +106,7 @@ class FirmwareUpdateTask(BackgroundTask):
 
 
 class StartUpdaterShellTask(BackgroundTask):
- """Task to run updaterShellCommand() and open UpdaterShellDialog"""
+ """Task to run updaterShellCommand() and open TweakDialog"""
  def doBefore(self):
   self.ui.startButton.config(state=DISABLED)
 
@@ -117,32 +118,32 @@ class StartUpdaterShellTask(BackgroundTask):
    traceback.print_exc()
 
  def launchShell(self, dev):
-  shell = UpdaterShellBackend(dev)
-  shell.waitReady()
+  backend = UsbPlatformBackend(dev)
+  backend.start()
 
   endFlag = threading.Event()
   root = self.ui.master
-  root.run(lambda: root.after(0, lambda: UpdaterShellDialog(root, shell, endFlag)))
+  root.run(lambda: root.after(0, lambda: TweakDialog(root, TweakInterface(backend), endFlag)))
   endFlag.wait()
 
   try:
-   shell.syncBackup()
+   backend.syncBackup()
   except:
    print('Cannot sync backup')
-  shell.exit()
+  backend.stop()
 
  def doAfter(self, result):
   self.ui.startButton.config(state=NORMAL)
 
 
 class TweakStatusTask(BackgroundTask):
- """Task to run UpdaterShellBackend.getTweakStatus()"""
+ """Task to run TweakInterface.getTweaks()"""
  def doBefore(self):
   self.ui.setState(DISABLED)
 
  def do(self, arg):
   try:
-   return list(self.ui.shell.getTweakStatus())
+   return list(self.ui.tweakInterface.getTweaks())
   except Exception:
    traceback.print_exc()
 
@@ -152,7 +153,7 @@ class TweakStatusTask(BackgroundTask):
 
 
 class TweakSetTask(BackgroundTask):
- """Task to run UpdaterShellBackend.setTweakEnabled()"""
+ """Task to run TweakInterface.setEnabled()"""
  def __init__(self, ui, id, var):
   BackgroundTask.__init__(self, ui)
   self.id = id
@@ -164,7 +165,7 @@ class TweakSetTask(BackgroundTask):
 
  def do(self, arg):
   try:
-   self.ui.shell.setTweakEnabled(self.id, arg)
+   self.ui.tweakInterface.setEnabled(self.id, arg)
   except Exception:
    traceback.print_exc()
 
@@ -315,9 +316,9 @@ class UpdaterShellFrame(UiFrame):
   self.startButton.pack(fill=X)
 
 
-class UpdaterShellDialog(UiDialog):
- def __init__(self, parent, shell, endFlag=None):
-  self.shell = shell
+class TweakDialog(UiDialog):
+ def __init__(self, parent, tweakInterface, endFlag=None):
+  self.tweakInterface = tweakInterface
   self.endFlag = endFlag
   UiDialog.__init__(self, parent, "Updater mode tweaks")
 
