@@ -956,7 +956,9 @@ class SonySenserCamera(object):
  ])
 
  SONY_PRODUCT_INFO_READ_HASP = (0, 0x001f)
+ SONY_PRODUCT_INFO_TERM_CHANGE = (0, 0x00f1)
 
+ SONY_ADJUST_SENSER_TERM_MODE = (0x601, 0x1f)
  SONY_ADJUST_BACKUP_READ = (0x603, 1)
  SONY_ADJUST_BACKUP_WRITE = (0x603, 2)
  SONY_ADJUST_BACKUP_SAVE = (0x603, 3)
@@ -1020,9 +1022,9 @@ class SonySenserCamera(object):
   self._sendMemoryDumpPacket(base, len(data), data)
 
  def setTerminalEnable(self, enable):
-  self._sendProductInfoPacket(0, 0xf1, dump8(1 if enable else 0))
+  self._sendProductInfoPacket(*self.SONY_PRODUCT_INFO_TERM_CHANGE, dump8(1 if enable else 0))
   try:
-   self._sendAdjustControlPacket(0x601, 0x1f, dump8(2 if enable else 0))
+   self._sendAdjustControlPacket(*self.SONY_ADJUST_SENSER_TERM_MODE, dump8(2 if enable else 0))
   except:
    pass
 
