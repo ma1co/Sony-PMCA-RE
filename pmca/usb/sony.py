@@ -957,6 +957,13 @@ class SonySenserCamera(object):
 
  SONY_PRODUCT_INFO_READ_HASP = (0, 0x001f)
 
+ SONY_ADJUST_BACKUP_READ = (0x603, 1)
+ SONY_ADJUST_BACKUP_WRITE = (0x603, 2)
+ SONY_ADJUST_BACKUP_SAVE = (0x603, 3)
+ SONY_ADJUST_BACKUP_PDT_READ = (0x603, 5)
+ SONY_ADJUST_BACKUP_PDT_STAT = (0x603, 6)
+ SONY_ADJUST_BACKUP_ID1 = (0x603, 15)
+
  SONY_FILE_CONTROL_WRITE = 1
  SONY_FILE_CONTROL_READ = 2
  SONY_FILE_CONTROL_DELETE = 3
@@ -1018,3 +1025,21 @@ class SonySenserCamera(object):
    self._sendAdjustControlPacket(0x601, 0x1f, dump8(2 if enable else 0))
   except:
    pass
+
+ def readBackup(self, id):
+  return self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_READ, dump32le(id))
+
+ def writeBackup(self, id, data):
+  self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_WRITE, dump32le(id) + data)
+
+ def saveBackup(self, subsystem):
+  self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_SAVE, dump16le(subsystem))
+
+ def getBackupPresetData(self, fromMemory):
+  return self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_PDT_READ, dump8(1 if fromMemory else 0))
+
+ def getBackupPresetDataStatus(self):
+  return self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_PDT_STAT)
+
+ def setBackupId1(self, value):
+  return parse8(self._sendAdjustControlPacket(*self.SONY_ADJUST_BACKUP_ID1, dump8(1 if value else 0)))

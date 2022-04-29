@@ -2,7 +2,7 @@ import select
 
 from . import *
 
-class SenserPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPlatformBackend):
+class SenserPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPlatformBackend, BackupPlatformBackend):
  def __init__(self, dev):
   self.dev = dev
 
@@ -24,6 +24,24 @@ class SenserPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPla
 
  def readMemory(self, offset, size, f):
   self.dev.readMemory(offset, size, f)
+
+ def readBackup(self, id):
+  return self.dev.readBackup(id)
+
+ def writeBackup(self, id, data):
+  self.dev.writeBackup(id, data)
+
+ def syncBackup(self):
+  self.dev.saveBackup(0)
+
+ def getBackupStatus(self):
+  return self.dev.getBackupPresetDataStatus()
+
+ def getBackupData(self):
+  return self.dev.getBackupPresetData(True)
+
+ def setBackupProtection(self, enable):
+  self.dev.setBackupId1(enable)
 
  def transferSenserTerminal(self, conn):
   if not conn:
