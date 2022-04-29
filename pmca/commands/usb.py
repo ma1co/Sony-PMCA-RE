@@ -652,7 +652,7 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
       print('%-20s%s' % (k + ': ', v))
 
 
-def senserShellCommand(driverName=None):
+def senserShellCommand(driverName=None, complete=None):
  if driverName is None and sys.platform != 'win32':
   driverName = 'libusb'
  with importDriver(driverName) as driver:
@@ -692,9 +692,12 @@ def senserShellCommand(driverName=None):
    dev.start()
    dev.authenticate()
    try:
-    print('Starting service shell...')
-    print('')
-    CameraShell(SenserPlatformBackend(SonySenserCamera(device))).run()
+    if complete:
+     complete(SonySenserCamera(device))
+    else:
+     print('Starting service shell...')
+     print('')
+     CameraShell(SenserPlatformBackend(SonySenserCamera(device))).run()
    finally:
     dev.stop()
    print('Done')

@@ -6,6 +6,7 @@ import webbrowser
 
 import config
 from pmca.commands.usb import *
+from pmca.platform.backend.senser import *
 from pmca.platform.backend.usb import *
 from pmca.platform.tweaks import *
 from pmca.ui import *
@@ -105,20 +106,22 @@ class FirmwareUpdateTask(BackgroundTask):
   self.ui.fwUpdateButton.config(state=NORMAL)
 
 
-class StartUpdaterShellTask(BackgroundTask):
- """Task to run updaterShellCommand() and open TweakDialog"""
+class StartPlatformShellTask(BackgroundTask):
  def doBefore(self):
-  self.ui.startButton.config(state=DISABLED)
+  self.ui.startUpdaterShellButton.config(state=DISABLED)
+  self.ui.startSenserShellButton.config(state=DISABLED)
 
  def do(self, arg):
   try:
    print('')
-   updaterShellCommand(complete=self.launchShell)
+   self.start()
   except Exception:
    traceback.print_exc()
 
- def launchShell(self, dev):
-  backend = UsbPlatformBackend(dev)
+ def start(self):
+  pass
+
+ def launchShell(self, backend):
   backend.start()
 
   endFlag = threading.Event()
@@ -133,7 +136,20 @@ class StartUpdaterShellTask(BackgroundTask):
   backend.stop()
 
  def doAfter(self, result):
-  self.ui.startButton.config(state=NORMAL)
+  self.ui.startUpdaterShellButton.config(state=NORMAL)
+  self.ui.startSenserShellButton.config(state=NORMAL)
+
+
+class StartUpdaterShellTask(StartPlatformShellTask):
+ """Task to run updaterShellCommand() and open TweakDialog"""
+ def start(self):
+  updaterShellCommand(complete=lambda dev: self.launchShell(UsbPlatformBackend(dev)))
+
+
+class StartSenserShellTask(StartPlatformShellTask):
+ """Task to run senserShellCommand() and open TweakDialog"""
+ def start(self):
+  senserShellCommand(complete=lambda dev: self.launchShell(SenserPlatformBackend(dev)))
 
 
 class TweakStatusTask(BackgroundTask):
@@ -312,8 +328,11 @@ class UpdaterShellFrame(UiFrame):
  def __init__(self, parent, **kwargs):
   UiFrame.__init__(self, parent, **kwargs)
 
-  self.startButton = Button(self, text='Start tweaking (updater mode)', command=StartUpdaterShellTask(self).run, padding=5)
-  self.startButton.pack(fill=X)
+  self.startUpdaterShellButton = Button(self, text='Start tweaking (updater mode)', command=StartUpdaterShellTask(self).run, padding=5)
+  self.startUpdaterShellButton.pack(fill=X)
+
+  self.startSenserShellButton = Button(self, text='Start tweaking (service mode)', command=StartSenserShellTask(self).run, padding=5)
+  self.startSenserShellButton.pack(fill=X, pady=(5, 0))
 
 
 class TweakDialog(UiDialog):
