@@ -987,9 +987,9 @@ class SonySenserCamera(object):
    raise Exception('Senser file control error %d' % res)
   return data
 
- def _sendMemoryDumpPacket(self, base, size, data=b''):
+ def _sendMemoryDumpPacket(self, base, size, data=b'', outFile=None):
   header = self.MemoryDumpHeader.pack(base=base, size=size)
-  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_MemoryDump, header + data)
+  res, data = self.dev.sendSenserPacket(self.SONY_PFUNC_MemoryDump, header + data, outFile)
   if res not in [0, 1]:
    raise Exception('Senser memory dump error %d' % res)
   return data
@@ -1006,8 +1006,8 @@ class SonySenserCamera(object):
  def deleteFile(self, filename):
   self._sendFileControlPacket(self.SONY_FILE_CONTROL_DELETE, filename)
 
- def readMemory(self, base, size):
-  return self._sendMemoryDumpPacket(base, size)
+ def readMemory(self, base, size, outFile=None):
+  return self._sendMemoryDumpPacket(base, size, b'', outFile)
 
  def writeMemory(self, base, data):
   self._sendMemoryDumpPacket(base, len(data), data)

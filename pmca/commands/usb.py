@@ -14,11 +14,11 @@ from .. import installer
 from ..io import *
 from ..marketserver.server import *
 from ..platform import *
+from ..platform.backend.senser import *
 from ..platform.backend.usb import *
 from ..usb import *
 from ..usb.driver import *
 from ..usb.driver.generic import *
-from ..usb.sensershell import *
 from ..usb.sony import *
 from ..util import http
 
@@ -692,7 +692,9 @@ def senserShellCommand(driverName=None):
    dev.start()
    dev.authenticate()
    try:
-    SenserShell(SonySenserCamera(device)).run()
+    print('Starting service shell...')
+    print('')
+    CameraShell(SenserPlatformBackend(SonySenserCamera(device))).run()
    finally:
     dev.stop()
    print('Done')
