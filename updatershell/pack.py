@@ -44,6 +44,9 @@ if __name__ == '__main__':
   if config['arch'] == 'MB8AC102':
    config['arch'] = 'CXD4105'
 
+  if config['arch'] not in bodyFiles:
+   continue
+
   fsFile = io.BytesIO()
   with open(buildDir + '/' + bodyFiles[config['arch']], 'rb') as f:
    cramfs.writeCramfs([UnixFile(
