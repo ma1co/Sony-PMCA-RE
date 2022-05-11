@@ -1,6 +1,7 @@
+from http.server import BaseHTTPRequestHandler
+from socketserver import TCPServer
 from threading import Thread
 import tlslite
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from . import *
 from .. import spk
@@ -35,13 +36,12 @@ class TLSConnection(tlslite.TLSConnection):
   return super(TLSConnection, self).recv_into(b) or 0
 
 
-class LocalMarketServer(HTTPServer):
+class LocalMarketServer(TCPServer):
  """A local https server to communicate with the camera"""
+ allow_reuse_address = True
 
  def __init__(self, certFile, host='127.0.0.1', port=4443):
-  HTTPServer.__init__(self, (host, port), HttpHandler)
-  self.host = host
-  self.port = port
+  super(LocalMarketServer, self).__init__((host, port), HttpHandler)
   self.url = 'https://' + host + '/'
   self.apk = None
   self.result = None

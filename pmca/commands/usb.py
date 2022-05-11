@@ -69,7 +69,7 @@ def installApp(dev, apkFile=None, appPackage=None, outFile=None):
 
   print('Starting communication')
   # Point the camera to the web api
-  result = installer.install(SonyAppInstallCamera(dev), server.host, server.port, xpdData, printStatus)
+  result = installer.install(SonyAppInstallCamera(dev), *server.server_address, xpdData, printStatus)
   if result.code != 0:
    raise Exception('Communication error %d: %s' % (result.code, result.message))
 
