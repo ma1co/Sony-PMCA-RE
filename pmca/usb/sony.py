@@ -838,6 +838,12 @@ class SonySenserDevice(SonyUsbDevice):
   super(SonySenserDevice, self).__init__(driver)
   self._sequence = 1
 
+ def _readAll(self, n):
+  data = b''
+  while len(data) < n:
+   data += self.driver.read(n - len(data))
+  return data
+
  def sendSenserPacket(self, pFunc, data, oData=None):
   while data != b'':
    header = self.SenserPacketHeader.pack(size=len(data), pFunc=pFunc, sequence=self._sequence, version=0, miconType=0, offsetType=0, response=0)
@@ -859,7 +865,7 @@ class SonySenserDevice(SonyUsbDevice):
    chunkLen = self.SenserChunkSize - minSize
    while done < dataLen:
     l = min(dataLen - done, chunkLen)
-    outData.write(self.driver.read(l))
+    outData.write(self._readAll(l))
     done += l
     if not (l & (self.SenserMinSize - 1)):
      self.driver.read(self.SenserMinSize)
