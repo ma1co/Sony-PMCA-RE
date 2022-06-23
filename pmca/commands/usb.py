@@ -1,3 +1,4 @@
+import contextlib
 import io
 import json
 import os
@@ -109,7 +110,7 @@ def checkApk(apkFile):
   print('Warning: Invalid apk file')
 
 
-class UsbDriverList:
+class UsbDriverList(contextlib.AbstractContextManager):
  def __init__(self, *contexts):
   self._contexts = contexts
   self._drivers = []

@@ -1,5 +1,6 @@
 import abc
 from collections import namedtuple
+import contextlib
 
 from ...util import *
 
@@ -49,7 +50,7 @@ class BaseMtpDriver(BaseUsbDriver, abc.ABC):
   pass
 
 
-class BaseUsbContext(abc.ABC):
+class BaseUsbContext(contextlib.AbstractContextManager, abc.ABC):
  def __init__(self, name, classType):
   self.name = name
   self.classType = classType

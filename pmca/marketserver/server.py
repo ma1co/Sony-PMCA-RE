@@ -1,3 +1,4 @@
+import contextlib
 from http.server import BaseHTTPRequestHandler
 from socketserver import TCPServer
 from threading import Thread
@@ -94,7 +95,7 @@ class LocalMarketServer(TCPServer):
   handler.output(spk.constants.mimeType, spk.dump(self.apk), 'app%s' % spk.constants.extension)
 
 
-class ServerContext(object):
+class ServerContext(contextlib.AbstractContextManager):
  """Use this in a with statement"""
  def __init__(self, server):
   self._server = server
