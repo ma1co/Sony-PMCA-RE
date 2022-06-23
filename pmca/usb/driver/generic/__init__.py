@@ -174,7 +174,7 @@ class MscBbbDriver(GenericUsbDriver, BaseMscDriver):
 
 class MscCbiDriver(GenericUsbDriver, BaseMscDriver):
  def _writeCommand(self, command):
-  self.backend.classInterfaceRequestOut(0, 0, 0, command)
+  self.backend.classInterfaceRequestOut(0, 0, 0, command.ljust(12, b'\0'))
 
  def sendCommand(self, command):
   self._writeCommand(command)
