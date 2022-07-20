@@ -22,11 +22,12 @@ def mkdirs(path):
   pass
 
 bodyFiles = {
- 'CXD4105':  'libupdaterbody_gen1.so',
- 'CXD4115':  'libupdaterbody_gen1.so',
- 'CXD4120':  'libupdaterbody_gen1.so',
- 'CXD4132':  'libupdaterbody_gen2.so',
- 'CXD90014': 'libupdaterbody_gen3.so',
+ 'CXD4105':     'libupdaterbody_gen1.so',
+ 'CXD4115':     'libupdaterbody_gen1.so',
+ 'CXD4115_ilc': 'libupdaterbody_gen1.so',
+ 'CXD4120':     'libupdaterbody_gen1.so',
+ 'CXD4132':     'libupdaterbody_gen2.so',
+ 'CXD90014':    'libupdaterbody_gen3.so',
 }
 
 if __name__ == '__main__':
@@ -43,12 +44,13 @@ if __name__ == '__main__':
  for name, config in devices.items():
   if config['arch'] == 'MB8AC102':
    config['arch'] = 'CXD4105'
+  key = config['arch'] + ('_' + config['key'] if 'key' in config else '')
 
-  if config['arch'] not in bodyFiles:
+  if key not in bodyFiles:
    continue
 
   fsFile = io.BytesIO()
-  with open(buildDir + '/' + bodyFiles[config['arch']], 'rb') as f:
+  with open(buildDir + '/' + bodyFiles[key], 'rb') as f:
    cramfs.writeCramfs([UnixFile(
     path = '/bodylib/libupdaterbody.so',
     size = -1,
@@ -69,7 +71,6 @@ if __name__ == '__main__':
    fs = fsFile,
   ), fdatFile)
 
-  key = config['arch'] + ('_' + config['key'] if 'key' in config else '')
   data = fdat.encryptFdat(fdatFile, key).read()
   dataDict.setdefault(key, {})[name] = data
 
