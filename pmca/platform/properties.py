@@ -17,7 +17,7 @@ class Property(abc.ABC):
 class BackupProperty(Property):
  def __init__(self, backend, name):
   super(BackupProperty, self).__init__(backend)
-  self._backup = BackupInterface(backend)
+  self._backup = BackupInterface(BackupPlatformDataInterface(backend))
   self.name = name
 
  def _read(self):
@@ -37,7 +37,7 @@ class HexBackupProperty(BackupProperty):
 class BackupRegionProperty(Property):
  def __init__(self, backend):
   super(BackupRegionProperty, self).__init__(backend)
-  self._backup = BackupInterface(backend)
+  self._backup = BackupInterface(BackupPlatformDataInterface(backend))
 
  def get(self):
   return self._backup.getRegion()

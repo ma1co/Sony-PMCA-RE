@@ -1,11 +1,13 @@
 import abc
 from collections import OrderedDict
+import io
 
+from ..backup import *
 from ..util import *
 
 class BaseBackupProp(abc.ABC):
- def __init__(self, backend, size):
-  self.backend = backend
+ def __init__(self, dataInterface, size):
+  self.dataInterface = dataInterface
   self.size = size
 
  @abc.abstractmethod
@@ -18,12 +20,12 @@ class BaseBackupProp(abc.ABC):
 
 
 class BackupProp(BaseBackupProp):
- def __init__(self, backend, id, size):
-  super(BackupProp, self).__init__(backend, size)
+ def __init__(self, dataInterface, id, size):
+  super(BackupProp, self).__init__(dataInterface, size)
   self.id = id
 
  def read(self):
-  data = self.backend.readBackup(self.id)
+  data = self.dataInterface.readProp(self.id)
   if len(data) != self.size:
    raise Exception('Wrong size')
   return data
@@ -31,13 +33,13 @@ class BackupProp(BaseBackupProp):
  def write(self, data):
   if len(data) != self.size:
    raise Exception('Wrong size')
-  self.backend.writeBackup(self.id, data)
+  self.dataInterface.writeProp(self.id, data)
 
 
 class CompoundBackupProp(BaseBackupProp):
- def __init__(self, backend, props):
-  super(CompoundBackupProp, self).__init__(backend, sum(size for id, size in props))
-  self._props = [BackupProp(backend, id, size) for id, size in props]
+ def __init__(self, dataInterface, props):
+  super(CompoundBackupProp, self).__init__(dataInterface, sum(size for id, size in props))
+  self._props = [BackupProp(dataInterface, id, size) for id, size in props]
 
  def read(self):
   return b''.join(prop.read() for prop in self._props)
@@ -50,23 +52,121 @@ class CompoundBackupProp(BaseBackupProp):
    data = data[prop.size:]
 
 
-class BackupInterface:
- BACKUP_PRESET_DATA_OFFSET_VERSION = 0x0c
- BACKUP_PRESET_DATA_OFFSET_ID1 = 0x28
+class BackupDataInterface(abc.ABC):
+ @abc.abstractmethod
+ def getRegion(self):
+  pass
 
+ @abc.abstractmethod
+ def readProp(self, id):
+  pass
+
+ @abc.abstractmethod
+ def writeProp(self, id, data):
+  pass
+
+
+class BackupPlatformDataInterface(BackupDataInterface):
  def __init__(self, backend):
   self.backend = backend
+
+ def getRegion(self):
+  return self.backend.getBackupStatus()[0x14:].decode('latin1').rstrip('\0')
+
+ def readProp(self, id):
+  return self.backend.readBackup(id)
+
+ def writeProp(self, id, data):
+  self.backend.writeBackup(id, data)
+
+
+class BackupFileDataInterface(BackupDataInterface):
+ def __init__(self, file):
+  self.backup = BackupFile(file)
+
+ def getRegion(self):
+  return self.backup.getRegion()
+
+ def readProp(self, id):
+  return self.backup.getProperty(id).data
+
+ def writeProp(self, id, data):
+  self.backup.setProperty(id, data)
+
+ def setProtection(self, enabled):
+  self.backup.setId1(enabled)
+
+ def updateChecksum(self):
+  self.backup.updateChecksum()
+
+class BackupPlatformFileDataInterface(BackupFileDataInterface):
+ def __init__(self, backend):
+  self.backend = backend
+  self.file = io.BytesIO(self.backend.getBackupData())
+  super(BackupPlatformFileDataInterface, self).__init__(self.file)
+
+ def apply(self):
+  self.updateChecksum()
+  data = self.file.getvalue()
+  self.backend.setBackupData(data)
+  if self.backend.getBackupData()[0x100:] != data[0x100:]:
+   raise Exception('Cannot overwrite backup')
+
+
+class BackupPatchDataInterface(BackupPlatformFileDataInterface):
+ def __init__(self, backend):
+  super(BackupPatchDataInterface, self).__init__(backend)
+  self.patch = {}
+
+ def readProp(self, id):
+  if id in self.patch:
+   return self.patch[id]
+  return super(BackupPatchDataInterface, self).readProp(id)
+
+ def writeProp(self, id, data):
+  self.patch[id] = data
+
+ def getPatch(self):
+  return self.patch
+
+ def setPatch(self, patch):
+  self.patch = patch
+
+ def apply(self):
+  if not self.patch:
+   return
+
+  patchAttr = {}
+  for id, data in self.patch.items():
+   p = self.backup.getProperty(id)
+   if p.data != data and p.attr & 1:
+    patchAttr[id] = p.attr
+    self.backup.setPropertyAttr(id, p.attr & ~1)
+   self.backup.setProperty(id, data)
+
+  try:
+   super(BackupPatchDataInterface, self).apply()
+  finally:
+   if patchAttr:
+    for id, attr in patchAttr.items():
+     self.backup.setPropertyAttr(id, attr)
+    super(BackupPatchDataInterface, self).apply()
+
+
+class BackupInterface:
+ def __init__(self, dataInterface):
+  self.dataInterface = dataInterface
   self._props = OrderedDict()
 
-  self.addProp('androidPlatformVersion', BackupProp(backend, 0x01660024, 8))
-  self.addProp('modelCode', BackupProp(backend, 0x00e70000, 5))
-  self.addProp('modelName', BackupProp(backend, 0x003e0005, 16))
-  self.addProp('serialNumber', BackupProp(backend, 0x00e70003, 4))
-  self.addProp('recLimit', CompoundBackupProp(backend, [(0x003c0373 + i, 1) for i in range(3)]))
-  self.addProp('recLimit4k', BackupProp(backend, 0x003c04b6, 2))
-  self.addProp('palNtscSelector', BackupProp(backend, 0x01070148, 1))
-  self.addProp('language', CompoundBackupProp(backend, [(0x010d008f + i, 1) for i in range(35)]))
-  self.addProp('usbAppInstaller', BackupProp(backend, 0x01640001, 1))
+  self.addProp('androidPlatformVersion', BackupProp(dataInterface, 0x01660024, 8))
+  self.addProp('modelCode', BackupProp(dataInterface, 0x00e70000, 5))
+  self.addProp('modelName', BackupProp(dataInterface, 0x003e0005, 16))
+  self.addProp('serialNumber', BackupProp(dataInterface, 0x00e70003, 4))
+  self.addProp('recLimit', CompoundBackupProp(dataInterface, [(0x003c0373 + i, 1) for i in range(3)]))
+  self.addProp('recLimit4k', BackupProp(dataInterface, 0x003c04b6, 2))
+  self.addProp('palNtscSelector', BackupProp(dataInterface, 0x01070148, 1))
+  self.addProp('language', CompoundBackupProp(dataInterface, [(0x010d008f + i, 1) for i in range(35)]))
+  self.addProp('usbAppInstaller', BackupProp(dataInterface, 0x01640001, 1))
 
  def addProp(self, name, prop):
   self._props[name] = prop
@@ -78,14 +178,7 @@ class BackupInterface:
   return self._props[name].write(data)
 
  def getRegion(self):
-  return self.backend.getBackupStatus()[0x14:].decode('latin1').rstrip('\0')
-
- def getProtection(self):
-  data = self.backend.getBackupData()
-  version = data[self.BACKUP_PRESET_DATA_OFFSET_VERSION:self.BACKUP_PRESET_DATA_OFFSET_VERSION+4]
-  if version not in [b'BK%d\0' % i for i in [2, 3, 4]]:
-   raise Exception('Unsupported backup version')
-  return parse32le(data[self.BACKUP_PRESET_DATA_OFFSET_ID1:self.BACKUP_PRESET_DATA_OFFSET_ID1+4]) != 0
+  return self.dataInterface.getRegion()
 
  def getDefaultLanguages(self, region):
   return {

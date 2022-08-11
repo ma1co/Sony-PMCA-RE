@@ -18,7 +18,6 @@ class CameraShell(Shell):
   self.backend = backend
 
   self.addCommand('info', Command(self.info, (), 'Print device info'))
-  self.addCommand('tweak', Command(self.tweak, (), 'Tweak device settings'))
 
   if isinstance(self.backend, ShellPlatformBackend):
    self.addCommand('shell', Command(self.shell, (), 'Start an interactive shell'))
@@ -37,6 +36,8 @@ class CameraShell(Shell):
    self.addCommand('install', Command(self.install, (1,), 'Install the specified android app', '<APKFILE>'))
 
   if isinstance(self.backend, BackupPlatformBackend):
+   self.addCommand('tweak', Command(self.tweak, (), 'Tweak device settings'))
+
    bk = SubCommand()
    bk.addCommand('r', Command(self.readBackup, (1,), 'Read backup property', '<ID>'))
    bk.addCommand('w', ResidueCommand(self.writeBackup, 1, 'Write backup property', '<ID> <DATA>'))
@@ -122,14 +123,6 @@ class CameraShell(Shell):
  def unlockBackup(self):
   self.backend.setBackupProtection(False)
 
- def exit(self):
-  if isinstance(self.backend, BackupPlatformBackend):
-   try:
-    self.backend.syncBackup()
-   except:
-    print('Cannot sync backup')
-  super(CameraShell, self).exit()
-
  def tweak(self):
   tweakInterface = TweakInterface(self.backend)
   while True:
@@ -146,7 +139,7 @@ class CameraShell(Shell):
    try:
     while True:
      try:
-      i = int(input('Enter number of tweak to toggle (0 to finish): '))
+      i = int(input('Enter number of tweak to toggle (0 to apply): '))
       if 0 <= i <= len(tweaks):
        break
      except ValueError:
@@ -156,12 +149,9 @@ class CameraShell(Shell):
     break
 
    if i == 0:
+    tweakInterface.apply()
     break
    else:
-    try:
-     id, desc, status, value = tweaks[i - 1]
-     tweakInterface.setEnabled(id, not status)
-     print('Success')
-    except Exception as e:
-     print('Error: %s' % e)
+    id, desc, status, value = tweaks[i - 1]
+    tweakInterface.setEnabled(id, not status)
     print('')

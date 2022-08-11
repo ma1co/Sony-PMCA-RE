@@ -123,16 +123,16 @@ class StartPlatformShellTask(BackgroundTask):
 
  def launchShell(self, backend):
   backend.start()
+  tweaks = TweakInterface(backend)
 
-  endFlag = threading.Event()
-  root = self.ui.master
-  root.run(lambda: root.after(0, lambda: TweakDialog(root, TweakInterface(backend), endFlag)))
-  endFlag.wait()
+  if next(tweaks.getTweaks(), None):
+   endFlag = threading.Event()
+   root = self.ui.master
+   root.run(lambda: root.after(0, lambda: TweakDialog(root, tweaks, endFlag)))
+   endFlag.wait()
+  else:
+   print('No tweaks available')
 
-  try:
-   backend.syncBackup()
-  except:
-   print('Cannot sync backup')
   backend.stop()
 
  def doAfter(self, result):
@@ -152,42 +152,21 @@ class StartSenserShellTask(StartPlatformShellTask):
   senserShellCommand(complete=lambda dev: self.launchShell(SenserPlatformBackend(dev)))
 
 
-class TweakStatusTask(BackgroundTask):
- """Task to run TweakInterface.getTweaks()"""
+class TweakApplyTask(BackgroundTask):
+ """Task to run TweakInterface.apply()"""
  def doBefore(self):
   self.ui.setState(DISABLED)
 
  def do(self, arg):
   try:
-   return list(self.ui.tweakInterface.getTweaks())
+   print('Applying tweaks...')
+   self.ui.tweakInterface.apply()
   except Exception:
    traceback.print_exc()
 
  def doAfter(self, result):
   self.ui.setState(NORMAL)
-  self.ui.setTweakStatus(result)
-
-
-class TweakSetTask(BackgroundTask):
- """Task to run TweakInterface.setEnabled()"""
- def __init__(self, ui, id, var):
-  BackgroundTask.__init__(self, ui)
-  self.id = id
-  self.var = var
-
- def doBefore(self):
-  self.ui.setState(DISABLED)
-  return self.var.get()
-
- def do(self, arg):
-  try:
-   self.ui.tweakInterface.setEnabled(self.id, arg)
-  except Exception:
-   traceback.print_exc()
-
- def doAfter(self, result):
-  self.ui.setState(NORMAL)
-  self.ui.updateStatus()
+  self.ui.cancel()
 
 
 class InstallerUi(UiRoot):
@@ -349,27 +328,25 @@ class TweakDialog(UiDialog):
   self.boxFrame = Frame(tweakFrame)
   self.boxFrame.pack(fill=BOTH, expand=True)
 
-  self.doneButton = Button(top, text='Done', command=self.cancel, padding=5)
-  self.doneButton.pack(fill=X)
+  self.applyButton = Button(top, text='Apply', command=TweakApplyTask(self).run, padding=5)
+  self.applyButton.pack(fill=X)
 
   self.updateStatus()
 
  def updateStatus(self):
-  TweakStatusTask(self).run()
-
- def setTweakStatus(self, tweaks):
   for child in self.boxFrame.winfo_children():
    child.destroy()
-  if tweaks:
-   for id, desc, status, value in tweaks:
-    var = IntVar(value=status)
-    c = Checkbutton(self.boxFrame, text=desc + '\n' + value, variable=var, command=TweakSetTask(self, id, var).run)
-    c.pack(fill=X)
-  else:
-   Label(self.boxFrame, text='No tweaks available').pack(fill=X)
+  for id, desc, status, value in self.tweakInterface.getTweaks():
+   var = IntVar(value=status)
+   c = Checkbutton(self.boxFrame, text=desc + '\n' + value, variable=var, command=lambda id=id, var=var: self.setTweak(id, var.get()))
+   c.pack(fill=X)
+
+ def setTweak(self, id, enabled):
+  self.tweakInterface.setEnabled(id, enabled)
+  self.updateStatus()
 
  def setState(self, state):
-  for widget in self.boxFrame.winfo_children() + [self.doneButton]:
+  for widget in self.boxFrame.winfo_children() + [self.applyButton]:
    widget.config(state=state)
 
  def cancel(self, event=None):

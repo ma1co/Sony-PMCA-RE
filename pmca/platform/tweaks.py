@@ -5,9 +5,6 @@ from .backup import *
 from ..util import *
 
 class BaseTweak(abc.ABC):
- def __init__(self, backend):
-  self.backend = backend
-
  def available(self):
   try:
    self.enabled()
@@ -28,9 +25,8 @@ class BaseTweak(abc.ABC):
 
 
 class BackupTweak(BaseTweak):
- def __init__(self, backend, name, checkValue):
-  super(BackupTweak, self).__init__(backend)
-  self._backup = BackupInterface(backend)
+ def __init__(self, backup, name, checkValue):
+  self._backup = backup
   self._name = name
   self._checkValue = checkValue
 
@@ -139,32 +135,23 @@ class LanguageTweak(BackupTweak):
   return '%d / %d languages activated' % (sum(1 if l == self.BACKUP_LANG_ENABLED else 0 for l in val), len(val))
 
 
-class ProtectionTweak(BaseTweak):
- def __init__(self, backend):
-  super(ProtectionTweak, self).__init__(backend)
-  self._backup = BackupInterface(self.backend)
-
- def enabled(self):
-  return not self._backup.getProtection()
-
- def setEnabled(self, enabled):
-  self.backend.setBackupProtection(not enabled)
-
- def strValue(self):
-  return 'Protection disabled' if self.enabled() else 'Protection enabled'
-
-
 class TweakInterface:
  def __init__(self, backend):
+  self.backend = backend
   self._tweaks = OrderedDict()
 
-  if isinstance(backend, BackupPlatformBackend):
-   self.addTweak('recLimit', 'Disable video recording limit', RecLimitTweak(backend))
-   self.addTweak('recLimit4k', 'Disable 4K video recording limit', RecLimit4kTweak(backend))
-   self.addTweak('language', 'Unlock all languages', LanguageTweak(backend))
-   self.addTweak('palNtscSelector', 'Enable PAL / NTSC selector & warning', BooleanBackupTweak(backend, 'palNtscSelector'))
-   self.addTweak('usbAppInstaller', 'Enable USB app installer', BooleanBackupTweak(backend, 'usbAppInstaller'))
-   self.addTweak('protection', 'Unlock protected settings', ProtectionTweak(backend))
+  try:
+   self.backupPatch = BackupPatchDataInterface(self.backend)
+  except:
+   self.backupPatch = None
+   return
+
+  backup = BackupInterface(self.backupPatch)
+  self.addTweak('recLimit', 'Disable video recording limit', RecLimitTweak(backup))
+  self.addTweak('recLimit4k', 'Disable 4K video recording limit', RecLimit4kTweak(backup))
+  self.addTweak('language', 'Unlock all languages', LanguageTweak(backup))
+  self.addTweak('palNtscSelector', 'Enable PAL / NTSC selector & warning', BooleanBackupTweak(backup, 'palNtscSelector'))
+  self.addTweak('usbAppInstaller', 'Enable USB app installer', BooleanBackupTweak(backup, 'usbAppInstaller'))
 
  def addTweak(self, name, desc, tweak):
   self._tweaks[name] = (desc, tweak)
@@ -185,3 +172,10 @@ class TweakInterface:
   for name, (desc, tweak) in self._tweaks.items():
    if tweak.available():
     yield name, desc, tweak.enabled(), tweak.strValue()
+
+ def apply(self):
+  if self.backupPatch:
+   patch = BackupPatchDataInterface(self.backend)
+   patch.setPatch(self.backupPatch.getPatch())
+   patch.setProtection(True)
+   patch.apply()
