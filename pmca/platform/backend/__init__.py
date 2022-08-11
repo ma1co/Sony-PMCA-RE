@@ -68,5 +68,9 @@ class BackupPlatformBackend(PlatformBackend, abc.ABC):
   pass
 
  @abc.abstractmethod
+ def setBackupData(self, data):
+  pass
+
+ @abc.abstractmethod
  def setBackupProtection(self, enable):
   pass

@@ -40,6 +40,9 @@ class SenserPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPla
  def getBackupData(self):
   return self.dev.getBackupPresetData(True)
 
+ def setBackupData(self, data):
+  self.dev.setBackupPresetData(2, data)
+
  def setBackupProtection(self, enable):
   self.dev.setBackupId1(enable)
 
