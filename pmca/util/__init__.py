@@ -50,7 +50,14 @@ class Struct(object):
   self.size = struct.calcsize(self.format)
 
  def unpack(self, data, offset = 0):
-  return self.tuple(*struct.unpack_from(self.format, data, offset))
+  if isinstance(data, bytes):
+   data = data[offset:offset+self.size]
+  else:
+   data.seek(offset)
+   data = data.read(self.size)
+  if len(data) < self.size:
+   return None
+  return self.tuple._make(struct.unpack_from(self.format, data))
 
  def pack(self, **kwargs):
   return struct.pack(self.format, *self.tuple(**kwargs))

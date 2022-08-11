@@ -2,6 +2,7 @@
 """A command line application to install apps on Android-enabled Sony cameras"""
 import argparse
 
+from pmca.commands.backup import *
 from pmca.commands.market import *
 from pmca.commands.usb import *
 from pmca import spk
@@ -59,6 +60,8 @@ def main():
  wifi.add_argument('-m', dest='multi', action='store_true', help='Read/Write "Multi-WiFi" settings')
  wifi.add_argument('-f', dest='file', type=argparse.FileType('w'), help='store current settings to file')
  wifi.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program camera settings from file')
+ printBackup = subparsers.add_parser('print_backup', description='Print the contents of a Backup.bin file')
+ printBackup.add_argument('backupFile', metavar='Backup.bin', type=argparse.FileType('rb'), help='backup file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -91,6 +94,8 @@ def main():
   streamingCommand(args.write, args.file, args.driver)
  elif args.command == 'wifi':
   wifiCommand(args.write, args.file, args.multi, args.driver)
+ elif args.command == 'print_backup':
+  printBackupCommand(args.backupFile)
  else:
   parser.print_usage()
 
