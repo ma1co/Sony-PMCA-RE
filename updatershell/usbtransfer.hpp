@@ -24,4 +24,5 @@ void usb_transfer_socket(UsbTransfer *transfer, int fd_in, int fd_out);
 void usb_transfer_read_fd(UsbTransfer *transfer, int fd);
 void usb_transfer_write_fd(UsbTransfer *transfer, int fd);
 void usb_transfer_read_buffer(UsbTransfer *transfer, const char *buffer, size_t size);
+void usb_transfer_write_buffer(UsbTransfer *transfer, char *buffer, size_t size);
 void usb_transfer_read_mem(UsbTransfer *transfer, off_t offset, size_t size);

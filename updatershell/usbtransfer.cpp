@@ -216,6 +216,30 @@ void usb_transfer_read_buffer(UsbTransfer *transfer, const char *buffer, size_t 
     transfer->write(&data_msg, sizeof(data_msg));
 }
 
+void usb_transfer_write_buffer(UsbTransfer *transfer, char *buffer, size_t size)
+{
+    usb_status_msg status_msg = {0};
+    usb_data_msg data_msg;
+
+    while (1) {
+        transfer->read(&data_msg, sizeof(data_msg));
+        transfer->write(&status_msg, sizeof(status_msg));
+
+        if (data_msg.size > size)
+            throw runtime_error("Too much data received");
+
+        memcpy(buffer, data_msg.data, data_msg.size);
+        buffer += data_msg.size;
+        size -= data_msg.size;
+
+        if (data_msg.size == 0)
+            break;
+    }
+
+    if (size != 0)
+        throw runtime_error("Not enough data received");
+}
+
 void usb_transfer_read_mem(UsbTransfer *transfer, off_t offset, size_t size)
 {
     usb_status_msg status_msg;

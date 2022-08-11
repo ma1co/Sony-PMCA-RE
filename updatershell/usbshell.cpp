@@ -7,7 +7,6 @@
 #include "api/android_data_backup.hpp"
 #include "api/backup.hpp"
 #include "api/bootloader.hpp"
-#include "api/tweaks.hpp"
 #include "api/usbcmd.hpp"
 #include "usbshell.hpp"
 #include "usbtransfer.hpp"
@@ -42,6 +41,10 @@ struct usb_backup_write_request {
     int id;
     int size;
     char data[0xfff4];
+};
+
+struct usb_backup_data_request {
+    unsigned int size;
 };
 
 struct usb_backup_protection_request {
@@ -187,16 +190,29 @@ void usbshell_loop()
                 response.result = USB_RESULT_ERROR;
                 transfer->write(&response, sizeof(response));
             }
-        } else if (request.cmd == *(int *) "BKPR") {
-            usb_backup_protection_request *args = (usb_backup_protection_request *) request.data;
-            response.result = USB_RESULT_ERROR;
+        } else if (request.cmd == *(int *) "BKDW") {
+            usb_backup_data_request *args = (usb_backup_data_request *) request.data;
             try {
-                if (tweak_protection().is_available()) {
-                    tweak_protection().set_enabled(!args->enable);
-                    response.result = USB_RESULT_SUCCESS;
+                vector<char> data(args->size);
+                response.result = USB_RESULT_SUCCESS;
+                transfer->write(&response, sizeof(response));
+                usb_transfer_write_buffer(transfer, &data[0], data.size());
+                try {
+                    Backup_write_data(data);
+                } catch (...) {
+                    // ignore
                 }
             } catch (...) {
-                // ignore
+                response.result = USB_RESULT_ERROR;
+                transfer->write(&response, sizeof(response));
+            }
+        } else if (request.cmd == *(int *) "BKPR") {
+            usb_backup_protection_request *args = (usb_backup_protection_request *) request.data;
+            try {
+                Backup_set_protection(args->enable);
+                response.result = USB_RESULT_SUCCESS;
+            } catch (...) {
+                response.result = USB_RESULT_ERROR;
             }
             transfer->write(&response, sizeof(response));
 #endif

@@ -35,6 +35,10 @@ class UsbPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPlatfo
   ('data', Struct.STR % 0xfff4),
  ])
 
+ UsbBackupDataRequest = Struct('UsbBackupDataRequest', [
+  ('size', Struct.INT32),
+ ])
+
  UsbBackupProtectionRequest = Struct('UsbBackupProtectionRequest', [
   ('enable', Struct.INT32),
  ])
@@ -111,6 +115,10 @@ class UsbPlatformBackend(ShellPlatformBackend, FilePlatformBackend, MemoryPlatfo
   f = io.BytesIO()
   usb_transfer_read(self.transfer, f)
   return f.getvalue()
+
+ def setBackupData(self, data):
+  self._req(b'BKDW', self.UsbBackupDataRequest.pack(size=len(data)))
+  usb_transfer_write(self.transfer, io.BytesIO(data))
 
  def setBackupProtection(self, enable):
   self._req(b'BKPR', self.UsbBackupProtectionRequest.pack(enable=enable))
