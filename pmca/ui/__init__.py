@@ -72,6 +72,6 @@ class ScrollingText(Frame):
   Grid.rowconfigure(self, 0, weight=1)
   self.scrollbar = Scrollbar(self)
   self.scrollbar.grid(row=0, column=1, sticky=N+S)
-  self.text = Text(self, yscrollcommand=self.scrollbar.set)
+  self.text = Text(self, wrap=WORD, yscrollcommand=self.scrollbar.set)
   self.text.grid(row=0, column=0, sticky=N+S+W+E)
   self.scrollbar.config(command=self.text.yview)

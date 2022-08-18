@@ -169,7 +169,7 @@ class TweakApplyTask(BackgroundTask):
   self.ui.cancel()
 
 
-class InstallerUi(UiRoot):
+class MainUi(UiRoot):
  """Main window"""
  def __init__(self, title):
   UiRoot.__init__(self)
@@ -185,6 +185,10 @@ class InstallerUi(UiRoot):
   tabs.add(InstallerFrame(self, padding=10), text='Install app')
   tabs.add(UpdaterShellFrame(self, padding=10), text='Tweaks')
   tabs.add(FirmwareFrame(self, padding=10), text='Update firmware')
+
+  docsLink = Label(self, text='Camera compatibility', foreground='blue', cursor='hand2')
+  docsLink.bind('<Button-1>', lambda e: webbrowser.open_new(config.docsUrl + '/devices.html'))
+  docsLink.pack(pady=(0, 5))
 
   self.logText = ScrollingText(self)
   self.logText.text.configure(state=DISABLED)
@@ -318,7 +322,7 @@ class TweakDialog(UiDialog):
  def __init__(self, parent, tweakInterface, endFlag=None):
   self.tweakInterface = tweakInterface
   self.endFlag = endFlag
-  UiDialog.__init__(self, parent, "Updater mode tweaks")
+  UiDialog.__init__(self, parent, "Tweaks")
 
  def body(self, top):
   tweakFrame = Labelframe(top, padding=5)
@@ -357,7 +361,7 @@ class TweakDialog(UiDialog):
 
 def main():
  """Gui main"""
- ui = InstallerUi('pmca-gui' + (' ' + version if version else ''))
+ ui = MainUi('OpenMemories: pmca-gui' + (' ' + version if version else ''))
  ui.mainloop()
 
 
