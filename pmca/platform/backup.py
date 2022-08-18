@@ -96,8 +96,12 @@ class BackupFileDataInterface(BackupDataInterface):
  def setProtection(self, enabled):
   self.backup.setId1(enabled)
 
+ def getSize(self):
+  return self.backup.size
+
  def updateChecksum(self):
   self.backup.updateChecksum()
+
 
 class BackupPlatformFileDataInterface(BackupFileDataInterface):
  def __init__(self, backend):
@@ -109,7 +113,7 @@ class BackupPlatformFileDataInterface(BackupFileDataInterface):
   self.updateChecksum()
   data = self.file.getvalue()
   self.backend.setBackupData(data)
-  if self.backend.getBackupData()[0x100:] != data[0x100:]:
+  if self.backend.getBackupData()[0x100:self.getSize()] != data[0x100:self.getSize()]:
    raise Exception('Cannot overwrite backup')
 
 
@@ -124,6 +128,8 @@ class BackupPatchDataInterface(BackupPlatformFileDataInterface):
   return super(BackupPatchDataInterface, self).readProp(id)
 
  def writeProp(self, id, data):
+  if len(data) != len(self.backup.getProperty(id).data):
+   raise Exception('Wrong data size')
   self.patch[id] = data
 
  def getPatch(self):
