@@ -41,6 +41,7 @@ class CameraShell(Shell):
    bk = SubCommand()
    bk.addCommand('r', Command(self.readBackup, (1,), 'Read backup property', '<ID>'))
    bk.addCommand('w', ResidueCommand(self.writeBackup, 1, 'Write backup property', '<ID> <DATA>'))
+   bk.addCommand('patch', ResidueCommand(self.patchBackup, 1, 'Write backup property by patching the backup file', '<ID> <DATA>'))
    bk.addCommand('s', Command(self.syncBackup, (), 'Sync backup data to disk'))
    bk.addCommand('lock', Command(self.lockBackup, (), 'Lock protected backup settings'))
    bk.addCommand('unlock', Command(self.unlockBackup, (), 'Unlock protected backup settings'))
@@ -58,6 +59,15 @@ class CameraShell(Shell):
     i += 1
    fn += ('-%d' % i)
   return open(fn, 'wb')
+
+ def _parseHexData(self, data):
+  value = []
+  parser = ArgParser(data)
+  if not parser.available():
+   raise ValueError('Not enough arguments provided')
+  while parser.available():
+   value.append(int(parser.consumeRequiredArg(), 16))
+  return bytes(bytearray(value))
 
  def info(self):
   for id, desc, value in PropertyInterface(self.backend).getProps():
@@ -105,13 +115,16 @@ class CameraShell(Shell):
 
  def writeBackup(self, id, data):
   id = int(id, 16)
-  value = []
-  parser = ArgParser(data)
-  if not parser.available():
-   raise ValueError('Not enough arguments provided')
-  while parser.available():
-   value.append(int(parser.consumeRequiredArg(), 16))
-  self.backend.writeBackup(id, bytes(bytearray(value)))
+  value = self._parseHexData(data)
+  self.backend.writeBackup(id, value)
+  print('Success')
+
+ def patchBackup(self, id, data):
+  id = int(id, 16)
+  value = self._parseHexData(data)
+  patch = BackupPatchDataInterface(self.backend)
+  patch.writeProp(id, value)
+  patch.apply()
   print('Success')
 
  def syncBackup(self):
