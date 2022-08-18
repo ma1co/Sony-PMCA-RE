@@ -221,9 +221,9 @@ def getDevice(driver):
  """Check for exactly one Sony usb device"""
  devices = list(listDevices(driver))
  if not devices:
-  print('No devices found. Ensure your camera is connected.')
+  print('No devices found. Please make sure that the camera is connected.')
  elif len(devices) != 1:
-  print('Too many devices found. Only one camera is supported')
+  print('Error: Too many Sony devices found. Only one camera is supported.')
  else:
   return devices[0]
 
@@ -266,7 +266,7 @@ def infoCommand(driverName=None):
     except (InvalidCommandException, UnknownMscException):
      pass
    else:
-    print('Error: Cannot use camera in this mode.')
+    print('Error: Cannot use camera in this mode. Please switch to MTP or mass storage mode.')
     return
    for k, v in props:
     print('%-20s%s' % (k + ': ', v))
@@ -281,7 +281,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None)
    try:
     SonyExtCmdCamera(device).switchToAppInstaller()
    except InvalidCommandException:
-    print('Error: This device does not support apps')
+    print('Error: This camera does not support apps. Please check the compatibility list.')
     return
    device = None
 
@@ -301,7 +301,7 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None)
   if device and isinstance(device, SonyAppInstallDevice):
    installApp(device, apkFile, appPackage, outFile)
   elif device:
-   print('Error: Cannot use camera in this mode.')
+   print('Error: Cannot use camera in this mode. Please switch to MTP or mass storage mode.')
 
 
 def appSelectionCommand():
@@ -366,7 +366,7 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
 
     fdat = getFdat(model)
     if not fdat:
-     print('Unknown device: %s' % model)
+     print('Error: Model "%s" does not support custom firmware updates. Please check the compatibility list.' % model)
      return
 
    if not complete:
@@ -379,7 +379,7 @@ def updaterShellCommand(model=None, fdatFile=None, driverName=None, complete=Non
 
 def firmwareUpdateCommandInternal(driver, device, file, offset, size, complete=None):
  if not isinstance(device, SonyUpdaterDevice) and not isinstance(device, SonyExtCmdDevice):
-  print('Error: Cannot use camera in this mode.')
+  print('Error: Cannot use camera in this mode. Please switch to MTP or mass storage mode.')
   return
 
  dev = SonyUpdaterCamera(device)
@@ -660,7 +660,9 @@ def senserShellCommand(driverName=None, complete=None):
   device = getDevice(driver)
   if device and isinstance(device, SonyMscExtCmdDevice):
    if not isinstance(device.driver, GenericUsbDriver):
-    print('Error: Only libusb drivers are supported for service mode')
+    print('Error: Only libusb drivers are supported for switching to service mode.')
+    if sys.platform == 'win32':
+     print('Please use Zadig to install the libusb-win32 driver for the mass storage device.')
     return
 
    print('Switching to service mode')
@@ -685,7 +687,9 @@ def senserShellCommand(driverName=None, complete=None):
 
   if device and isinstance(device, SonySenserDevice):
    if not isinstance(device.driver, GenericUsbDriver):
-    print('Error: Only libusb drivers are supported for service mode')
+    print('Error: Only libusb drivers are supported for service mode.')
+    if sys.platform == 'win32':
+     print('Please use Zadig to install the libusb-win32 driver for the service mode device.')
     return
 
    print('Authenticating')
@@ -703,4 +707,4 @@ def senserShellCommand(driverName=None, complete=None):
     dev.stop()
    print('Done')
   elif device:
-   print('Error: Cannot use camera in this mode.')
+   print('Error: Cannot use camera in this mode. Please switch to mass storage mode.')
