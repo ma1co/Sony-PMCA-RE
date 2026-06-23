@@ -17,6 +17,18 @@ macOS binaries are also distributed, but less tested than the Windows equivalent
 
 The latest release binaries can be found in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
 
+If the packaged GUI opens with a black or empty window on recent macOS versions, run the GUI from source with Homebrew's Python/Tk instead:
+
+```bash
+brew install python@3.13 python-tk@3.13 libusb
+python3.13 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+sudo .venv/bin/python ./pmca-gui.py
+```
+
+On Apple silicon, Sony kernel extensions may require Reduced Security and explicit approval in System Settings before the camera can be accessed. The camera should be connected in Mass Storage mode with a data-capable USB cable. If the camera is detected by macOS but not by PMCA, try a USB 2.0 cable or hub and set the camera's USB LUN setting to Multi.
+
 ### Linux
 The application uses Python 3 and should work fine on Linux using libusb drivers.
 
