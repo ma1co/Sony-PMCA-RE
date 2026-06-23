@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
 """A simple gui interface"""
+import os
 import sys
 import traceback
 import webbrowser
+
+
+def configureMacTk():
+ """Suppress Tk deprecation noise on macOS."""
+ if sys.platform != 'darwin':
+  return
+
+ os.environ.setdefault('TK_SILENCE_DEPRECATION', '1')
+
+
+configureMacTk()
 
 import config
 from pmca.commands.usb import *
@@ -127,7 +139,9 @@ class StartPlatformShellTask(BackgroundTask):
 
   if next(tweaks.getTweaks(), None):
    endFlag = threading.Event()
-   root = self.ui.master
+   root = self.ui
+   while root and not hasattr(root, 'run'):
+    root = root.master
    root.run(lambda: root.after(0, lambda: TweakDialog(root, tweaks, endFlag)))
    endFlag.wait()
   else:
