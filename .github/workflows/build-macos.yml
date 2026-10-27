@@ -1,0 +1,106 @@
+# Builds the self-contained macOS app (Apple Silicon) and attaches it to GitHub releases.
+#
+# - Every push to master and every pull request: builds and uploads the app as a workflow artifact.
+# - Every tag starting with "v": builds and publishes a GitHub release with the .dmg attached.
+#
+# Signing and notarization are optional. Without them the app is ad-hoc signed and users have
+# to allow it once in System Settings > Privacy & Security ("Open Anyway"). To enable them, add
+# these repository secrets:
+#   MACOS_CERTIFICATE          base64-encoded Developer ID Application certificate (.p12)
+#   MACOS_CERTIFICATE_PASSWORD password of the .p12
+#   APPLE_ID                   Apple ID e-mail used for notarization
+#   APPLE_TEAM_ID              10-character team ID
+#   APPLE_APP_PASSWORD         app-specific password for the Apple ID
+
+name: Build macOS app
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on Apple Silicon
+    runs-on: macos-latest
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for "git describe" to find tags
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -c "import tkinter; print('Tk', tkinter.TkVersion)"
+          python -c "import libusb_package; print('libusb', libusb_package.find_library('libusb-1.0'))"
+          uname -m
+
+      - name: Import signing certificate
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p build build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p build build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k build build.keychain
+          IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          rm certificate.p12
+
+      - name: Build
+        run: |
+          python -OO -m PyInstaller --noconfirm pmca-console.spec
+          python -OO -m PyInstaller --noconfirm pmca-gui.spec
+          ls -la dist
+
+      - name: Notarize
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          DMG=$(ls dist/pmca-gui-*.dmg)
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Smoke test
+        run: |
+          ./dist/pmca-console-*-macos info || true
+          APP=$(ls -d dist/pmca-gui-*.app)
+          codesign --verify --deep --strict "$APP"
+          plutil -p "$APP/Contents/Info.plist" | grep CFBundleShortVersionString
+
+      - name: Package console binary
+        run: |
+          cd dist
+          CONSOLE=$(ls pmca-console-*-macos)
+          zip -q "$CONSOLE.zip" "$CONSOLE"
+          rm "$CONSOLE"
+          rm -rf pmca-gui-*.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pmca-macos
+          path: dist/*
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

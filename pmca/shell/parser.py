@@ -15,7 +15,7 @@ class ArgParser:
    return m
 
  def _consumeWhitespace(self):
-  m = self._consume('\s+')
+  m = self._consume(r'\s+')
   if m:
    return m.group(0)
 
@@ -31,7 +31,7 @@ class ArgParser:
   return self._consumeEscaped('"')
 
  def _consumeUnquoted(self):
-  m = self._consume('([^\s"\'\\\\]|\\\\[^\s])*(\\\\(?=(\s|$)))?')
+  m = self._consume('([^\\s"\'\\\\]|\\\\[^\\s])*(\\\\(?=(\\s|$)))?')
   if m and m.group(0) != '':
    return m.group(0)
 
@@ -43,7 +43,7 @@ class ArgParser:
 
  def _consumeArg(self):
   arg = ''
-  while self.available() and not self._match('\s'):
+  while self.available() and not self._match(r'\s'):
    for f in [self._consumeSingleQuoted, self._consumeDoubleQuoted, self._consumeUnquoted]:
     a = f()
     if a is not None:

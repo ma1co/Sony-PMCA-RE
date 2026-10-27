@@ -286,7 +286,8 @@ def installCommand(driverName=None, apkFile=None, appPackage=None, outFile=None)
    device = None
 
    print('Waiting for camera to switch...')
-   for i in range(10):
+   # macOS can take well over 5 seconds to enumerate the camera in its new mode
+   for i in range(60 if sys.platform == 'darwin' else 10):
     time.sleep(.5)
     try:
      devices = list(listDevices(driver, True))
@@ -673,7 +674,8 @@ def senserShellCommand(driverName=None, complete=None):
    device = None
    print('')
    print('Waiting for camera to switch...')
-   for i in range(10):
+   # macOS can take well over 5 seconds to enumerate the camera in its new mode
+   for i in range(60 if sys.platform == 'darwin' else 10):
     time.sleep(.5)
     try:
      devices = list(listDevices(driver, True))

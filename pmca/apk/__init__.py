@@ -1,26 +1,35 @@
-from axmlparserpy.axmlprinter import AXMLPrinter
 from asn1crypto.cms import ContentInfo
-from xml.dom import minidom
 from zipfile import ZipFile
+
+from .axml import parseElements
 
 class ApkParser:
  def __init__(self, file):
   self._file = ZipFile(file)
+  self._elements = None
 
- def getManifest(self):
-  return minidom.parseString(AXMLPrinter(self._file.read('AndroidManifest.xml')).getBuff())
+ def _getElements(self):
+  if self._elements is None:
+   self._elements = list(parseElements(self._file.read('AndroidManifest.xml')))
+  return self._elements
+
+ def _getRoot(self):
+  return self._getElements()[0]
+
+ def _getElement(self, name):
+  return next(e for e in self._getElements() if e.name == name)
 
  def getPackageName(self):
-  return self.getManifest().documentElement.getAttribute('package')
+  return self._getRoot().get('package')
 
  def getVersionCode(self):
-  return int(self.getManifest().documentElement.getAttribute('android:versionCode'))
+  return int(self._getRoot().get('versionCode'))
 
  def getVersionName(self):
-  return self.getManifest().documentElement.getAttribute('android:versionName')
+  return str(self._getRoot().get('versionName'))
 
  def getMinSdkVersion(self):
-  return int(self.getManifest().documentElement.getElementsByTagName('uses-sdk')[0].getAttribute('android:minSdkVersion'))
+  return int(self._getElement('uses-sdk').get('minSdkVersion'))
 
  def _getCerts(self):
   for info in self._file.infolist():

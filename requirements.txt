@@ -1,8 +1,9 @@
 asn1crypto
-axmlparserpy==0.0.4
 certifi
 comtypes; sys_platform == 'win32'
-pycparser==2.17 # https://github.com/eliben/pycparser/issues/291
+libusb-package; sys_platform == 'darwin'
+pycparser; sys_platform == 'darwin'
+pycparser==2.17; sys_platform != 'darwin' # https://github.com/eliben/pycparser/issues/291
 pycryptodomex
 pyinstaller
 pyusb

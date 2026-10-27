@@ -29,7 +29,7 @@ def getDevices(portalid):
   'localeid': constants.localeUs,
  }).data)
  contents = data['mycamera']['contents']
- r = re.compile('<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
+ r = re.compile(r'<div class="camera-manage-box" id="(?P<deviceid>\d*?)">.*?<td class = "w104 h20">(?P<name>.*?)</td>.*?<span class="sirial-hint">Serial:(?P<serial>.*?)</span>', re.DOTALL)
  return [MarketDevice(**m.groupdict()) for m in r.finditer(contents)]
 
 def getApps(devicename=None):
@@ -42,7 +42,7 @@ def getApps(devicename=None):
   'localeid': constants.localeUs,
  }).data)
  for app in data['contents']:
-  yield MarketApp(app['app_id'], re.sub('\s+', ' ', app['app_name']), app['appimg_url'], None if app['app_price'] == 'Free' else app['app_price'], int(app['regist_date']))
+  yield MarketApp(app['app_id'], re.sub(r'\s+', ' ', app['app_name']), app['appimg_url'], None if app['app_price'] == 'Free' else app['app_price'], int(app['regist_date']))
 
 def downloadXpd(portalid, deviceid, appid):
  """Fetches the xpd file for the given app

@@ -3,9 +3,16 @@ from http.server import BaseHTTPRequestHandler
 from socketserver import TCPServer
 from threading import Thread
 import tlslite
+import tlslite.utils.rijndael
 
 from . import *
 from .. import spk
+
+# tlslite wraps Rijndael.__init__ in a deprecation shim which reads the caller's
+# source lines through inspect. In a frozen (PyInstaller) build there is no source,
+# so the shim crashes with a TypeError and every TLS handshake fails. Unwrap it.
+if hasattr(tlslite.utils.rijndael.Rijndael.__init__, '__wrapped__'):
+ tlslite.utils.rijndael.Rijndael.__init__ = tlslite.utils.rijndael.Rijndael.__init__.__wrapped__
 
 
 class HttpHandler(BaseHTTPRequestHandler):
