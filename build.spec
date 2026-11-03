@@ -18,7 +18,8 @@ suffix = {'linux2': '-linux', 'win32': '-win', 'darwin': '-osx-' + platform.mach
 output += '-' + version + suffix.get(sys.platform, '')
 
 # Analyze files
-a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')])
+# tlslite inspects its own source code at runtime
+a = Analysis([input], excludes=excludes, datas=[('certs/*', 'certs')], module_collection_mode={'tlslite': 'pyz+py'})
 a.datas = [d for d in a.datas if not (d[0].startswith('certifi') and not d[0].endswith('cacert.pem'))]
 a.datas += Tree('updatershell/fdat', 'updatershell/fdat')
 
