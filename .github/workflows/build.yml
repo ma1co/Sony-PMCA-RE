@@ -1,20 +1,22 @@
 name: Build
 on: push
+permissions:
+  contents: write
 jobs:
   PyInstaller:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2019, macos-10.15]
+        os: [windows-2022, macos-15-intel, macos-14]
     defaults:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
-        python-version: 3.6
+        python-version: '3.10'
     - name: Install libusb (windows)
       if: runner.os == 'Windows'
       shell: pwsh
@@ -39,9 +41,9 @@ jobs:
       run: |
         dist/pmca-console* -h
     - name: Upload
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ runner.os }} binaries
+        name: ${{ runner.os }}-${{ runner.arch }} binaries
         path: dist/*
     - name: Release
       if: ${{ startsWith(github.ref, 'refs/tags/') && runner.os != 'Windows' }}
@@ -49,5 +51,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         tag="${GITHUB_REF##*/}"
-        assets="$(find dist/* -exec echo -a {} \;)"
-        hub release create $assets -m "$tag" "$tag" || hub release edit $assets -m "" "$tag"
+        gh release create "$tag" --title "$tag" --notes "" dist/* || gh release upload --clobber "$tag" dist/*
