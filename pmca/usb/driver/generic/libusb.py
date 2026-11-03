@@ -1,5 +1,7 @@
 """A wrapper to use libusb. Default on linux, on Windows you have to install a generic driver for your camera"""
 
+import sys
+
 import usb.core
 import usb.util
 
@@ -70,6 +72,10 @@ class UsbBackend(BaseUsbBackend):
     self.dev.detach_kernel_driver(0)
   except NotImplementedError:
    pass
+  except usb.core.USBError:
+   # Newer libusb versions on macOS can only detach kernel drivers as root
+   if sys.platform != 'darwin':
+    raise
 
  def clearHalt(self, ep):
   self.dev.clear_halt(ep)
