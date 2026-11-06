@@ -171,6 +171,8 @@ class BackupInterface:
   self.addProp('recLimit', CompoundBackupProp(dataInterface, [(0x003c0373 + i, 1) for i in range(3)]))
   self.addProp('recLimit4k', BackupProp(dataInterface, 0x003c04b6, 2))
   self.addProp('palNtscSelector', BackupProp(dataInterface, 0x01070148, 1))
+  self.addProp('palNtscSelectorXR', BackupProp(dataInterface, 0x02cf0004, 1))
+  self.addProp('palNtsc', BackupProp(dataInterface, 0x010704fd, 1))
   self.addProp('language', CompoundBackupProp(dataInterface, [(0x010d008f + i, 1) for i in range(35)]))
   self.addProp('usbAppInstaller', BackupProp(dataInterface, 0x01640001, 1))
 
