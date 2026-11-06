@@ -168,6 +168,7 @@ class TweakInterface:
   self.addTweak('recLimit4k', 'Disable 4K video recording limit', RecLimit4kTweak(backup))
   self.addTweak('language', 'Unlock all languages', LanguageTweak(backup))
   self.addTweak('palNtscSelector', 'Enable PAL / NTSC selector & warning', BooleanBackupTweak(backup, 'palNtscSelector'))
+  self.addTweak('palNtscSelectorXR', 'Enable PAL / NTSC selector & warning', BooleanBackupTweak(backup, 'palNtscSelectorXR'))
   self.addTweak('palNtsc', 'PAL / NTSC', PalNtscBackupTweak(backup))
   self.addTweak('usbAppInstaller', 'Enable USB app installer', BooleanBackupTweak(backup, 'usbAppInstaller'))
 
