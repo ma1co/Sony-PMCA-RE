@@ -101,6 +101,12 @@ def checkApk(apkFile):
   if sdk > 10:
    print('Warning: This app might not be compatible with the device (minSdkVersion = %d)' % sdk)
 
+  badIcons = apk.getNonBitmapLauncherIcons()
+  if badIcons:
+   print('WARNING: The launcher icon of this app is not a PNG bitmap (%s).' % ', '.join(badIcons))
+   print('         The camera launcher (ScalarALauncher) will crash on every boot, putting the camera into a boot loop.')
+   print('         Do not install this app until it uses a PNG icon.')
+
   try:
    apk.getCert()
   except:
