@@ -12,6 +12,10 @@ class AndroidInterface:
  def installApk(self, apkFile):
   apk = ApkParser(apkFile)
 
+  badIcons = apk.getNonBitmapLauncherIcons()
+  if badIcons:
+   raise Exception('Launcher icon is not a PNG bitmap (%s). This would crash the camera launcher on every boot (boot loop). Not installing.' % ', '.join(badIcons))
+
   # Mount android data partition
   dataDir = self.backend.mountAndroidData()
   commitBackup = False
